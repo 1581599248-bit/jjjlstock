@@ -7,9 +7,10 @@ export async function POST(request: Request) {
   if (!codes.length || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) return Response.json({ error: "参数无效" }, { status: 400 });
   const results: Array<{ holdings: Awaited<ReturnType<typeof fetchFundHoldings>>; netAsset: number | null }> = [];
   let failed = 0;
-  for (let index = 0; index < codes.length; index += 8) {
-    const batch = await Promise.allSettled(codes.slice(index, index + 8).map(async (code) => {
-      const [holdings, netAsset] = await Promise.all([fetchFundHoldings(code, period), fetchFundNetAsset(code, period)]);
+  for (let index = 0; index < codes.length; index += 4) {
+    const batch = await Promise.allSettled(codes.slice(index, index + 4).map(async (code) => {
+      const holdings = await fetchFundHoldings(code, period);
+      const netAsset = await fetchFundNetAsset(code, period);
       return { holdings, netAsset };
     }));
     for (const item of batch) item.status === "fulfilled" ? results.push(item.value) : failed += 1;

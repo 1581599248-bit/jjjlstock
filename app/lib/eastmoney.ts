@@ -4,6 +4,7 @@ const MANAGER_API = "https://fund.eastmoney.com/Data/FundDataPortfolio_Interface
 const FUND_LIST_API = "https://fund.eastmoney.com/Data/Fund_JJJZ_Data.aspx";
 const HOLDINGS_API = "https://fundf10.eastmoney.com/FundArchivesDatas.aspx";
 const QUOTE_API = "https://push2.eastmoney.com/api/qt/stock/get";
+const COMPANY_SURVEY_API = "https://emweb.securities.eastmoney.com/PC_HSF10/CompanySurvey/PageAjax";
 const HEADERS = { "user-agent": "Mozilla/5.0 (compatible; FundHoldingsRadar/1.0)", referer: "https://fund.eastmoney.com/" };
 
 function unescapeHtml(value: string) {
@@ -12,7 +13,7 @@ function unescapeHtml(value: string) {
 
 async function fetchText(url: string, referer = HEADERS.referer) {
   let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
@@ -23,7 +24,7 @@ async function fetchText(url: string, referer = HEADERS.referer) {
       return text;
     } catch (error) {
       lastError = error;
-      if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 350));
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 450 * (attempt + 1)));
     } finally { clearTimeout(timeout); }
   }
   throw lastError instanceof Error ? lastError : new Error("upstream request failed");
@@ -157,6 +158,16 @@ function securityId(code: string) {
 }
 
 export async function fetchStockIndustry(code: string) {
+  const digits = code.replace(/\D/g, "");
+  if (digits.length === 6) {
+    const marketCode = `${/^[569]/.test(digits) ? "SH" : /^[48]/.test(digits) ? "BJ" : "SZ"}${digits}`;
+    try {
+      const text = await fetchText(`${COMPANY_SURVEY_API}?${new URLSearchParams({ code: marketCode })}`, "https://emweb.securities.eastmoney.com/");
+      const payload = JSON.parse(text) as { jbzl?: Array<{ EM2016?: string | null }> };
+      const levels = payload.jbzl?.[0]?.EM2016?.split("-").map((item) => item.trim()).filter(Boolean) ?? [];
+      if (levels.length) return levels[1] ?? levels[0];
+    } catch { /* fall through to the quote endpoint */ }
+  }
   const params = new URLSearchParams({ secid: securityId(code), fields: "f57,f58,f127" });
   const text = await fetchText(`${QUOTE_API}?${params}`, "https://quote.eastmoney.com/");
   const payload = JSON.parse(text) as { data?: { f127?: string } | null };

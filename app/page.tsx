@@ -71,13 +71,26 @@ export default function Home() {
   useEffect(() => {
     if (!companyId) return;
     setCompanyLoading(true); setError(""); setQuery("");
+    setCompanyData(null);
     fetch(`/api/company?id=${encodeURIComponent(companyId)}`).then(async (response) => { if (!response.ok) throw new Error("公司数据加载失败"); return response.json(); }).then((result: CompanyPayload) => {
-      setCompanyData(result); setSelectedManagerId(result.company.managers[0]?.id ?? ""); setSelectedFundCode(result.funds[0]?.code ?? "");
+      setCompanyData(result); setSelectedFundCode(result.funds[0]?.code ?? "");
     }).catch((reason) => setError(reason.message)).finally(() => setCompanyLoading(false));
   }, [companyId]);
 
-  const managers = companyData?.company.managers ?? company?.managers ?? [];
-  const funds = companyData?.funds ?? [];
+  const managers = company?.managers ?? companyData?.company.managers ?? [];
+  const managerByFund = useMemo(() => {
+    const result = new Map<string, string[]>();
+    for (const manager of managers) for (const code of manager.fundCodes) {
+      const names = result.get(code) ?? [];
+      names.push(manager.name);
+      result.set(code, names);
+    }
+    return result;
+  }, [managers]);
+  const funds = useMemo(() => (companyData?.funds ?? []).map((fund) => ({ ...fund, managers: managerByFund.get(fund.code) ?? fund.managers })), [companyData?.funds, managerByFund]);
+  useEffect(() => {
+    if (managers.length && !managers.some((item) => item.id === selectedManagerId)) setSelectedManagerId(managers[0].id);
+  }, [managers, selectedManagerId]);
   const filteredManagers = useMemo(() => { const key = query.trim().toLowerCase(); return key ? managers.filter((item) => `${item.name} ${item.fundNames.join(" ")}`.toLowerCase().includes(key)) : managers; }, [managers, query]);
   const filteredFunds = useMemo(() => { const key = query.trim().toLowerCase(); return key ? funds.filter((item) => `${item.code} ${item.name} ${item.pinyin} ${item.managers.join(" ")}`.toLowerCase().includes(key)) : funds; }, [funds, query]);
   const selectedManager = managers.find((item) => item.id === selectedManagerId) ?? managers[0];
@@ -117,7 +130,7 @@ export default function Home() {
         {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div><div><small>数据源</small><b>东方财富</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <FundTable rows={fundHoldings?.holdings ?? []} />}</>}
       </div>
     </section>
-    <section className="method"><div><span>自动化数据链路</span><h2>实时索引 → 公司全量 → 单体持仓 → 季度缓存</h2></div><ol><li><b>主源</b> iFind 官方 API：账号具备数据接口权限后优先启用。</li><li><b>容灾</b> 东方财富：自动取得公司、经理、基金与定期报告持仓。</li><li><b>更新</b> 每 6 小时探测最新财报期；中报公开后自动出现 2026-06-30。</li><li><b>口径</b> 基金净值占比取定期报告披露值；基金经理口径汇总去重后的在管产品。</li></ol></section>
+    <section className="method"><div><span>自动化数据链路</span><h2>实时索引 → 公司全量 → 单体持仓 → 季度缓存</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、期末净资产和定期报告持仓。</li><li><b>专业源</b> iFind 尚未配置生产 API 授权，接入后可作为主源并保留东方财富容灾。</li><li><b>更新</b> 每 6 小时刷新基金经理、在管关系、基金产品并探测最新财报期。</li><li><b>口径</b> 基金净值占比取定期报告披露值；基金经理口径汇总去重后的在管产品。</li></ol></section>
     <footer><strong>全市场持仓雷达</strong><span>索引更新 {market?.generatedAt ? new Date(market.generatedAt).toLocaleString("zh-CN") : "读取中"} · 数据仅供研究</span></footer>
   </main>;
 }
