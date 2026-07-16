@@ -96,8 +96,11 @@ function parseQuarterTables(text: string) {
     const rows: Omit<Holding, "change" | "changeShares">[] = [];
     for (const rowMatch of match[2].matchAll(/<tr>([\s\S]*?)<\/tr>/g)) {
       const cells = [...rowMatch[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => stripTags(cell[1]));
-      if (cells.length < 7) continue;
-      rows.push({ rank: Number.parseInt(cells[0], 10) || rows.length + 1, stockCode: cells[1], stockName: cells[2], weight: Number.parseFloat(cells[4].replace("%", "")) || 0, shares: Number.parseFloat(cells[5].replace(/,/g, "")) || 0, marketValue: Number.parseFloat(cells[6].replace(/,/g, "")) || 0 });
+      if (cells.length < 6) continue;
+      const weightCell = cells.at(-3) ?? "";
+      const sharesCell = cells.at(-2) ?? "";
+      const marketValueCell = cells.at(-1) ?? "";
+      rows.push({ rank: Number.parseInt(cells[0], 10) || rows.length + 1, stockCode: cells[1], stockName: cells[2], weight: Number.parseFloat(weightCell.replace("%", "")) || 0, shares: Number.parseFloat(sharesCell.replace(/,/g, "")) || 0, marketValue: Number.parseFloat(marketValueCell.replace(/,/g, "")) || 0 });
     }
     result.set(match[1], rows.slice(0, 10));
   }
