@@ -16,9 +16,8 @@ assert.ok(fund.holdings.every((item) => item.weight > 0));
 assert.ok(fund.holdings.every((item) => ["新进", "增持", "减持", "不变", "未知"].includes(item.change)));
 
 const manager = await call("/api/manager-holdings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ codes: ["001924", "010692"], period: "2026-03-31" }) });
-assert.ok(manager.estimatedNav > 0);
+assert.ok(manager.managedNav > 0);
 assert.ok(manager.holdings.length > 0);
-assert.ok(manager.holdings.every((item) => Number.isFinite(item.estimatedWeight) && item.estimatedWeight >= 0));
+assert.ok(manager.holdings.every((item) => Number.isFinite(item.weight) && item.weight >= 0));
 assert.ok(manager.holdings.every((item) => ["新进", "增持", "减持", "不变"].includes(item.change)));
-console.log(JSON.stringify({ fund: fund.holdings[0], manager: { estimatedNav: manager.estimatedNav, first: manager.holdings[0] } }));
-
+console.log(JSON.stringify({ fund: fund.holdings[0], manager: { managedNav: manager.managedNav, first: manager.holdings[0] } }));

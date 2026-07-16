@@ -136,3 +136,15 @@ export async function fetchFundHoldings(code: string, period: string): Promise<F
   return { code, period, source: "东方财富基金公开数据", fetchedAt: new Date().toISOString(), holdings };
 }
 
+export async function fetchFundNetAsset(code: string, period: string) {
+  if (!/^\d{6}$/.test(code) || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("invalid net asset query");
+  const params = new URLSearchParams({ type: "gmbd", code, rt: String(Date.now()) });
+  const text = await fetchText(`${HOLDINGS_API}?${params}`, `https://fundf10.eastmoney.com/gmbd_${code}.html`);
+  for (const rowMatch of text.matchAll(/<tr>([\s\S]*?)<\/tr>/g)) {
+    const cells = [...rowMatch[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => stripTags(cell[1]));
+    if (cells[0] !== period || cells.length < 5) continue;
+    const netAssetYi = Number.parseFloat(cells[4].replace(/,/g, ""));
+    return Number.isFinite(netAssetYi) ? netAssetYi * 10_000 : null;
+  }
+  return null;
+}
