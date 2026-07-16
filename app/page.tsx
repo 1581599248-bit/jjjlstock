@@ -1,84 +1,123 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import dataset from "./data/fund-data.json";
-import { exportCompanyWorkbook } from "./lib/xlsx";
+import { useEffect, useMemo, useState } from "react";
+import { exportHoldingsWorkbook } from "./lib/export-xlsx";
+import type { CompanyIndex, FundHoldings, FundItem, Holding, ManagerIndex, MarketIndex } from "./types";
 
-type Holding = { rank: number; stock: string; weight: number; change: string; changeShares: number | null };
-type Fund = { id: string; name: string; size: number; managers: string[]; return1y: number; type: string; holdings: Holding[]; concepts: { name: string; weight: number }[]; concentration: number };
-type Manager = { id: string; name: string; size: number; tenure: number; fundCount: number; equityFundCount: number; managedFundNames: string[]; holdings: Holding[]; concentration: number; aggregation: string };
-type Company = (typeof dataset.companies)[number];
+type CompanyPayload = { company: CompanyIndex; funds: FundItem[]; mode: "live" | "snapshot" };
+type ManagerHolding = { rank: number; stockCode: string; stockName: string; marketValue: number; fundCount: number };
+type ManagerPayload = { period: string; requested: number; succeeded: number; failed: number; holdings: ManagerHolding[]; source: string };
+const FALLBACK_PERIODS = ["2026-03-31", "2025-12-31", "2025-09-30"];
 
 const fmt = (value: number, digits = 1) => new Intl.NumberFormat("zh-CN", { maximumFractionDigits: digits }).format(value);
+const periodLabel = (period: string) => `${period.slice(0, 4)} ${period.slice(5, 7) === "03" ? "一季报" : period.slice(5, 7) === "06" ? "中报" : period.slice(5, 7) === "09" ? "三季报" : "年报"}`;
 
-function ChangeTag({ holding }: { holding: Holding }) {
-  const tone = holding.change.includes("增") || holding.change.includes("新") ? "up" : holding.change.includes("减") ? "down" : "flat";
-  return <span className={`change-tag ${tone}`}><span className="change-dot" />{holding.change}{holding.changeShares !== null && holding.changeShares !== 0 ? ` ${holding.changeShares > 0 ? "+" : ""}${fmt(holding.changeShares, 0)}` : ""}</span>;
+function representativeCodes(manager: ManagerIndex) {
+  const result = new Map<string, string>();
+  manager.fundCodes.forEach((code, index) => {
+    const name = manager.fundNames[index] ?? code;
+    const key = name.replace(/\((?:QDII|FOF)\)/gi, "").replace(/[A-EHIOY]$/, "").replace(/人民币.*$/, "").trim();
+    if (!result.has(key)) result.set(key, code);
+  });
+  return [...result.values()];
 }
 
-function HoldingsTable({ holdings }: { holdings: Holding[] }) {
-  if (!holdings.length) return <div className="empty-table">该对象本期未披露股票重仓持仓</div>;
-  return <div className="table-scroll" role="region" aria-label="前十大重仓股，可横向滚动" tabIndex={0}>
-    <table className="holdings-table"><thead><tr><th>排名</th><th>股票名称</th><th className="num">占净值</th><th>持仓变化</th></tr></thead>
-      <tbody>{holdings.map((holding) => <tr key={`${holding.rank}-${holding.stock}`}><td><span className={`rank rank-${holding.rank}`}>{holding.rank}</span></td><td className="stock-name">{holding.stock}</td><td className="num weight-cell">{fmt(holding.weight, 2)}%</td><td><ChangeTag holding={holding} /></td></tr>)}</tbody>
-    </table>
-  </div>;
+function Skeleton({ label }: { label: string }) { return <div className="loading-state"><span className="spinner" />{label}</div>; }
+
+function FundTable({ rows }: { rows: Holding[] }) {
+  if (!rows.length) return <div className="empty-state">该财报期未披露股票前十大持仓</div>;
+  return <div className="table-wrap" tabIndex={0} role="region" aria-label="基金前十大重仓股，可横向滚动"><table><thead><tr><th>#</th><th>股票</th><th>代码</th><th className="num">占净值</th><th className="num">持股/万</th><th className="num">市值/万</th><th>变化</th></tr></thead><tbody>{rows.map((row) => <tr key={row.stockCode}><td><b className={`rank r${row.rank}`}>{row.rank}</b></td><td><strong>{row.stockName}</strong></td><td className="muted mono">{row.stockCode}</td><td className="num accent">{fmt(row.weight, 2)}%</td><td className="num mono">{fmt(row.shares, 2)}</td><td className="num mono">{fmt(row.marketValue, 0)}</td><td><span className={`change ${row.change === "增持" || row.change === "新进" ? "up" : row.change === "减持" ? "down" : "flat"}`}>{row.change}{row.changeShares ? ` ${row.changeShares > 0 ? "+" : ""}${fmt(row.changeShares, 1)}` : ""}</span></td></tr>)}</tbody></table></div>;
 }
 
-function FundPanel({ fund }: { fund: Fund }) {
-  return <><div className="entity-head"><div><span className="eyebrow">基金产品</span><h2>{fund.name}</h2><p>{fund.managers.join("、") || "经理未披露"} · {fund.type}</p></div><span className="source-pill">iFind</span></div>
-    <div className="metric-strip"><div><span>基金规模</span><strong>{fmt(fund.size, 2)}亿</strong></div><div><span>近1年</span><strong className={fund.return1y >= 0 ? "positive" : "negative"}>{fund.return1y >= 0 ? "+" : ""}{fmt(fund.return1y, 2)}%</strong></div><div><span>前十集中度</span><strong>{fmt(fund.concentration, 1)}%</strong></div></div>
-    {fund.concepts.length > 0 && <div className="concept-row" aria-label="主要概念暴露">{fund.concepts.slice(0, 5).map((concept) => <span key={concept.name}>{concept.name}<b>{fmt(concept.weight, 1)}%</b></span>)}</div>}
-    <HoldingsTable holdings={fund.holdings} /></>;
-}
-
-function ManagerPanel({ manager }: { manager: Manager }) {
-  return <><div className="entity-head"><div><span className="eyebrow">基金经理</span><h2>{manager.name}</h2><p>{manager.aggregation}</p></div><span className="source-pill estimate">估算</span></div>
-    <div className="metric-strip manager-metrics"><div><span>在管规模</span><strong>{fmt(manager.size, 1)}亿</strong></div><div><span>投资年限</span><strong>{fmt(manager.tenure, 2)}年</strong></div><div><span>在管基金</span><strong>{manager.fundCount}只</strong></div><div><span>前十集中度</span><strong>{fmt(manager.concentration, 1)}%</strong></div></div>
-    {manager.managedFundNames.length > 0 && <details className="managed-funds"><summary>查看在管产品（{manager.managedFundNames.length}）</summary><p>{manager.managedFundNames.join("、")}</p></details>}
-    <HoldingsTable holdings={manager.holdings} /></>;
+function ManagerTable({ rows }: { rows: ManagerHolding[] }) {
+  if (!rows.length) return <div className="empty-state">在管基金未披露股票前十大持仓</div>;
+  return <div className="table-wrap" tabIndex={0} role="region" aria-label="基金经理汇总前十大重仓股，可横向滚动"><table><thead><tr><th>#</th><th>股票</th><th>代码</th><th className="num">汇总市值/万</th><th className="num">涉及基金</th></tr></thead><tbody>{rows.map((row) => <tr key={row.stockCode}><td><b className={`rank r${row.rank}`}>{row.rank}</b></td><td><strong>{row.stockName}</strong></td><td className="muted mono">{row.stockCode}</td><td className="num accent mono">{fmt(row.marketValue, 0)}</td><td className="num mono">{row.fundCount}</td></tr>)}</tbody></table></div>;
 }
 
 export default function Home() {
-  const [period, setPeriod] = useState("2026Q1");
-  const [companyId, setCompanyId] = useState(dataset.companies[0].id);
+  const [market, setMarket] = useState<MarketIndex | null>(null);
+  const [marketMode, setMarketMode] = useState<"live" | "snapshot">("snapshot");
+  const [periods, setPeriods] = useState(FALLBACK_PERIODS);
+  const [period, setPeriod] = useState(FALLBACK_PERIODS[0]);
+  const [companyId, setCompanyId] = useState("80000222");
+  const [companyData, setCompanyData] = useState<CompanyPayload | null>(null);
   const [mode, setMode] = useState<"manager" | "fund">("manager");
   const [query, setQuery] = useState("");
-  const [selectedManagerId, setSelectedManagerId] = useState<Record<string, string>>({});
-  const [selectedFundId, setSelectedFundId] = useState<Record<string, string>>({});
-  const [exporting, setExporting] = useState(false);
-  const company = dataset.companies.find((item) => item.id === companyId) as Company;
-  const managers = company.managers as Manager[];
-  const funds = company.funds as Fund[];
+  const [selectedManagerId, setSelectedManagerId] = useState("");
+  const [selectedFundCode, setSelectedFundCode] = useState("");
+  const [fundHoldings, setFundHoldings] = useState<FundHoldings | null>(null);
+  const [managerHoldings, setManagerHoldings] = useState<ManagerPayload | null>(null);
+  const [companyLoading, setCompanyLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const filteredManagers = useMemo(() => { const keyword = query.trim().toLowerCase(); return keyword ? managers.filter((manager) => `${manager.name} ${manager.managedFundNames.join(" ")} ${manager.holdings.map((item) => item.stock).join(" ")}`.toLowerCase().includes(keyword)) : managers; }, [managers, query]);
-  const filteredFunds = useMemo(() => { const keyword = query.trim().toLowerCase(); return keyword ? funds.filter((fund) => `${fund.name} ${fund.type} ${fund.managers.join(" ")} ${fund.holdings.map((item) => item.stock).join(" ")}`.toLowerCase().includes(keyword)) : funds; }, [funds, query]);
-  const selectedManager = managers.find((item) => item.id === selectedManagerId[company.id]) ?? filteredManagers.find((item) => item.holdings.length > 0) ?? filteredManagers[0] ?? managers[0];
-  const selectedFund = funds.find((item) => item.id === selectedFundId[company.id]) ?? filteredFunds.find((item) => item.holdings.length > 0) ?? filteredFunds[0] ?? funds[0];
-  const activeEntities = mode === "manager" ? filteredManagers : filteredFunds;
-  const selectedId = mode === "manager" ? selectedManager?.id : selectedFund?.id;
-  const aggregateStocks = useMemo(() => { const map = new Map<string, { stock: string; funds: number; value: number }>(); for (const fund of funds) for (const holding of fund.holdings) { const current = map.get(holding.stock) ?? { stock: holding.stock, funds: 0, value: 0 }; current.funds += 1; current.value += fund.size * holding.weight / 100; map.set(holding.stock, current); } return [...map.values()].sort((a, b) => b.value - a.value).slice(0, 5); }, [funds]);
-  const onSelectEntity = (id: string) => mode === "manager" ? setSelectedManagerId((state) => ({ ...state, [company.id]: id })) : setSelectedFundId((state) => ({ ...state, [company.id]: id }));
-  const onExport = async () => { setExporting(true); try { await exportCompanyWorkbook(company, dataset.methodology); } finally { window.setTimeout(() => setExporting(false), 500); } };
+  useEffect(() => {
+    Promise.all([fetch("/api/market").then((response) => response.json()), fetch("/api/periods").then((response) => response.json())]).then(([marketResult, periodResult]) => {
+      setMarket(marketResult); setMarketMode(marketResult.mode ?? "snapshot");
+      const nextPeriods = periodResult.periods?.length ? periodResult.periods : FALLBACK_PERIODS; setPeriods(nextPeriods); setPeriod(nextPeriods[0]);
+      if (!marketResult.companies.some((item: CompanyIndex) => item.id === companyId)) setCompanyId(marketResult.companies[0]?.id ?? "");
+    }).catch(() => setError("全市场索引加载失败，请稍后重试"));
+    fetch("/api/market-live").then((response) => response.json()).then((result) => { if (result.mode === "live" && result.companyCount > 100) { setMarket(result); setMarketMode("live"); } }).catch(() => undefined);
+  }, []);
 
+  const company = useMemo(() => market?.companies.find((item) => item.id === companyId) ?? null, [market, companyId]);
+  useEffect(() => {
+    if (!companyId) return;
+    setCompanyLoading(true); setError(""); setQuery("");
+    fetch(`/api/company?id=${encodeURIComponent(companyId)}`).then(async (response) => { if (!response.ok) throw new Error("公司数据加载失败"); return response.json(); }).then((result: CompanyPayload) => {
+      setCompanyData(result); setSelectedManagerId(result.company.managers[0]?.id ?? ""); setSelectedFundCode(result.funds[0]?.code ?? "");
+    }).catch((reason) => setError(reason.message)).finally(() => setCompanyLoading(false));
+  }, [companyId]);
+
+  const managers = companyData?.company.managers ?? company?.managers ?? [];
+  const funds = companyData?.funds ?? [];
+  const filteredManagers = useMemo(() => { const key = query.trim().toLowerCase(); return key ? managers.filter((item) => `${item.name} ${item.fundNames.join(" ")}`.toLowerCase().includes(key)) : managers; }, [managers, query]);
+  const filteredFunds = useMemo(() => { const key = query.trim().toLowerCase(); return key ? funds.filter((item) => `${item.code} ${item.name} ${item.pinyin} ${item.managers.join(" ")}`.toLowerCase().includes(key)) : funds; }, [funds, query]);
+  const selectedManager = managers.find((item) => item.id === selectedManagerId) ?? managers[0];
+  const selectedFund = funds.find((item) => item.code === selectedFundCode) ?? funds[0];
+
+  useEffect(() => {
+    if (mode !== "fund" || !selectedFund?.code || !period) return;
+    setDetailLoading(true); setFundHoldings(null); setError("");
+    fetch(`/api/holdings?code=${selectedFund.code}&period=${period}`).then(async (response) => { if (!response.ok) throw new Error("基金持仓加载失败"); return response.json(); }).then(setFundHoldings).catch((reason) => setError(reason.message)).finally(() => setDetailLoading(false));
+  }, [mode, selectedFund?.code, period]);
+
+  useEffect(() => {
+    if (mode !== "manager" || !selectedManager?.id || !period) return;
+    setDetailLoading(true); setManagerHoldings(null); setError("");
+    fetch("/api/manager-holdings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ codes: representativeCodes(selectedManager), period }) }).then(async (response) => { if (!response.ok) throw new Error("经理持仓汇总失败"); return response.json(); }).then(setManagerHoldings).catch((reason) => setError(reason.message)).finally(() => setDetailLoading(false));
+  }, [mode, selectedManager?.id, period]);
+
+  const exportCurrent = () => {
+    if (!company) return;
+    if (mode === "fund" && selectedFund && fundHoldings) exportHoldingsWorkbook({ companyName: company.name, entityType: "基金", entityName: selectedFund.name, entityCode: selectedFund.code, period, holdings: fundHoldings.holdings, notes: [["基金经理", selectedFund.managers.join("、") || "未匹配"], ["数据源", fundHoldings.source]] });
+    if (mode === "manager" && selectedManager && managerHoldings) exportHoldingsWorkbook({ companyName: company.name, entityType: "基金经理", entityName: selectedManager.name, period, holdings: managerHoldings.holdings, notes: [["在管基金", selectedManager.fundCodes.length], ["参与汇总基金", managerHoldings.succeeded], ["失败基金", managerHoldings.failed], ["数据源", managerHoldings.source]] });
+  };
+
+  const canExport = mode === "fund" ? Boolean(fundHoldings) : Boolean(managerHoldings);
   return <main>
-    <header className="topbar"><div className="brand-mark">持</div><div className="brand-copy"><strong>持仓雷达</strong><span>公募基金季度透视</span></div><span className="live-status"><i />数据已载入</span></header>
-    <section className="hero"><span className="hero-kicker">FUND HOLDINGS INTELLIGENCE</span><h1>一个入口，穿透基金公司全部重仓</h1><p>按财报期查看基金经理与基金产品前十大持仓，手机端快速检索，一键导出完整 Excel。</p></section>
-    <section className="selector-card" aria-label="数据筛选">
-      <label><span>最新财报</span><select value={period} onChange={(event) => setPeriod(event.target.value)}>{dataset.availablePeriods.map((item) => <option key={item.id} value={item.id} disabled={item.status !== "available"}>{item.label}{item.status !== "available" ? " · 待导入" : ""}</option>)}</select></label>
-      <label><span>基金公司</span><select value={companyId} onChange={(event) => { setCompanyId(event.target.value); setQuery(""); }}>{dataset.companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-      <button className="export-button" onClick={onExport} disabled={exporting}><span className="download-icon">↓</span>{exporting ? "正在生成…" : "导出全公司 Excel"}</button>
+    <header className="topbar"><div className="logo">仓</div><div><strong>全市场持仓雷达</strong><small>PUBLIC FUND HOLDINGS</small></div><span className={`health ${marketMode}`}><i />{marketMode === "live" ? "实时索引" : "快照已加载"}</span></header>
+    <section className="hero"><p className="kicker">QUARTERLY OWNERSHIP INTELLIGENCE</p><h1>全市场基金与基金经理<br />近三期重仓股</h1><p>覆盖全部基金公司，按公司穿透全部基金与基金经理；最新报告期自动发现，数据按需加载并可导出高密度 Excel。</p><div className="market-strip"><span><b>{market?.companyCount ?? "—"}</b> 管理机构</span><span><b>{fmt(market?.managerCount ?? 0, 0)}</b> 基金经理</span><span><b>{fmt(market?.managedFundCount ?? 0, 0)}</b> 在管基金代码</span></div></section>
+    <section className="controls">
+      <label><span>最新财报期 · 自动探测</span><select value={period} onChange={(event) => setPeriod(event.target.value)}>{periods.map((item) => <option key={item} value={item}>{periodLabel(item)} · {item}</option>)}</select></label>
+      <label><span>基金公司 · 全市场</span><select value={companyId} onChange={(event) => setCompanyId(event.target.value)} disabled={!market}>{market?.companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
     </section>
-    <section className="stats-grid" aria-label="公司概览"><div><span>基金产品</span><strong>{company.stats.fundCount}</strong><small>只</small></div><div><span>基金经理</span><strong>{company.stats.managerCount}</strong><small>位</small></div><div><span>样本规模</span><strong>{fmt(company.stats.totalSize, 0)}</strong><small>亿元</small></div><div><span>有股票持仓</span><strong>{company.stats.equityFundCount}</strong><small>只</small></div></section>
-    <section className="module-shell">
-      <div className="segment" role="tablist" aria-label="持仓模块"><button className={mode === "manager" ? "active" : ""} onClick={() => setMode("manager")} role="tab">基金经理</button><button className={mode === "fund" ? "active" : ""} onClick={() => setMode("fund")} role="tab">基金产品</button></div>
-      <div className="search-box"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "manager" ? "搜经理、在管基金或股票" : "搜基金、经理、类型或股票"} />{query && <button onClick={() => setQuery("")} aria-label="清除搜索">×</button>}</div>
-      <div className="entity-list-head"><span>{mode === "manager" ? "全部基金经理" : "全部基金产品"}</span><small>{activeEntities.length} 个结果 · 左右滑动</small></div>
-      <div className="entity-chips">{activeEntities.map((entity) => <button key={entity.id} className={selectedId === entity.id ? "active" : ""} onClick={() => onSelectEntity(entity.id)}>{entity.name}<small>{mode === "manager" ? `${(entity as Manager).fundCount}只 · ${fmt((entity as Manager).size, 0)}亿` : `${(entity as Fund).type} · ${fmt((entity as Fund).size, 1)}亿`}</small></button>)}{!activeEntities.length && <p className="no-results">没有匹配结果，换个关键词试试。</p>}</div>
-      <div className="entity-panel">{mode === "manager" && selectedManager && <ManagerPanel manager={selectedManager} />}{mode === "fund" && selectedFund && <FundPanel fund={selectedFund} />}</div>
+    <section className="coverage"><div><small>该公司基金</small><strong>{companyLoading ? "…" : funds.length}</strong></div><div><small>基金经理</small><strong>{companyLoading ? "…" : managers.length}</strong></div><div><small>数据状态</small><strong className="status-text">{companyData?.mode === "live" ? "实时" : "回退"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section>
+    <section className="workspace">
+      <div className="tabs"><button className={mode === "manager" ? "active" : ""} onClick={() => setMode("manager")}>基金经理</button><button className={mode === "fund" ? "active" : ""} onClick={() => setMode("fund")}>基金产品</button></div>
+      <div className="entity-tools"><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "manager" ? "搜索经理、在管基金" : "搜索基金代码、名称、经理"} />{query && <button onClick={() => setQuery("")}>×</button>}</div><button className="export" onClick={exportCurrent} disabled={!canExport || detailLoading}>导出当前 Excel</button></div>
+      {companyLoading ? <Skeleton label="正在读取该公司全部基金与经理…" /> : <>
+        <div className="result-head"><strong>{mode === "manager" ? "全部基金经理" : "全部基金"}</strong><span>{mode === "manager" ? filteredManagers.length : filteredFunds.length} 条 · 横向滑动</span></div>
+        <div className="entity-rail">{mode === "manager" ? filteredManagers.map((item) => <button key={item.id} className={item.id === selectedManager?.id ? "active" : ""} onClick={() => setSelectedManagerId(item.id)}><strong>{item.name}</strong><small>{item.fundCodes.length} 只 · 从业 {fmt(item.tenureDays / 365, 1)} 年</small></button>) : filteredFunds.map((item) => <button key={item.code} className={item.code === selectedFund?.code ? "active" : ""} onClick={() => setSelectedFundCode(item.code)}><strong>{item.name}</strong><small>{item.code} · {item.managers.join("、") || "经理待匹配"}</small></button>)}</div>
+      </>}
+      {error && <div className="error-banner">{error}</div>}
+      <div className="detail-card">
+        {mode === "manager" && selectedManager && <><div className="detail-title"><div><span>FUND MANAGER</span><h2>{selectedManager.name}</h2><p>{company?.name} · {selectedManager.fundCodes.length} 个在管基金代码 · 市值汇总口径</p></div><em>估算汇总</em></div><div className="mini-metrics"><div><small>从业年限</small><b>{fmt(selectedManager.tenureDays / 365, 1)} 年</b></div><div><small>去重后产品</small><b>{representativeCodes(selectedManager).length} 只</b></div><div><small>成功汇总</small><b>{managerHoldings?.succeeded ?? "—"} 只</b></div><div><small>数据失败</small><b>{managerHoldings?.failed ?? "—"} 只</b></div></div>{detailLoading ? <Skeleton label="正在汇总经理在管基金持仓…" /> : <ManagerTable rows={managerHoldings?.holdings ?? []} />}</>}
+        {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十集中度</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div><div><small>数据源</small><b>东方财富</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <FundTable rows={fundHoldings?.holdings ?? []} />}</>}
+      </div>
     </section>
-    <section className="lookthrough-card"><div className="section-title"><div><span className="eyebrow">公司穿透</span><h2>{company.name}核心重仓</h2></div><small>按样本基金规模估算市值</small></div><div className="top-stocks">{aggregateStocks.map((item, index) => <div key={item.stock}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.stock}</strong><small>{item.funds}只基金 · 约{fmt(item.value, 2)}亿元</small></div>)}</div></section>
-    <section className="method-card"><strong>数据口径</strong><p>{dataset.methodology} 当前原型来自你提供的两份 iFind 导出文件；历史财报期可按同一模板持续导入。</p><div><span>主数据源 · iFind</span><span>备选 · Tushare Pro</span><span>校验 · 公开披露</span></div></section>
-    <footer><strong>持仓雷达</strong><span>数据更新时间 2026-07-16 · 2026 一季报样本</span></footer>
+    <section className="method"><div><span>自动化数据链路</span><h2>实时索引 → 公司全量 → 单体持仓 → 季度缓存</h2></div><ol><li><b>主源</b> iFind 官方 API：账号具备数据接口权限后优先启用。</li><li><b>容灾</b> 东方财富：自动取得公司、经理、基金与定期报告持仓。</li><li><b>更新</b> 每 6 小时探测最新财报期；中报公开后自动出现 2026-06-30。</li><li><b>质量</b> 经理数据按在管基金披露市值汇总，不等同于经理个人账户。</li></ol></section>
+    <footer><strong>全市场持仓雷达</strong><span>索引更新 {market?.generatedAt ? new Date(market.generatedAt).toLocaleString("zh-CN") : "读取中"} · 数据仅供研究</span></footer>
   </main>;
 }
+
