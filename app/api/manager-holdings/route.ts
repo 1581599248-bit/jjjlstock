@@ -1,4 +1,4 @@
-import { fetchFundHoldings, fetchFundNetAsset } from "../../lib/eastmoney";
+import { fetchFundHoldings, fetchFundNetAsset, fetchStockIndustry } from "../../lib/eastmoney";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({})) as { codes?: string[]; period?: string };
@@ -31,19 +31,37 @@ export async function POST(request: Request) {
       stocks.set(holding.stockCode, item);
     }
   }
-  const holdings = [...stocks.values()]
+  const rankedHoldings = [...stocks.values()]
     .sort((a, b) => b.marketValue - a.marketValue)
-    .slice(0, 10)
-    .map((item, index) => {
+    .slice(0, 10);
+  const industries = await Promise.all(rankedHoldings.map(async (item) => {
+    try { return await fetchStockIndustry(item.stockCode); } catch { return "其他/未分类"; }
+  }));
+  const holdings = rankedHoldings.map((item, index) => {
       const changeShares = item.shares - item.previousShares;
       const weight = managedNav > 0 ? item.marketValue / managedNav * 100 : 0;
       return {
         ...item,
         rank: index + 1,
+        industry: industries[index],
         weight,
         change: item.previousShares <= 0 ? "新进" : Math.abs(changeShares) < 0.005 ? "不变" : changeShares > 0 ? "增持" : "减持",
         changeShares,
       };
     });
-  return Response.json({ period, requested: codes.length, succeeded, failed, managedNav, holdings, source: "东方财富基金公开数据（报告期期末净资产与在管基金持仓汇总）" }, { headers: { "cache-control": "public, max-age=1800, s-maxage=86400" } });
+  const topMarketValue = holdings.reduce((sum, item) => sum + item.marketValue, 0);
+  const sectorMap = new Map<string, { industry: string; marketValue: number; navWeight: number; stockCount: number }>();
+  for (const holding of holdings) {
+    const sector = sectorMap.get(holding.industry) ?? { industry: holding.industry, marketValue: 0, navWeight: 0, stockCount: 0 };
+    sector.marketValue += holding.marketValue;
+    sector.navWeight += holding.weight;
+    sector.stockCount += 1;
+    sectorMap.set(holding.industry, sector);
+  }
+  const sectors = [...sectorMap.values()].sort((a, b) => b.marketValue - a.marketValue).map((sector, index) => ({
+    ...sector,
+    rank: index + 1,
+    holdingShare: topMarketValue > 0 ? sector.marketValue / topMarketValue * 100 : 0,
+  }));
+  return Response.json({ period, requested: codes.length, succeeded, failed, managedNav, holdings, sectors, source: "东方财富基金公开数据（报告期期末净资产、在管基金持仓与股票行业）" }, { headers: { "cache-control": "public, max-age=1800, s-maxage=86400" } });
 }

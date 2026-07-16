@@ -20,4 +20,7 @@ assert.ok(manager.managedNav > 0);
 assert.ok(manager.holdings.length > 0);
 assert.ok(manager.holdings.every((item) => Number.isFinite(item.weight) && item.weight >= 0));
 assert.ok(manager.holdings.every((item) => ["新进", "增持", "减持", "不变"].includes(item.change)));
-console.log(JSON.stringify({ fund: fund.holdings[0], manager: { managedNav: manager.managedNav, first: manager.holdings[0] } }));
+assert.ok(manager.holdings.every((item) => typeof item.industry === "string" && item.industry.length > 0));
+assert.ok(manager.sectors.length > 0);
+assert.ok(Math.abs(manager.sectors.reduce((sum, item) => sum + item.holdingShare, 0) - 100) < 0.01);
+console.log(JSON.stringify({ fund: fund.holdings[0], manager: { managedNav: manager.managedNav, first: manager.holdings[0], sectors: manager.sectors } }));

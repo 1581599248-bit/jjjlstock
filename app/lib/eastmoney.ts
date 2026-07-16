@@ -3,6 +3,7 @@ import type { FundHoldings, FundItem, Holding, ManagerIndex, MarketIndex } from 
 const MANAGER_API = "https://fund.eastmoney.com/Data/FundDataPortfolio_Interface.aspx";
 const FUND_LIST_API = "https://fund.eastmoney.com/Data/Fund_JJJZ_Data.aspx";
 const HOLDINGS_API = "https://fundf10.eastmoney.com/FundArchivesDatas.aspx";
+const QUOTE_API = "https://push2.eastmoney.com/api/qt/stock/get";
 const HEADERS = { "user-agent": "Mozilla/5.0 (compatible; FundHoldingsRadar/1.0)", referer: "https://fund.eastmoney.com/" };
 
 function unescapeHtml(value: string) {
@@ -147,4 +148,17 @@ export async function fetchFundNetAsset(code: string, period: string) {
     return Number.isFinite(netAssetYi) ? netAssetYi * 10_000 : null;
   }
   return null;
+}
+
+function securityId(code: string) {
+  const digits = code.replace(/\D/g, "");
+  if (digits.length === 5) return `116.${digits}`;
+  return `${/^[569]/.test(digits) ? "1" : "0"}.${digits}`;
+}
+
+export async function fetchStockIndustry(code: string) {
+  const params = new URLSearchParams({ secid: securityId(code), fields: "f57,f58,f127" });
+  const text = await fetchText(`${QUOTE_API}?${params}`, "https://quote.eastmoney.com/");
+  const payload = JSON.parse(text) as { data?: { f127?: string } | null };
+  return payload.data?.f127?.trim() || "其他/未分类";
 }
