@@ -19,7 +19,7 @@ test("renders the mobile-first full-market holdings dashboard", async () => {
   assert.match(html, /基金产品/);
   assert.match(html, /基金总览/);
   assert.match(html, /当前已发布财报期/);
-  assert.match(html, /导出本页 Excel/);
+  assert.match(html, /导出全部经理 Excel/);
   assert.match(html, /报告期基金总规模/);
   assert.match(html, /在管基金产品/);
   assert.match(html, /A\/C 等份额已去重/);

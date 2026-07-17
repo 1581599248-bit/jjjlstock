@@ -19,17 +19,18 @@ type OverviewManager = {
   managedNav: number;
   holdings: Array<{ stockName: string; weight: number; change: string }>;
 };
+type CompanyOverviewInput = { companyName: string; period: string; managers: OverviewManager[] };
 
 const encoder = new TextEncoder();
 const xml = (value: Cell) => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const col = (index: number) => { let value = index + 1; let result = ""; while (value > 0) { value -= 1; result = String.fromCharCode(65 + value % 26) + result; value = Math.floor(value / 26); } return result; };
 
-function sheet(title: string, headers: string[], rows: Cell[][], widths: number[], numeric: number[] = [], percent: number[] = []) {
+function sheet(title: string, headers: string[], rows: Cell[][], widths: number[], numeric: number[] = [], percent: number[] = [], centeredDataRows: number[] = []) {
   const all = [[title], headers, ...rows];
   const max = Math.max(headers.length, ...rows.map((row) => row.length));
   const body = all.map((row, rowIndex) => `<row r="${rowIndex + 1}"${rowIndex === 0 ? ' ht="28" customHeight="1"' : ""}>${row.map((value, columnIndex) => {
     const ref = `${col(columnIndex)}${rowIndex + 1}`;
-    const style = rowIndex === 0 ? 1 : rowIndex === 1 ? 2 : percent.includes(columnIndex) ? 4 : numeric.includes(columnIndex) ? 3 : 0;
+    const style = rowIndex === 0 ? 1 : rowIndex === 1 ? 2 : centeredDataRows.includes(rowIndex - 2) && columnIndex > 0 ? 5 : percent.includes(columnIndex) ? 4 : numeric.includes(columnIndex) ? 3 : 0;
     return typeof value === "number" ? `<c r="${ref}" s="${style}"><v>${Number.isFinite(value) ? value : 0}</v></c>` : `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${xml(value)}</t></is></c>`;
   }).join("")}</row>`).join("");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols><sheetData>${body}</sheetData><autoFilter ref="A2:${col(max - 1)}${all.length}"/><mergeCells count="1"><mergeCell ref="A1:${col(max - 1)}1"/></mergeCells></worksheet>`;
@@ -55,7 +56,7 @@ function workbook(sheetEntries: Array<{ name: string; xml: string }>) {
     "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
     "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetEntries.map((entry, index) => `<sheet name="${xml(entry.name.slice(0, 31))}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("")}</sheets></workbook>`,
     "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetEntries.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("")}<Relationship Id="rId${sheetEntries.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
-    "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="10"/><name val="Microsoft YaHei"/></font><font><b/><sz val="16"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font><font><b/><sz val="10"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF63332E"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFB85C45"/></patternFill></fill></fills><borders count="2"><border/><border><bottom style="thin"><color rgb="FFE7D8CF"/></bottom></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="3" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/><xf numFmtId="10" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
+    "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="10"/><name val="Microsoft YaHei"/></font><font><b/><sz val="16"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font><font><b/><sz val="10"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF63332E"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFB85C45"/></patternFill></fill></fills><borders count="2"><border/><border><bottom style="thin"><color rgb="FFE7D8CF"/></bottom></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="3" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/><xf numFmtId="10" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
   };
   sheetEntries.forEach((entry, index) => { files[`xl/worksheets/sheet${index + 1}.xml`] = entry.xml; });
   return zip(files);
@@ -83,7 +84,7 @@ export function exportHoldingsWorkbook(input: ExportInput) {
   download(workbook(sheets.map((value, index) => ({ name: ["概览", "十大重仓", "板块分布", "数据口径"][index], xml: value }))), `${input.companyName}_${input.entityName}_${input.period}_重仓股.xlsx`);
 }
 
-export function exportCompanyOverviewWorkbook(input: { companyName: string; period: string; page: number; managers: OverviewManager[] }) {
+export function buildCompanyOverviewWorkbook(input: CompanyOverviewInput) {
   const headers = ["指标", ...input.managers.map((manager) => manager.name)];
   const rows: Cell[][] = [
     ["在管基金总规模", ...input.managers.map((manager) => `${(manager.managedNav / 10_000).toFixed(2)}亿`)],
@@ -97,7 +98,11 @@ export function exportCompanyOverviewWorkbook(input: { companyName: string; peri
       ["重仓股持仓变动", ...input.managers.map((manager) => manager.holdings[rank]?.change ?? "—")],
     );
   }
-  const overview = sheet(`${input.companyName}｜基金总览｜${input.period}`, headers, rows, [22, ...input.managers.map(() => 16)]);
-  const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", "东方财富基金公开数据"], ["经理持仓口径", "A/C 等份额持仓只计算一次，全部份额净资产合并；联合管理基金分别计入对应经理。"], ["规模口径", "所选报告期末净资产；无法披露时不估算。"], ["导出范围", `第 ${input.page} 页，共 ${input.managers.length} 位基金经理。`]], [24, 100]);
-  download(workbook([{ name: "基金总览", xml: overview }, { name: "数据口径", xml: notes }]), `${input.companyName}_${input.period}_基金总览_第${input.page}页.xlsx`);
+  const overview = sheet(`${input.companyName}｜基金总览｜${input.period}`, headers, rows, [22, ...input.managers.map(() => 16)], [], [], [2]);
+  const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", "东方财富基金公开数据"], ["经理持仓口径", "A/C 等份额持仓只计算一次，全部份额净资产合并；联合管理基金分别计入对应经理。"], ["规模口径", "所选报告期末净资产；无法披露时不估算。"], ["导出范围", `当前基金公司旗下全部 ${input.managers.length} 位基金经理。`]], [24, 100]);
+  return workbook([{ name: "基金总览", xml: overview }, { name: "数据口径", xml: notes }]);
+}
+
+export function exportCompanyOverviewWorkbook(input: CompanyOverviewInput) {
+  download(buildCompanyOverviewWorkbook(input), `${input.companyName}_${input.period}_全部基金经理重仓股.xlsx`);
 }
