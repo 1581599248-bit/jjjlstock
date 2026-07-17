@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { exportCompanyOverviewWorkbook, exportHoldingsWorkbook } from "./lib/export-xlsx";
+import { exportCompanyFundsWorkbook, exportCompanyOverviewWorkbook, exportHoldingsWorkbook } from "./lib/export-xlsx";
 import type { CompanyIndex, FundHoldings, FundItem, Holding, ManagerIndex, MarketIndex } from "./types";
 
 type CompanyPayload = { company: CompanyIndex; funds: FundItem[]; mode: "live" | "snapshot" };
@@ -9,6 +9,8 @@ type ManagerHolding = { rank: number; stockCode: string; stockName: string; indu
 type SectorHolding = { rank: number; industry: string; marketValue: number; navWeight: number; holdingShare: number; stockCount: number };
 type ManagerPayload = { period: string; requested: number; succeeded: number; failed: number; managedNav: number; holdings: ManagerHolding[]; sectors: SectorHolding[]; source: string };
 type StaticOverviewPayload = { companyId: string; period: string; managers: Record<string, ManagerPayload> };
+type StaticFundProduct = { code: string; name: string; shareCodes: string[]; managers: string[]; holdings: Holding[] };
+type StaticFundPayload = { companyId: string; companyName: string; period: string; source: string; productCount: number; products: StaticFundProduct[] };
 const AVAILABLE_PERIODS = ["2026-03-31"];
 const OVERVIEW_PAGE_SIZE = 12;
 
@@ -19,10 +21,11 @@ const changeTone = (change: string) => change === "增持" || change === "新进
 const isOtherIndustry = (industry: string) => /^(其他|未分类|未知|其他\/未分类)$/.test(industry.trim());
 const orderSectors = (rows: SectorHolding[]) => [...rows].sort((a, b) => Number(isOtherIndustry(a.industry)) - Number(isOtherIndustry(b.industry)) || b.marketValue - a.marketValue);
 const productKey = (name: string) => name
-  .replace(/[A-EHIOY](?:\d+)?$/i, "")
+  .replace(/\s+/g, "")
+  .replace(/(?:人民币|美元现汇|美元现钞|美汇|美钞|美元)(?=[（(]|$)/i, "")
+  .replace(/[A-EHIOY](?:\d+)?(?=[（(]|$)/i, "")
   .replace(/(?:人民币|美元现汇|美元现钞|美汇|美钞|美元)$/i, "")
   .replace(/[A-EHIOY](?:\d+)?$/i, "")
-  .replace(/\s+/g, "")
   .trim();
 
 function representativeCodes(manager: ManagerIndex) {
@@ -125,6 +128,7 @@ export default function Home() {
   const [overviewProgress, setOverviewProgress] = useState(0);
   const [companyLoading, setCompanyLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [fundExportLoading, setFundExportLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -242,14 +246,31 @@ export default function Home() {
     fetch("/api/manager-holdings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ products: managerProducts(selectedManager, funds), period }) }).then(async (response) => { if (!response.ok) throw new Error("经理持仓汇总失败"); return response.json(); }).then(setManagerHoldings).catch((reason) => { if (!precomputed) setError(reason.message); }).finally(() => setDetailLoading(false));
   }, [mode, selectedManager?.id, period, funds.length]);
 
-  const exportCurrent = () => {
+  const exportCurrent = async () => {
     if (!company) return;
     if (mode === "overview" && managers.length && managers.every((manager) => overviewData[manager.id])) exportCompanyOverviewWorkbook({ companyName: company.name, period, managers: managers.map((manager) => ({ name: manager.name, tenureYears: manager.tenureDays / 365, fundCount: representativeCodes(manager).length, managedNav: overviewData[manager.id].managedNav, holdings: overviewData[manager.id].holdings })) });
-    if (mode === "fund" && selectedFund && fundHoldings) exportHoldingsWorkbook({ companyName: company.name, entityType: "基金", entityName: selectedFund.name, entityCode: selectedFund.code, period, holdings: fundHoldings.holdings, notes: [["基金经理", selectedFund.managers.join("、") || "未匹配"], ["报告期末净资产(亿元)", selectedFund.netAsset], ["规模口径", `${selectedFund.scalePeriod || period}期末净资产`], ["数据源", fundHoldings.source]] });
+    if (mode === "fund") {
+      setFundExportLoading(true); setError("");
+      try {
+        const response = await fetch(`/data/funds/${period}/${companyId}.json`);
+        if (!response.ok) throw new Error("该季度的全部基金导出数据尚未发布");
+        const payload = await response.json() as StaticFundPayload;
+        if (payload.companyId !== companyId || payload.period !== period) throw new Error("全部基金导出数据范围不匹配");
+        const fundByCode = new Map(funds.map((fund) => [fund.code, fund]));
+        const exportFunds = payload.products.map((product) => {
+          const disclosed = product.shareCodes.map((code) => fundByCode.get(code)?.netAsset).filter((value): value is number => typeof value === "number");
+          return { code: product.code, name: productKey(product.name) || product.name, managers: product.managers, netAsset: disclosed.length ? disclosed.reduce((sum, value) => sum + value, 0) : null, holdings: product.holdings };
+        });
+        exportCompanyFundsWorkbook({ companyName: company.name, period, funds: exportFunds, source: payload.source });
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "全部基金导出失败，请稍后重试");
+      } finally { setFundExportLoading(false); }
+    }
     if (mode === "manager" && selectedManager && managerHoldings) exportHoldingsWorkbook({ companyName: company.name, entityType: "基金经理", entityName: selectedManager.name, period, holdings: managerHoldings.holdings, sectors: orderSectors(managerHoldings.sectors), notes: [["在管基金产品（份额去重）", representativeCodes(selectedManager).length], ["参与汇总产品", managerHoldings.succeeded], ["在管净值(亿元)", managerHoldings.managedNav / 10000], ["失败产品", managerHoldings.failed], ["行业口径", "东方财富原始行业字段；其他/未分类固定置底"], ["数据源", managerHoldings.source]] });
   };
 
-  const canExport = mode === "overview" ? managers.length > 0 && managers.every((manager) => overviewData[manager.id]) : mode === "fund" ? Boolean(fundHoldings) : Boolean(managerHoldings);
+  const canExport = mode === "overview" ? managers.length > 0 && managers.every((manager) => overviewData[manager.id]) : mode === "fund" ? funds.length > 0 : Boolean(managerHoldings);
+  const exportDisabled = !canExport || fundExportLoading || (mode === "overview" && overviewLoading) || (mode === "manager" && detailLoading);
   return <main>
     <header className="topbar"><div className="logo">仓</div><div><strong>全市场持仓雷达</strong><small>PUBLIC FUND HOLDINGS</small></div><span className="health snapshot"><i />{market ? "全市场库已加载" : "正在加载全市场库"}</span></header>
     <section className="hero"><p className="kicker">QUARTERLY OWNERSHIP INTELLIGENCE</p><h1>全市场基金与基金经理<br />最新季度重仓股</h1><p>覆盖全部基金公司，按公司穿透全部基金与基金经理；当前提供 2026 年一季完整数据，并可导出高密度 Excel。</p><div className="market-strip"><span><b>{market?.companyCount ?? "—"}</b> 管理机构</span><span><b>{fmt(market?.managerCount ?? 0, 0)}</b> 基金经理</span><span><b>{fmt(marketProductCount, 0)}</b> 在管基金产品<small>A/C 等份额已去重</small></span></div></section>
@@ -257,7 +278,7 @@ export default function Home() {
     <section className="coverage"><div><small>该公司产品</small><strong>{companyProductCount || (companyLoading ? "…" : 0)}</strong></div><div><small>基金经理</small><strong>{managers.length || (companyLoading ? "…" : 0)}</strong></div><div><small>数据状态</small><strong className="status-text">{companyData?.mode === "live" ? "实时" : companyLoading ? "读取中" : "回退"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section>
     <section className="workspace">
       <div className="tabs"><button className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>基金总览</button><button className={mode === "manager" ? "active" : ""} onClick={() => setMode("manager")}>基金经理</button><button className={mode === "fund" ? "active" : ""} onClick={() => setMode("fund")}>基金产品</button></div>
-      <div className="entity-tools"><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "fund" ? "搜索基金代码、名称、经理" : "搜索经理、在管基金"} />{query && <button onClick={() => setQuery("")}>×</button>}</div><button className="export" onClick={exportCurrent} disabled={!canExport || detailLoading || overviewLoading}>{mode === "overview" ? "导出全部经理 Excel" : "导出当前 Excel"}</button></div>
+      <div className="entity-tools"><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "fund" ? "搜索基金代码、名称、经理" : "搜索经理、在管基金"} />{query && <button onClick={() => setQuery("")}>×</button>}</div><button className="export" onClick={exportCurrent} disabled={exportDisabled}>{mode === "overview" ? "导出全部经理 Excel" : mode === "fund" ? fundExportLoading ? "正在准备全部基金…" : "导出全部基金 Excel" : "导出当前经理 Excel"}</button></div>
       {mode === "overview" ? <>
         <div className="overview-title"><div><span>FUND HOUSE OVERVIEW</span><h2>{company?.name}基金总览</h2><p>{periodLabel(period)} · 公司信息与全部基金经理前十大重仓矩阵</p></div><em>全量经理</em></div>
         <div className="overview-company-metrics"><div><small>报告期基金总规模</small><b>{companyLoading ? "…" : `${fmt(companyScale, 1)} 亿`}</b></div><div><small>旗下基金产品</small><b>{companyProductCount || (companyLoading ? "…" : 0)}</b></div><div><small>在任基金经理</small><b>{managers.length || (companyLoading ? "…" : 0)}</b></div><div><small>份额规模覆盖</small><b>{companyLoading ? "…" : `${funds.length ? fmt(scaleDisclosed / funds.length * 100, 1) : 0}%`}</b></div></div>
@@ -269,7 +290,7 @@ export default function Home() {
       {error && <div className="error-banner">{error}</div>}
       {mode !== "overview" && <div className="detail-card">
         {mode === "manager" && selectedManager && <><div className="detail-title"><div><span>FUND MANAGER</span><h2>{selectedManager.name}</h2><p>{company?.name} · {representativeCodes(selectedManager).length} 个在管基金产品（份额已去重） · 在管产品持仓汇总</p></div><em>经理汇总</em></div><div className="mini-metrics"><div><small>从业年限</small><b>{fmt(selectedManager.tenureDays / 365, 1)} 年</b></div><div><small>去重后产品</small><b>{representativeCodes(selectedManager).length} 只</b></div><div><small>在管净值</small><b>{managerHoldings ? `${fmt(managerHoldings.managedNav / 10000, 1)} 亿` : "—"}</b></div><div><small>成功汇总</small><b>{managerHoldings?.succeeded ?? "—"} 只</b></div></div>{detailLoading ? <Skeleton label="正在汇总经理在管基金持仓…" /> : <><SectorBreakdown rows={managerHoldings?.sectors ?? []} /><ManagerTable rows={managerHoldings?.holdings ?? []} /></>}</>}
-        {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>基金规模</small><b>{fundScale(selectedFund.netAsset)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <FundTable rows={fundHoldings?.holdings ?? []} />}</>}
+        {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>基金规模</small><b>{fundScale(selectedFund.netAsset)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <><FundTable rows={fundHoldings?.holdings ?? []} /><p className="value-note">“导出全部基金 Excel”一次包含该公司全部基金产品，不受当前搜索或选中基金影响；A/C 等份额合并规模，持仓只保留一份。</p></>}</>}
       </div>}
     </section>
     <section className="method"><div><span>自动化数据链路</span><h2>市场索引 → 公司总览 → 经理 / 基金持仓 → 共享季度静态库</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、报告期末净资产和定期报告持仓。</li><li><b>基金总览</b> 页面优先读取已验证的季度静态数据，联合管理基金分别计入对应经理，同一产品的 A/C 等份额不重复持仓。</li><li><b>团队加速</b> 全市场数据随网站部署，同事同时打开也直接读取同一份静态结果，不依赖某一台手机的本地缓存。</li><li><b>更新</b> 每个新季度集中刷新全市场公司、基金经理、产品、规模和持仓，并在校验通过后整体发布。</li><li><b>口径</b> 净值占比由定期报告披露市值与报告期末净资产计算；未披露数据不填充。</li></ol></section>

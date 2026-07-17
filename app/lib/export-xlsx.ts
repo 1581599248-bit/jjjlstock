@@ -20,6 +20,14 @@ type OverviewManager = {
   holdings: Array<{ stockName: string; weight: number; change: string }>;
 };
 type CompanyOverviewInput = { companyName: string; period: string; managers: OverviewManager[] };
+type CompanyFund = {
+  code: string;
+  name: string;
+  managers: string[];
+  netAsset: number | null;
+  holdings: Holding[];
+};
+type CompanyFundsInput = { companyName: string; period: string; funds: CompanyFund[]; source: string };
 
 const encoder = new TextEncoder();
 const xml = (value: Cell) => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -109,4 +117,28 @@ export function buildCompanyOverviewWorkbook(input: CompanyOverviewInput) {
 
 export function exportCompanyOverviewWorkbook(input: CompanyOverviewInput) {
   download(buildCompanyOverviewWorkbook(input), `${input.companyName}_${input.period}_全部基金经理重仓股.xlsx`);
+}
+
+export function buildCompanyFundsWorkbook(input: CompanyFundsInput) {
+  const headers = ["指标", ...input.funds.map((fund) => fund.name)];
+  const rows: Cell[][] = [
+    ["基金代码", ...input.funds.map((fund) => fund.code)],
+    ["基金经理", ...input.funds.map((fund) => fund.managers.join("、") || "待匹配")],
+    ["报告期末规模", ...input.funds.map((fund) => fund.netAsset === null ? "待披露" : `${fund.netAsset.toFixed(fund.netAsset >= 100 ? 1 : 2)}亿`)],
+  ];
+  for (let rank = 0; rank < 10; rank += 1) {
+    rows.push(
+      [`第${rank + 1}名`, ...input.funds.map((fund) => fund.holdings[rank]?.stockName ?? "—")],
+      ["净值占比", ...input.funds.map((fund) => fund.holdings[rank] ? `${fund.holdings[rank].weight.toFixed(2)}%` : "—")],
+      ["重仓股持仓变动", ...input.funds.map((fund) => fund.holdings[rank]?.change ?? "—")],
+      Array.from({ length: input.funds.length + 1 }, () => null),
+    );
+  }
+  const overview = sheet(`${input.companyName}｜全部基金产品｜${input.period}`, headers, rows, [22, ...input.funds.map(() => 18)], [], [], [0, 1, 2]);
+  const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", input.source], ["基金产品口径", "A/C 等份额合并为一个基金产品，持仓只计算一次；基金代码为代表份额代码。"], ["规模口径", "所选报告期末各份额净资产合计；无法披露时标记为待披露，不做估算。"], ["导出范围", `当前基金公司旗下全部 ${input.funds.length} 只基金产品，不受页面搜索或当前选中基金影响。`], ["更新机制", "每个新季度集中刷新全市场产品、规模与持仓，校验通过后整体发布。"]], [24, 110]);
+  return workbook([{ name: "基金产品总览", xml: overview }, { name: "数据口径", xml: notes }]);
+}
+
+export function exportCompanyFundsWorkbook(input: CompanyFundsInput) {
+  download(buildCompanyFundsWorkbook(input), `${input.companyName}_${input.period}_全部基金产品重仓股.xlsx`);
 }

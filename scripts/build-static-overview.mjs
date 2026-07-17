@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { companyProducts, managerProducts } from "./lib/company-products.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -23,16 +24,12 @@ const HOLDINGS_API = "https://fundf10.eastmoney.com/FundArchivesDatas.aspx";
 const SCALE_API = "https://fund.eastmoney.com/Company1/GMBD/QMore";
 const checkpointDir = path.join(root, "work/static-overview", period, companyId);
 const outputDir = path.join(root, "public/data/overview", period);
+const fundOutputDir = path.join(root, "public/data/funds", period);
 await mkdir(checkpointDir, { recursive: true });
 await mkdir(outputDir, { recursive: true });
+await mkdir(fundOutputDir, { recursive: true });
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-const productKey = (name) => name
-  .replace(/[A-EHIOY](?:\d+)?$/i, "")
-  .replace(/(?:人民币|美元现汇|美元现钞|美汇|美钞|美元)$/i, "")
-  .replace(/[A-EHIOY](?:\d+)?$/i, "")
-  .replace(/\s+/g, "")
-  .trim();
 const unescapeHtml = (value) => value.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"');
 const stripTags = (value) => unescapeHtml(value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
 
@@ -126,18 +123,8 @@ async function fetchScales() {
   return best.map;
 }
 
-function managerProducts(manager) {
-  const grouped = new Map();
-  manager.fundCodes.forEach((code, index) => {
-    const key = productKey(manager.fundNames[index] ?? code);
-    const group = grouped.get(key) ?? { code, shareCodes: [] };
-    if (!group.shareCodes.includes(code)) group.shareCodes.push(code);
-    grouped.set(key, group);
-  });
-  return [...grouped.values()];
-}
-
 const productsByManager = new Map(company.managers.map((manager) => [manager.id, managerProducts(manager)]));
+const productCatalog = companyProducts(company);
 const representativeCodes = [...new Set([...productsByManager.values()].flat().map((product) => product.code))];
 const fundMap = new Map();
 const failures = [];
@@ -190,6 +177,14 @@ for (const manager of company.managers) {
 }
 
 const generatedAt = new Date().toISOString();
+const fundProducts = productCatalog.map((product) => ({ ...product, holdings: fundMap.get(product.code)?.holdings ?? [] }));
+const fundPayload = {
+  version: 1, companyId, companyName: company.name, period, generatedAt,
+  source: "东方财富基金公开数据（后台预计算基金产品持仓）",
+  productCount: fundProducts.length, products: fundProducts,
+};
+fundPayload.contentHash = createHash("sha256").update(JSON.stringify(fundProducts)).digest("hex");
+await writeFile(path.join(fundOutputDir, `${companyId}.json`), JSON.stringify(fundPayload));
 const payload = {
   version: 1, companyId, companyName: company.name, period, generatedAt,
   source: "东方财富基金公开数据", managerCount: company.managers.length,

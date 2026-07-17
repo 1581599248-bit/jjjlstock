@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { companyProducts } from "./lib/company-products.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -11,9 +12,11 @@ if (!/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("Invalid 
 
 const root = process.cwd();
 const dataDir = path.join(root, "public/data/overview", period);
+const fundDataDir = path.join(root, "public/data/funds", period);
 const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
 const manifest = JSON.parse(await readFile(path.join(root, "public/data/overview/manifest.json"), "utf8"));
 const files = (await readdir(dataDir)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
+const fundFiles = (await readdir(fundDataDir)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
 const expectedFiles = snapshot.companies.map((company) => `${company.id}.json`).sort();
 const issues = [];
 const allowedChanges = new Set(["\u65b0\u8fdb", "\u4e0d\u53d8", "\u589e\u6301", "\u51cf\u6301"]);
@@ -21,6 +24,9 @@ const addIssue = (severity, code, detail) => issues.push({ severity, code, detai
 
 if (JSON.stringify(files) !== JSON.stringify(expectedFiles)) {
   addIssue("critical", "company_file_set", { expected: expectedFiles.length, actual: files.length });
+}
+if (JSON.stringify(fundFiles) !== JSON.stringify(expectedFiles)) {
+  addIssue("critical", "fund_export_file_set", { expected: expectedFiles.length, actual: fundFiles.length });
 }
 
 const expectedManifestKeys = snapshot.companies.map((company) => `${company.id}:${period}`).sort();
@@ -34,6 +40,7 @@ const summary = {
   companies: 0,
   managers: 0,
   representativeProducts: 0,
+  fundProducts: 0,
   expectedShareCodes: 0,
   matchedScaleShareCodes: 0,
   managersWithHoldings: 0,
@@ -47,8 +54,10 @@ const summary = {
 for (const company of snapshot.companies) {
   const file = path.join(dataDir, `${company.id}.json`);
   let payload;
+  let fundPayload;
   try {
     payload = JSON.parse(await readFile(file, "utf8"));
+    fundPayload = JSON.parse(await readFile(path.join(fundDataDir, `${company.id}.json`), "utf8"));
   } catch (error) {
     addIssue("critical", "unreadable_company_payload", { companyId: company.id, error: String(error) });
     continue;
@@ -57,6 +66,7 @@ for (const company of snapshot.companies) {
   summary.companies += 1;
   summary.managers += payload.managerCount ?? 0;
   summary.representativeProducts += payload.representativeProductCount ?? 0;
+  summary.fundProducts += fundPayload.productCount ?? 0;
   summary.expectedShareCodes += payload.quality?.expectedShareCodes ?? 0;
   summary.matchedScaleShareCodes += payload.quality?.matchedScaleShareCodes ?? 0;
   summary.managersWithHoldings += payload.quality?.managersWithHoldings ?? 0;
@@ -70,6 +80,39 @@ for (const company of snapshot.companies) {
 
   if (payload.companyId !== company.id || payload.companyName !== company.name || payload.period !== period) {
     addIssue("critical", "company_identity", { companyId: company.id });
+  }
+  const expectedFundProducts = companyProducts(company);
+  const fundHash = createHash("sha256").update(JSON.stringify(fundPayload.products ?? [])).digest("hex");
+  if (fundPayload.companyId !== company.id
+    || fundPayload.companyName !== company.name
+    || fundPayload.period !== period
+    || fundPayload.productCount !== expectedFundProducts.length
+    || fundPayload.products?.length !== expectedFundProducts.length
+    || fundPayload.contentHash !== fundHash) {
+    addIssue("critical", "fund_export_identity_or_integrity", { companyId: company.id });
+  }
+  const fundCodes = new Set();
+  for (const product of fundPayload.products ?? []) {
+    if (!/^\d{6}$/.test(product.code)
+      || !product.name
+      || !product.shareCodes?.includes(product.code)
+      || !product.managers?.length
+      || fundCodes.has(product.code)
+      || !Array.isArray(product.holdings)
+      || product.holdings.length > 10) {
+      addIssue("high", "fund_export_product", { companyId: company.id, code: product.code });
+      continue;
+    }
+    fundCodes.add(product.code);
+    product.holdings.forEach((holding, index) => {
+      if (holding.rank !== index + 1
+        || !/^[A-Z0-9._-]{1,16}$/i.test(holding.stockCode)
+        || !holding.stockName
+        || !Number.isFinite(holding.weight) || holding.weight < 0
+        || !allowedChanges.has(holding.change)) {
+        addIssue("high", "fund_export_holding", { companyId: company.id, code: product.code, rank: index + 1 });
+      }
+    });
   }
 
   const expectedManagerIds = company.managers.map((manager) => manager.id).sort();

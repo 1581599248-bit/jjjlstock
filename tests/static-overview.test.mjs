@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import test from "node:test";
+import { companyProducts } from "../scripts/lib/company-products.mjs";
 
 const root = new URL("../", import.meta.url);
 const snapshot = JSON.parse(await readFile(new URL("app/data/market-index.json", root), "utf8"));
 const period = "2026-03-31";
 const overviewDirectory = new URL(`public/data/overview/${period}/`, root);
+const fundDirectory = new URL(`public/data/funds/${period}/`, root);
 const manifest = JSON.parse(await readFile(new URL("public/data/overview/manifest.json", root), "utf8"));
 const allowedChanges = new Set(["\u65b0\u8fdb", "\u4e0d\u53d8", "\u589e\u6301", "\u51cf\u6301"]);
 
@@ -56,4 +58,40 @@ test("every Q1 payload has the exact manager roster and valid holdings", async (
     assert.ok((await stat(overviewPath)).size < 1_000_000, `${company.id} mobile payload should stay below 1 MB`);
   }
   assert.equal(managerCount, snapshot.managerCount);
+});
+
+test("every company has a complete Q1 fund-product export payload", async () => {
+  const files = (await readdir(fundDirectory)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
+  assert.deepEqual(files, snapshot.companies.map((company) => `${company.id}.json`).sort());
+  let productCount = 0;
+  for (const company of snapshot.companies) {
+    const fundPayload = JSON.parse(await readFile(new URL(`${company.id}.json`, fundDirectory), "utf8"));
+    const overview = JSON.parse(await readFile(new URL(`${company.id}.json`, overviewDirectory), "utf8"));
+    assert.equal(fundPayload.companyId, company.id);
+    assert.equal(fundPayload.companyName, company.name);
+    assert.equal(fundPayload.period, period);
+    assert.ok(overview.representativeProductCount >= fundPayload.productCount);
+    assert.equal(fundPayload.productCount, companyProducts(company).length);
+    assert.equal(fundPayload.products.length, fundPayload.productCount);
+    assert.equal(fundPayload.contentHash, createHash("sha256").update(JSON.stringify(fundPayload.products)).digest("hex"));
+    const codes = new Set();
+    for (const product of fundPayload.products) {
+      assert.match(product.code, /^\d{6}$/);
+      assert.ok(product.name);
+      assert.ok(product.shareCodes.includes(product.code));
+      assert.ok(product.managers.length > 0);
+      assert.ok(!codes.has(product.code));
+      codes.add(product.code);
+      assert.ok(product.holdings.length <= 10);
+      product.holdings.forEach((holding, index) => {
+        assert.equal(holding.rank, index + 1);
+        assert.match(holding.stockCode, /^[A-Z0-9._-]{1,16}$/i);
+        assert.ok(holding.stockName);
+        assert.ok(Number.isFinite(holding.weight) && holding.weight >= 0);
+        assert.ok(allowedChanges.has(holding.change));
+      });
+    }
+    productCount += fundPayload.productCount;
+  }
+  assert.ok(productCount > 10_000);
 });

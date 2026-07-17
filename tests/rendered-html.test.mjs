@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function worker() {
@@ -26,6 +27,12 @@ test("renders the mobile-first full-market holdings dashboard", async () => {
   assert.match(html, /预计算静态数据/);
   assert.doesNotMatch(html, /在管基金代码/);
   assert.doesNotMatch(html, /当前原型来自|仅完整提供|浙商基金.*长信基金/);
+});
+
+test("offers the all-fund-products export action", async () => {
+  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(pageSource, /导出全部基金 Excel/);
+  assert.match(pageSource, /\/data\/funds\/\$\{period\}\/\$\{companyId\}\.json/);
 });
 
 test("ships a complete full-market fallback index", async () => {

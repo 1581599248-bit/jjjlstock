@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { companyProducts } from "./lib/company-products.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -23,16 +24,21 @@ await mkdir(path.dirname(progressFile), { recursive: true });
 
 async function isComplete(company) {
   const outputFile = path.join(outputDir, `${company.id}.json`);
-  if (!existsSync(outputFile)) return false;
+  const fundOutputFile = path.join(root, "public/data/funds", period, `${company.id}.json`);
+  if (!existsSync(outputFile) || !existsSync(fundOutputFile)) return false;
   try {
     const payload = JSON.parse(await readFile(outputFile, "utf8"));
+    const fundPayload = JSON.parse(await readFile(fundOutputFile, "utf8"));
     const expected = company.managers.map((manager) => manager.id).sort();
     const actual = Object.keys(payload.managers ?? {}).sort();
     return payload.period === period
       && payload.companyId === company.id
       && payload.quality?.failedDownloads === 0
       && payload.quality?.completedManagers === expected.length
-      && JSON.stringify(actual) === JSON.stringify(expected);
+      && JSON.stringify(actual) === JSON.stringify(expected)
+      && fundPayload.companyId === company.id
+      && fundPayload.period === period
+      && fundPayload.productCount === companyProducts(company).length;
   } catch { return false; }
 }
 
