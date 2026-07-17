@@ -390,7 +390,8 @@ export default function Home() {
         const fundByCode = new Map(funds.map((fund) => [fund.code, fund]));
         const exportFunds = payload.products.map((product) => {
           const disclosed = product.shareCodes.map((code) => fundByCode.get(code)?.netAsset).filter((value): value is number => typeof value === "number");
-          return { code: product.code, name: productKey(product.name) || product.name, managers: product.managers, netAsset: disclosed.length ? disclosed.reduce((sum, value) => sum + value, 0) : null, holdings: product.holdings };
+          const fundType = product.shareCodes.map((code) => fundByCode.get(code)?.type).find((value): value is string => Boolean(value));
+          return { code: product.code, name: productKey(product.name) || product.name, type: fundType ?? "公募基金", managers: product.managers, netAsset: disclosed.length ? disclosed.reduce((sum, value) => sum + value, 0) : null, holdings: product.holdings };
         });
         exportCompanyFundsWorkbook({ companyName: company.name, period, funds: exportFunds, source: payload.source });
       } catch (reason) {

@@ -23,10 +23,11 @@ test("company overview export contains every manager, left-aligns fund counts, a
   assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 11);
 });
 
-test("company fund export contains every product, preserves leading-zero codes, and separates ranks", () => {
+test("company fund export follows the reference row-wise product layout", () => {
   const funds = Array.from({ length: 25 }, (_, index) => ({
     code: String(index + 1).padStart(6, "0"),
     name: `基金产品${index + 1}`,
+    type: "混合型",
     managers: [`经理${index + 1}`],
     netAsset: index + 0.25,
     holdings: [{ rank: 1, stockCode: "600000", stockName: `股票${index + 1}`, weight: index + 0.5, shares: 10, marketValue: 100, change: "增持", changeShares: 1 }],
@@ -36,10 +37,17 @@ test("company fund export contains every product, preserves leading-zero codes, 
   assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
   assert.match(content, /基金产品25/);
   assert.match(content, /<c r="B3" s="5" t="inlineStr"><is><t xml:space="preserve">000001<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="C3" s="8"><v>0.25<\/v><\/c>/);
+  assert.match(content, /<numFmt numFmtId="164" formatCode="0.00##"\/>/);
+  assert.match(content, /<c r="D3" s="5" t="inlineStr"><is><t xml:space="preserve">经理1<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="E3" s="5" t="inlineStr"><is><t xml:space="preserve">混合型<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="G3" s="5" t="inlineStr"><is><t xml:space="preserve">股票1<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="H3" s="9"><v>0.005<\/v><\/c>/);
+  assert.match(content, /<c r="I3" s="5" t="inlineStr"><is><t xml:space="preserve">增持<\/t><\/is><\/c>/);
+  assert.match(content, /<mergeCell ref="A1:AJ1"\/>/);
+  assert.match(content, /<autoFilter ref="A2:AJ27"\/>/);
   assert.match(content, /当前基金公司旗下全部 25 只基金产品/);
-  assert.match(content, /<row r="6" ht="8" customHeight="1"\/><row r="7"><c r="A7" s="0" t="inlineStr"><is><t xml:space="preserve">第1名<\/t><\/is><\/c>/);
-  assert.match(content, /<row r="10" ht="8" customHeight="1"\/><row r="11"><c r="A11" s="0" t="inlineStr"><is><t xml:space="preserve">第2名<\/t><\/is><\/c>/);
-  assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 11);
+  assert.doesNotMatch(content, /ht="8" customHeight="1"\/>/);
 });
 
 test("company manager-sector export contains every manager, left-aligns every cell, formats percentages, and puts other last", () => {

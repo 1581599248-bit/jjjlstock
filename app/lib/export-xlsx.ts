@@ -23,6 +23,7 @@ type CompanyOverviewInput = { companyName: string; period: string; managers: Ove
 type CompanyFund = {
   code: string;
   name: string;
+  type: string;
   managers: string[];
   netAsset: number | null;
   holdings: Holding[];
@@ -71,7 +72,7 @@ function workbook(sheetEntries: Array<{ name: string; xml: string }>) {
     "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
     "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetEntries.map((entry, index) => `<sheet name="${xml(entry.name.slice(0, 31))}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("")}</sheets></workbook>`,
     "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetEntries.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("")}<Relationship Id="rId${sheetEntries.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
-    "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="10"/><name val="Microsoft YaHei"/></font><font><b/><sz val="16"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font><font><b/><sz val="10"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF63332E"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFB85C45"/></patternFill></fill></fills><borders count="2"><border/><border><bottom style="thin"><color rgb="FFE7D8CF"/></bottom></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="10"><xf numFmtId="0" fontId="0" fillId="0" borderId="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="3" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/><xf numFmtId="10" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="3" borderId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf><xf numFmtId="4" fontId="0" fillId="0" borderId="1" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf><xf numFmtId="10" fontId="0" fillId="0" borderId="1" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
+    "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="0.00##"/></numFmts><fonts count="3"><font><sz val="10"/><name val="Microsoft YaHei"/></font><font><b/><sz val="16"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font><font><b/><sz val="10"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF63332E"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFB85C45"/></patternFill></fill></fills><borders count="2"><border/><border><bottom style="thin"><color rgb="FFE7D8CF"/></bottom></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="10"><xf numFmtId="0" fontId="0" fillId="0" borderId="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="3" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/><xf numFmtId="10" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="3" borderId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="1" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf><xf numFmtId="10" fontId="0" fillId="0" borderId="1" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
   };
   sheetEntries.forEach((entry, index) => { files[`xl/worksheets/sheet${index + 1}.xml`] = entry.xml; });
   return zip(files);
@@ -125,22 +126,30 @@ export function exportCompanyOverviewWorkbook(input: CompanyOverviewInput) {
 }
 
 export function buildCompanyFundsWorkbook(input: CompanyFundsInput) {
-  const headers = ["指标", ...input.funds.map((fund) => fund.name)];
-  const rows: Cell[][] = [
-    ["基金代码", ...input.funds.map((fund) => fund.code)],
-    ["基金经理", ...input.funds.map((fund) => fund.managers.join("、") || "待匹配")],
-    ["报告期末规模", ...input.funds.map((fund) => fund.netAsset === null ? "待披露" : `${fund.netAsset.toFixed(fund.netAsset >= 100 ? 1 : 2)}亿`)],
-    Array.from({ length: input.funds.length + 1 }, () => null),
-  ];
-  for (let rank = 0; rank < 10; rank += 1) {
-    rows.push(
-      [`第${rank + 1}名`, ...input.funds.map((fund) => fund.holdings[rank]?.stockName ?? "—")],
-      ["净值占比", ...input.funds.map((fund) => fund.holdings[rank] ? `${fund.holdings[rank].weight.toFixed(2)}%` : "—")],
-      ["重仓股持仓变动", ...input.funds.map((fund) => fund.holdings[rank]?.change ?? "—")],
-      Array.from({ length: input.funds.length + 1 }, () => null),
-    );
-  }
-  const overview = sheet(`${input.companyName}｜全部基金产品｜${input.period}`, headers, rows, [22, ...input.funds.map(() => 18)], [], [], [0, 1, 2]);
+  const holdingHeaders = Array.from({ length: 10 }, (_, rank) => [
+    `第${rank + 1}名股票名称`,
+    `第${rank + 1}名净值占比`,
+    `第${rank + 1}名持仓变化`,
+  ]).flat();
+  const headers = ["基金名称", "基金代码", "报告期末规模(亿元)", "基金经理（现任）", "基金类型", "", ...holdingHeaders];
+  const rows: Cell[][] = input.funds.map((fund) => {
+    const holdings = Array.from({ length: 10 }, (_, rank) => {
+      const holding = fund.holdings[rank];
+      return holding ? [holding.stockName, holding.weight / 100, holding.change] : ["—", "—", "—"];
+    }).flat();
+    return [
+      fund.name,
+      fund.code,
+      fund.netAsset,
+      fund.managers.join("、") || "待匹配",
+      fund.type || "公募基金",
+      null,
+      ...holdings,
+    ];
+  });
+  const percentColumns = Array.from({ length: 10 }, (_, rank) => 7 + rank * 3);
+  const widths = [26, 12, 18, 24, 14, 3, ...Array.from({ length: 10 }, () => [18, 15, 15]).flat()];
+  const overview = sheet(`${input.companyName}｜全部基金产品｜${input.period}`, headers, rows, widths, [2], percentColumns, [], [], true);
   const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", input.source], ["基金产品口径", "A/C 等份额合并为一个基金产品，持仓只计算一次；基金代码为代表份额代码。"], ["规模口径", "所选报告期末各份额净资产合计；无法披露时标记为待披露，不做估算。"], ["导出范围", `当前基金公司旗下全部 ${input.funds.length} 只基金产品，不受页面搜索或当前选中基金影响。`], ["更新机制", "每个新季度集中刷新全市场产品、规模与持仓，校验通过后整体发布。"]], [24, 110]);
   return workbook([{ name: "基金产品总览", xml: overview }, { name: "数据口径", xml: notes }]);
 }
