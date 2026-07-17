@@ -1,16 +1,16 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-17T08:39:11.735Z",
+  "updatedAt": "2026-07-17T08:51:33.097Z",
   "entries": {
     "80000222:2026-03-31": {
       "companyId": "80000222",
       "companyName": "华夏基金",
       "period": "2026-03-31",
-      "generatedAt": "2026-07-17T08:39:11.735Z",
-      "managerCount": 136,
+      "generatedAt": "2026-07-17T08:51:33.097Z",
+      "managerCount": 137,
       "productCount": 597,
       "path": "/data/overview/2026-03-31/80000222.json",
-      "contentHash": "ca134bb34a50b927136522472f2a2a862a544fc0e143071f510568162f7fd0c2"
+      "contentHash": "6384a5ff79cbecef075603f9f3fb9ff3079b8db4c72af9ce40e240dd9010d8c6"
     }
   }
 }
