@@ -125,6 +125,8 @@ export default function Home() {
   const [overviewScope, setOverviewScope] = useState("");
   const [overviewStaticScope, setOverviewStaticScope] = useState("");
   const [overviewStaticHit, setOverviewStaticHit] = useState(false);
+  const [sectorData, setSectorData] = useState<StaticSectorPayload | null>(null);
+  const [sectorStaticScope, setSectorStaticScope] = useState("");
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewProgress, setOverviewProgress] = useState(0);
   const [companyLoading, setCompanyLoading] = useState(true);
@@ -194,6 +196,8 @@ export default function Home() {
     setOverviewScope(scope);
     setOverviewStaticScope("");
     setOverviewStaticHit(false);
+    setSectorData(null);
+    setSectorStaticScope("");
     setOverviewLoading(false);
     setOverviewProgress(0);
     fetch(`/data/overview/${period}/${companyId}.json`, { signal: controller.signal })
@@ -210,6 +214,17 @@ export default function Home() {
       })
       .catch(() => undefined)
       .finally(() => { if (!controller.signal.aborted) setOverviewStaticScope(scope); });
+    fetch(`/data/sectors/${period}/${companyId}.json`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("静态行业数据不存在");
+        return response.json() as Promise<StaticSectorPayload>;
+      })
+      .then((payload) => {
+        if (payload.companyId !== companyId || payload.period !== period) throw new Error("静态行业数据范围不匹配");
+        if (!controller.signal.aborted) setSectorData(payload);
+      })
+      .catch(() => undefined)
+      .finally(() => { if (!controller.signal.aborted) setSectorStaticScope(scope); });
     return () => controller.abort();
   }, [companyId, period]);
 
@@ -243,10 +258,22 @@ export default function Home() {
 
   useEffect(() => {
     if (mode !== "manager" || !selectedManager?.id || !period) return;
+    const scope = `${companyId}|${period}`;
     const precomputed = overviewData[selectedManager.id];
-    setDetailLoading(!precomputed); setManagerHoldings(precomputed ?? null); setError("");
-    fetch("/api/manager-holdings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ products: managerProducts(selectedManager, funds), period }) }).then(async (response) => { if (!response.ok) throw new Error("经理持仓汇总失败"); return response.json(); }).then(setManagerHoldings).catch((reason) => { if (!precomputed) setError(reason.message); }).finally(() => setDetailLoading(false));
-  }, [mode, selectedManager?.id, period, funds.length]);
+    const staticManager = sectorData?.companyId === companyId && sectorData.period === period ? sectorData.managers[selectedManager.id] : undefined;
+    if (precomputed) {
+      setManagerHoldings({ ...precomputed, sectors: orderSectors(staticManager?.sectors ?? []) });
+      setDetailLoading(false); setError("");
+      if (staticManager || sectorStaticScope !== scope) return;
+    } else if (overviewStaticScope !== scope) {
+      setManagerHoldings(null); setDetailLoading(true); setError("");
+      return;
+    }
+    const controller = new AbortController();
+    setDetailLoading(!precomputed); setError("");
+    fetch("/api/manager-holdings", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ products: managerProducts(selectedManager, funds), period }) }).then(async (response) => { if (!response.ok) throw new Error("经理持仓汇总失败"); return response.json(); }).then((payload: ManagerPayload) => { if (!controller.signal.aborted) setManagerHoldings(payload); }).catch((reason) => { if (!controller.signal.aborted && !precomputed) setError(reason.message); }).finally(() => { if (!controller.signal.aborted) setDetailLoading(false); });
+    return () => controller.abort();
+  }, [mode, selectedManager?.id, period, companyId, funds.length, overviewData, overviewStaticScope, sectorData, sectorStaticScope]);
 
   const exportCurrent = async () => {
     if (!company) return;
@@ -275,9 +302,14 @@ export default function Home() {
     if (!company || !managers.length || !managers.every((manager) => overviewData[manager.id])) return;
     setSectorExportLoading(true); setError("");
     try {
-      const response = await fetch(`/data/sectors/${period}/${companyId}.json`);
-      if (!response.ok) throw new Error("该季度的基金经理行业数据尚未发布");
-      const payload = await response.json() as StaticSectorPayload;
+      let payload = sectorData?.companyId === companyId && sectorData.period === period ? sectorData : null;
+      if (!payload) {
+        const response = await fetch(`/data/sectors/${period}/${companyId}.json`);
+        if (!response.ok) throw new Error("该季度的基金经理行业数据尚未发布");
+        payload = await response.json() as StaticSectorPayload;
+        setSectorData(payload);
+        setSectorStaticScope(`${companyId}|${period}`);
+      }
       if (payload.companyId !== companyId || payload.period !== period || payload.managerCount !== managers.length) throw new Error("基金经理行业数据范围不匹配");
       exportCompanyManagerSectorsWorkbook({
         companyName: company.name,
@@ -299,6 +331,7 @@ export default function Home() {
   const canExport = mode === "overview" ? managers.length > 0 && managers.every((manager) => overviewData[manager.id]) : mode === "fund" ? funds.length > 0 : Boolean(managerHoldings);
   const exportDisabled = !canExport || fundExportLoading || (mode === "overview" && overviewLoading) || (mode === "manager" && detailLoading);
   const sectorExportDisabled = sectorExportLoading || !managers.length || !managers.every((manager) => overviewData[manager.id]);
+  const managerSectorPending = mode === "manager" && sectorStaticScope !== `${companyId}|${period}` && !(managerHoldings?.sectors.length);
   return <main>
     <header className="topbar"><div className="logo">仓</div><div><strong>全市场持仓雷达</strong><small>PUBLIC FUND HOLDINGS</small></div><span className="health snapshot"><i />{market ? "全市场库已加载" : "正在加载全市场库"}</span></header>
     <section className="hero"><p className="kicker">QUARTERLY OWNERSHIP INTELLIGENCE</p><h1>全市场基金与基金经理<br />最新季度重仓股</h1><p>覆盖全部基金公司，按公司穿透全部基金与基金经理；当前提供 2026 年一季完整数据，并可导出高密度 Excel。</p><div className="market-strip"><span><b>{market?.companyCount ?? "—"}</b> 管理机构</span><span><b>{fmt(market?.managerCount ?? 0, 0)}</b> 基金经理</span><span><b>{fmt(marketProductCount, 0)}</b> 在管基金产品<small>A/C 等份额已去重</small></span></div></section>
@@ -314,10 +347,10 @@ export default function Home() {
         <div className="overview-progress"><i style={{ width: `${overviewManagers.length ? overviewProgress / overviewManagers.length * 100 : 0}%` }} /><span>{overviewLoading ? `正在汇总 ${overviewProgress}/${overviewManagers.length} 位经理` : overviewStaticHit ? `后台预计算数据已就绪 · 本页 ${overviewManagers.length} 位经理` : `本页 ${overviewManagers.length} 位经理已就绪`}</span></div>
         <OverviewMatrix managers={overviewManagers} data={overviewData} loading={overviewLoading} />
         <p className="overview-note">规模与净值占比均为所选财报期公开披露值，不做估算。联合管理基金分别归入每位基金经理；A/C 等份额持仓只计算一次，份额规模全部合并。“导出全部经理 Excel”不受当前分页或搜索影响，一次包含该公司全部基金经理。已生成的季度优先读取后台预计算静态数据，缺失时自动回退实时接口。</p>
-      </> : companyLoading ? <Skeleton label="正在读取该公司全部基金、经理与报告期规模…" /> : <><div className="result-head"><strong>{mode === "manager" ? "全部基金经理" : "全部基金"}</strong><span>{mode === "manager" ? filteredManagers.length : filteredFunds.length} 条 · 横向滑动</span></div><div className="entity-rail">{mode === "manager" ? filteredManagers.map((item) => <button key={item.id} className={item.id === selectedManager?.id ? "active" : ""} onClick={() => setSelectedManagerId(item.id)}><strong>{item.name}</strong><small>{representativeCodes(item).length} 个产品 · 从业 {fmt(item.tenureDays / 365, 1)} 年</small></button>) : filteredFunds.map((item) => <button key={item.code} className={`fund-card${item.code === selectedFund?.code ? " active" : ""}`} onClick={() => setSelectedFundCode(item.code)}><strong>{item.name}</strong><small>{item.code} · {item.managers.join("、") || "经理待匹配"}</small><small className="fund-scale">期末规模 {fundScale(item.netAsset)}</small></button>)}</div></>}
+      </> : mode === "manager" ? <><div className="result-head"><strong>全部基金经理</strong><span>{filteredManagers.length} 条 · 横向滑动</span></div><div className="entity-rail">{filteredManagers.map((item) => <button key={item.id} className={item.id === selectedManager?.id ? "active" : ""} onClick={() => setSelectedManagerId(item.id)}><strong>{item.name}</strong><small>{representativeCodes(item).length} 个产品 · 从业 {fmt(item.tenureDays / 365, 1)} 年</small></button>)}</div></> : companyLoading ? <Skeleton label="正在读取该公司全部基金与报告期规模…" /> : <><div className="result-head"><strong>全部基金</strong><span>{filteredFunds.length} 条 · 横向滑动</span></div><div className="entity-rail">{filteredFunds.map((item) => <button key={item.code} className={`fund-card${item.code === selectedFund?.code ? " active" : ""}`} onClick={() => setSelectedFundCode(item.code)}><strong>{item.name}</strong><small>{item.code} · {item.managers.join("、") || "经理待匹配"}</small><small className="fund-scale">期末规模 {fundScale(item.netAsset)}</small></button>)}</div></>}
       {error && <div className="error-banner">{error}</div>}
       {mode !== "overview" && <div className="detail-card">
-        {mode === "manager" && selectedManager && <><div className="detail-title"><div><span>FUND MANAGER</span><h2>{selectedManager.name}</h2><p>{company?.name} · {representativeCodes(selectedManager).length} 个在管基金产品（份额已去重） · 在管产品持仓汇总</p></div><em>经理汇总</em></div><div className="mini-metrics"><div><small>从业年限</small><b>{fmt(selectedManager.tenureDays / 365, 1)} 年</b></div><div><small>去重后产品</small><b>{representativeCodes(selectedManager).length} 只</b></div><div><small>在管净值</small><b>{managerHoldings ? `${fmt(managerHoldings.managedNav / 10000, 1)} 亿` : "—"}</b></div><div><small>成功汇总</small><b>{managerHoldings?.succeeded ?? "—"} 只</b></div></div>{detailLoading ? <Skeleton label="正在汇总经理在管基金持仓…" /> : <><SectorBreakdown rows={managerHoldings?.sectors ?? []} /><ManagerTable rows={managerHoldings?.holdings ?? []} /><p className="value-note">“导出全部行业 Excel”一次包含该公司全部基金经理的行业净值占比和前十大内部占比，不受当前搜索或选中经理影响。</p></>}</>}
+        {mode === "manager" && selectedManager && <><div className="detail-title"><div><span>FUND MANAGER</span><h2>{selectedManager.name}</h2><p>{company?.name} · {representativeCodes(selectedManager).length} 个在管基金产品（份额已去重） · 在管产品持仓汇总</p></div><em>经理汇总</em></div><div className="mini-metrics"><div><small>从业年限</small><b>{fmt(selectedManager.tenureDays / 365, 1)} 年</b></div><div><small>去重后产品</small><b>{representativeCodes(selectedManager).length} 只</b></div><div><small>在管净值</small><b>{managerHoldings ? `${fmt(managerHoldings.managedNav / 10000, 1)} 亿` : "—"}</b></div><div><small>成功汇总</small><b>{managerHoldings?.succeeded ?? "—"} 只</b></div></div>{detailLoading ? <Skeleton label="正在读取经理持仓…" /> : <>{managerSectorPending ? <Skeleton label="正在读取已预生成的行业数据…" /> : <SectorBreakdown rows={managerHoldings?.sectors ?? []} />}<ManagerTable rows={managerHoldings?.holdings ?? []} /><p className="value-note">经理持仓与行业分布均优先读取后台预生成季度数据；切换经理无需再次逐只基金查询。“导出全部行业 Excel”不受当前搜索或选中经理影响。</p></>}</>}
         {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>基金规模</small><b>{fundScale(selectedFund.netAsset)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <><FundTable rows={fundHoldings?.holdings ?? []} /><p className="value-note">“导出全部基金 Excel”一次包含该公司全部基金产品，不受当前搜索或选中基金影响；A/C 等份额合并规模，持仓只保留一份。</p></>}</>}
       </div>}
     </section>

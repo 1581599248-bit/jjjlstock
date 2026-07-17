@@ -39,6 +39,8 @@ test("offers the all-manager industry export action", async () => {
   const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   assert.match(pageSource, /导出全部行业 Excel/);
   assert.match(pageSource, /\/data\/sectors\/\$\{period\}\/\$\{companyId\}\.json/);
+  assert.match(pageSource, /setManagerHoldings\(\{ \.\.\.precomputed, sectors: orderSectors\(staticManager\?\.sectors \?\? \[\]\) \}\)/);
+  assert.match(pageSource, /切换经理无需再次逐只基金查询/);
 });
 
 test("ships a complete full-market fallback index", async () => {

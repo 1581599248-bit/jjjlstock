@@ -40,7 +40,7 @@ test("company fund export contains every product, preserves leading-zero codes, 
   assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 10);
 });
 
-test("company manager-sector export contains every manager, formats percentages, and puts other last", () => {
+test("company manager-sector export contains every manager, left-aligns every cell, formats percentages, and puts other last", () => {
   const managers = Array.from({ length: 25 }, (_, index) => ({
     name: `经理${index + 1}`,
     tenureYears: index + 0.5,
@@ -55,10 +55,13 @@ test("company manager-sector export contains every manager, formats percentages,
   const content = new TextDecoder().decode(bytes);
   assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
   assert.match(content, /经理25/);
-  assert.match(content, /<c r="B6" s="0" t="inlineStr"><is><t xml:space="preserve">电子<\/t><\/is><\/c>/);
-  assert.match(content, /<c r="B7" s="4"><v>0.06<\/v><\/c>/);
-  assert.match(content, /<c r="B8" s="4"><v>0.6<\/v><\/c>/);
-  assert.match(content, /<c r="B12" s="0" t="inlineStr"><is><t xml:space="preserve">其他\/未分类<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="A1" s="6" t="inlineStr">/);
+  assert.match(content, /<c r="B2" s="7" t="inlineStr">/);
+  assert.match(content, /<c r="B6" s="5" t="inlineStr"><is><t xml:space="preserve">电子<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="B7" s="9"><v>0.06<\/v><\/c>/);
+  assert.match(content, /<c r="B8" s="9"><v>0.6<\/v><\/c>/);
+  assert.match(content, /<c r="B12" s="5" t="inlineStr"><is><t xml:space="preserve">其他\/未分类<\/t><\/is><\/c>/);
+  assert.doesNotMatch(content, /<c r="[A-Z]+\d+" s="[0-4]"/);
   assert.match(content, /当前基金公司旗下全部 25 位基金经理/);
   assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 10);
 });
