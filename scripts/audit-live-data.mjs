@@ -27,10 +27,14 @@ const companyChecks = [];
 for (const name of ["华夏基金", "浙商基金", "长信基金"]) {
   const company = market.companies.find((item) => item.name === name);
   assert.ok(company, `missing company ${name}`);
-  const payload = await call(`/api/company?id=${encodeURIComponent(company.id)}`);
+  const payload = await call(`/api/company?id=${encodeURIComponent(company.id)}&period=${periods.periods[0]}`);
   assert.ok(payload.funds.length > 0, `${name} has no funds`);
   assert.equal(new Set(payload.funds.map((fund) => fund.code)).size, payload.funds.length, `${name} duplicate fund codes`);
-  companyChecks.push({ name, managers: company.managers.length, funds: payload.funds.length });
+  assert.ok(payload.funds.every((fund) => fund.scalePeriod === periods.periods[0] && (fund.netAsset === null || fund.netAsset >= 0)), `${name} invalid fund scale`);
+  const disclosedScales = payload.funds.filter((fund) => fund.netAsset !== null).length;
+  assert.ok(disclosedScales / payload.funds.length > 0.7, `${name} fund scale coverage too low`);
+  if (name === "华夏基金") assert.equal(payload.funds.find((fund) => fund.code === "000001")?.netAsset, 26.44);
+  companyChecks.push({ name, managers: company.managers.length, funds: payload.funds.length, disclosedScales, scaleCoverage: disclosedScales / payload.funds.length });
 }
 
 const fund = await call(`/api/holdings?code=000001&period=${periods.periods[0]}`);

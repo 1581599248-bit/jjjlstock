@@ -75,6 +75,9 @@ main{width:min(100%,760px);min-height:100vh;margin:0 auto;background:var(--paper
 .entity-rail>button small{display:block;margin-top:4px;color:#918c92;font-size:8px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .entity-rail>button.active{color:#fff;background:linear-gradient(135deg,#d93128,#ee4b2f);border-color:transparent;box-shadow:0 7px 16px rgba(205,45,35,.2)}
 .entity-rail>button.active small{color:#ffe1d8}
+.entity-rail>button.fund-card{min-height:74px}
+.entity-rail>button .fund-scale{margin-top:3px;color:#c6362b;font-weight:800}
+.entity-rail>button.active .fund-scale{color:#fff}
 
 .detail-card{margin-top:3px;padding-top:14px;border-top:1px solid var(--line)}
 .detail-title{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}

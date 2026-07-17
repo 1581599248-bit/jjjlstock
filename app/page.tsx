@@ -11,6 +11,7 @@ type ManagerPayload = { period: string; requested: number; succeeded: number; fa
 const FALLBACK_PERIODS = ["2026-03-31", "2025-12-31", "2025-09-30"];
 
 const fmt = (value: number, digits = 1) => new Intl.NumberFormat("zh-CN", { maximumFractionDigits: digits }).format(value);
+const fundScale = (value: number | null) => value === null ? "待披露" : `${fmt(value, value >= 100 ? 1 : 2)} 亿`;
 const periodLabel = (period: string) => `${period.slice(0, 4)} ${period.slice(5, 7) === "03" ? "一季报" : period.slice(5, 7) === "06" ? "中报" : period.slice(5, 7) === "09" ? "三季报" : "年报"}`;
 const changeTone = (change: string) => change === "增持" || change === "新进" ? "up" : change === "减持" ? "down" : "flat";
 const isOtherIndustry = (industry: string) => /^(其他|未分类|未知|其他\/未分类)$/.test(industry.trim());
@@ -75,10 +76,10 @@ export default function Home() {
     if (!companyId) return;
     setCompanyLoading(true); setError(""); setQuery("");
     setCompanyData(null);
-    fetch(`/api/company?id=${encodeURIComponent(companyId)}`).then(async (response) => { if (!response.ok) throw new Error("公司数据加载失败"); return response.json(); }).then((result: CompanyPayload) => {
+    fetch(`/api/company?id=${encodeURIComponent(companyId)}&period=${encodeURIComponent(period)}`).then(async (response) => { if (!response.ok) throw new Error("公司数据加载失败"); return response.json(); }).then((result: CompanyPayload) => {
       setCompanyData(result); setSelectedFundCode(result.funds[0]?.code ?? "");
     }).catch((reason) => setError(reason.message)).finally(() => setCompanyLoading(false));
-  }, [companyId]);
+  }, [companyId, period]);
 
   const managers = company?.managers ?? companyData?.company.managers ?? [];
   const managerByFund = useMemo(() => {
@@ -113,7 +114,7 @@ export default function Home() {
 
   const exportCurrent = () => {
     if (!company) return;
-    if (mode === "fund" && selectedFund && fundHoldings) exportHoldingsWorkbook({ companyName: company.name, entityType: "基金", entityName: selectedFund.name, entityCode: selectedFund.code, period, holdings: fundHoldings.holdings, notes: [["基金经理", selectedFund.managers.join("、") || "未匹配"], ["数据源", fundHoldings.source]] });
+    if (mode === "fund" && selectedFund && fundHoldings) exportHoldingsWorkbook({ companyName: company.name, entityType: "基金", entityName: selectedFund.name, entityCode: selectedFund.code, period, holdings: fundHoldings.holdings, notes: [["基金经理", selectedFund.managers.join("、") || "未匹配"], ["报告期末净资产(亿元)", selectedFund.netAsset], ["规模口径", `${selectedFund.scalePeriod || period}期末净资产`], ["数据源", fundHoldings.source]] });
     if (mode === "manager" && selectedManager && managerHoldings) exportHoldingsWorkbook({ companyName: company.name, entityType: "基金经理", entityName: selectedManager.name, period, holdings: managerHoldings.holdings, sectors: orderSectors(managerHoldings.sectors), notes: [["在管基金", selectedManager.fundCodes.length], ["参与汇总基金", managerHoldings.succeeded], ["在管净值(亿元)", managerHoldings.managedNav / 10000], ["失败基金", managerHoldings.failed], ["行业口径", "东方财富原始行业字段；其他/未分类固定置底"], ["数据源", managerHoldings.source]] });
   };
 
@@ -126,14 +127,14 @@ export default function Home() {
     <section className="workspace">
       <div className="tabs"><button className={mode === "manager" ? "active" : ""} onClick={() => setMode("manager")}>基金经理</button><button className={mode === "fund" ? "active" : ""} onClick={() => setMode("fund")}>基金产品</button></div>
       <div className="entity-tools"><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "manager" ? "搜索经理、在管基金" : "搜索基金代码、名称、经理"} />{query && <button onClick={() => setQuery("")}>×</button>}</div><button className="export" onClick={exportCurrent} disabled={!canExport || detailLoading}>导出当前 Excel</button></div>
-      {companyLoading ? <Skeleton label="正在读取该公司全部基金与经理…" /> : <><div className="result-head"><strong>{mode === "manager" ? "全部基金经理" : "全部基金"}</strong><span>{mode === "manager" ? filteredManagers.length : filteredFunds.length} 条 · 横向滑动</span></div><div className="entity-rail">{mode === "manager" ? filteredManagers.map((item) => <button key={item.id} className={item.id === selectedManager?.id ? "active" : ""} onClick={() => setSelectedManagerId(item.id)}><strong>{item.name}</strong><small>{item.fundCodes.length} 只 · 从业 {fmt(item.tenureDays / 365, 1)} 年</small></button>) : filteredFunds.map((item) => <button key={item.code} className={item.code === selectedFund?.code ? "active" : ""} onClick={() => setSelectedFundCode(item.code)}><strong>{item.name}</strong><small>{item.code} · {item.managers.join("、") || "经理待匹配"}</small></button>)}</div></>}
+      {companyLoading ? <Skeleton label="正在读取该公司全部基金、经理与报告期规模…" /> : <><div className="result-head"><strong>{mode === "manager" ? "全部基金经理" : "全部基金"}</strong><span>{mode === "manager" ? filteredManagers.length : filteredFunds.length} 条 · 横向滑动</span></div><div className="entity-rail">{mode === "manager" ? filteredManagers.map((item) => <button key={item.id} className={item.id === selectedManager?.id ? "active" : ""} onClick={() => setSelectedManagerId(item.id)}><strong>{item.name}</strong><small>{item.fundCodes.length} 只 · 从业 {fmt(item.tenureDays / 365, 1)} 年</small></button>) : filteredFunds.map((item) => <button key={item.code} className={`fund-card${item.code === selectedFund?.code ? " active" : ""}`} onClick={() => setSelectedFundCode(item.code)}><strong>{item.name}</strong><small>{item.code} · {item.managers.join("、") || "经理待匹配"}</small><small className="fund-scale">期末规模 {fundScale(item.netAsset)}</small></button>)}</div></>}
       {error && <div className="error-banner">{error}</div>}
       <div className="detail-card">
         {mode === "manager" && selectedManager && <><div className="detail-title"><div><span>FUND MANAGER</span><h2>{selectedManager.name}</h2><p>{company?.name} · {selectedManager.fundCodes.length} 个在管基金代码 · 在管产品持仓汇总</p></div><em>经理汇总</em></div><div className="mini-metrics"><div><small>从业年限</small><b>{fmt(selectedManager.tenureDays / 365, 1)} 年</b></div><div><small>去重后产品</small><b>{representativeCodes(selectedManager).length} 只</b></div><div><small>在管净值</small><b>{managerHoldings ? `${fmt(managerHoldings.managedNav / 10000, 1)} 亿` : "—"}</b></div><div><small>成功汇总</small><b>{managerHoldings?.succeeded ?? "—"} 只</b></div></div>{detailLoading ? <Skeleton label="正在汇总经理在管基金持仓…" /> : <><SectorBreakdown rows={managerHoldings?.sectors ?? []} /><ManagerTable rows={managerHoldings?.holdings ?? []} /></>}</>}
-        {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div><div><small>数据源</small><b>东方财富</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <FundTable rows={fundHoldings?.holdings ?? []} />}</>}
+        {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>基金规模</small><b>{fundScale(selectedFund.netAsset)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <FundTable rows={fundHoldings?.holdings ?? []} />}</>}
       </div>
     </section>
-    <section className="method"><div><span>自动化数据链路</span><h2>实时索引 → 公司全量 → 单体持仓 → 季度缓存</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、期末净资产和定期报告持仓。</li><li><b>专业源</b> iFind 尚未配置生产 API 授权，接入后可作为主源并保留东方财富容灾。</li><li><b>更新</b> 每 6 小时刷新基金经理、在管关系、基金产品并探测最新财报期。</li><li><b>口径</b> 基金净值占比取定期报告披露值；基金经理口径汇总去重后的在管产品。</li></ol></section>
+    <section className="method"><div><span>自动化数据链路</span><h2>实时索引 → 公司全量 → 单体持仓 → 季度缓存</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、报告期末净资产和定期报告持仓。</li><li><b>专业源</b> iFind 尚未配置生产 API 授权，接入后可作为主源并保留东方财富容灾。</li><li><b>更新</b> 每 6 小时刷新基金经理、在管关系、基金产品并探测最新财报期。</li><li><b>口径</b> 每只基金规模为所选财报期末净资产；未完成披露时显示“待披露”，不使用其他日期替代。</li></ol></section>
     <footer><strong>全市场持仓雷达</strong><span>索引更新 {market?.generatedAt ? new Date(market.generatedAt).toLocaleString("zh-CN") : "读取中"} · 数据仅供研究</span></footer>
   </main>;
 }

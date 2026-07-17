@@ -35,6 +35,8 @@ export type FundItem = {
   type: string;
   pinyin: string;
   managers: string[];
+  netAsset: number | null;
+  scalePeriod: string;
 };
 
 export type Holding = {
@@ -55,4 +57,3 @@ export type FundHoldings = {
   fetchedAt: string;
   holdings: Holding[];
 };
-

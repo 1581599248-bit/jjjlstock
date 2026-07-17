@@ -5,6 +5,7 @@ const FUND_LIST_API = "https://fund.eastmoney.com/Data/Fund_JJJZ_Data.aspx";
 const HOLDINGS_API = "https://fundf10.eastmoney.com/FundArchivesDatas.aspx";
 const QUOTE_API = "https://push2.eastmoney.com/api/qt/stock/get";
 const COMPANY_SURVEY_API = "https://emweb.securities.eastmoney.com/PC_HSF10/CompanySurvey/PageAjax";
+const COMPANY_FUND_SCALE_API = "https://fund.eastmoney.com/Company1/GMBD/QMore";
 const HEADERS = { "user-agent": "Mozilla/5.0 (compatible; FundHoldingsRadar/1.0)", referer: "https://fund.eastmoney.com/" };
 
 function unescapeHtml(value: string) {
@@ -81,12 +82,35 @@ export async function fetchMarketIndex() {
 }
 
 export function parseFundRows(text: string): FundItem[] {
-  return extractJsonArray(text, "datas:").map((row) => ({ code: row[0] ?? "", name: row[1] ?? "", pinyin: row[2] ?? "", type: "公募基金", managers: [] })).filter((item) => /^\d{6}$/.test(item.code));
+  return extractJsonArray(text, "datas:").map((row) => ({ code: row[0] ?? "", name: row[1] ?? "", pinyin: row[2] ?? "", type: "公募基金", managers: [], netAsset: null, scalePeriod: "" })).filter((item) => /^\d{6}$/.test(item.code));
 }
 
 export async function fetchCompanyFunds(companyId: string) {
   const params = new URLSearchParams({ t: "1", lx: "1", letter: "", gsid: companyId, text: "", sort: "zdf,desc", page: "1,2000", dt: String(Date.now()) });
   return parseFundRows(await fetchText(`${FUND_LIST_API}?${params}`));
+}
+
+export async function fetchCompanyFundScales(companyId: string, period: string) {
+  if (!/^\d{8}$/.test(companyId) || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("invalid company scale query");
+  const params = new URLSearchParams({
+    id: companyId,
+    curyear: period.slice(0, 4),
+    pagesize: "10",
+    Q: String(Number(period.slice(5, 7)) / 3),
+    fundtype: "0",
+    JZRQ: period,
+    ftype: "全部",
+    rt: String(Date.now()),
+  });
+  const text = await fetchText(`${COMPANY_FUND_SCALE_API}?${params}`, `https://fund.eastmoney.com/Company1/f10/gmbd_${companyId}.html`);
+  const payload = JSON.parse(text) as { Datas?: Array<{ BZDM?: string; QMJZC?: string | number | null }> };
+  const result = new Map<string, number>();
+  for (const row of payload.Datas ?? []) {
+    const code = String(row.BZDM ?? "");
+    const netAsset = Number.parseFloat(String(row.QMJZC ?? "").replace(/,/g, ""));
+    if (/^\d{6}$/.test(code) && Number.isFinite(netAsset) && netAsset >= 0) result.set(code, netAsset);
+  }
+  return result;
 }
 
 function stripTags(value: string) { return unescapeHtml(value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()); }

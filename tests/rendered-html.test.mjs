@@ -19,6 +19,7 @@ test("renders the mobile-first full-market holdings dashboard", async () => {
   assert.match(html, /基金产品/);
   assert.match(html, /自动探测/);
   assert.match(html, /导出当前 Excel/);
+  assert.match(html, /基金规模/);
   assert.doesNotMatch(html, /当前原型来自|仅完整提供|浙商基金.*长信基金/);
 });
 
@@ -31,4 +32,3 @@ test("ships a complete full-market fallback index", async () => {
   assert.ok(data.managedFundCount >= 20000);
   assert.ok(data.companies.some((item) => item.name === "华夏基金"));
 });
-
