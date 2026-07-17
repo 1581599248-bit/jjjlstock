@@ -143,7 +143,7 @@ function companyFundsSheet(input: CompanyFundsInput) {
     `第${rank + 1}名净值占比`,
     `第${rank + 1}名持仓变化`,
   ]).flat();
-  const headers = ["基金名称", "基金代码", "净资产规模(亿元)", "报告期末份额(亿份)", "基金经理（现任）", "基金类型", "", ...holdingHeaders];
+  const headers = ["基金名称", "基金代码", "净资产规模(亿元)", "基金经理（现任）", "基金类型", "", ...holdingHeaders];
   const rows: Cell[][] = input.funds.map((fund) => {
     const displayCode = /^\d{1,6}$/.test(fund.code) ? fund.code.padStart(6, "0") : fund.code;
     const holdings = Array.from({ length: 10 }, (_, rank) => {
@@ -154,21 +154,20 @@ function companyFundsSheet(input: CompanyFundsInput) {
       fund.name,
       displayCode,
       fund.netAsset,
-      fund.endShares,
       fund.managers.join("、") || "待匹配",
       fund.type || "类型待披露",
       null,
       ...holdings,
     ];
   });
-  const percentColumns = Array.from({ length: 10 }, (_, rank) => 8 + rank * 3);
-  const widths = [26, 12, 18, 20, 24, 14, 3, ...Array.from({ length: 10 }, () => [18, 15, 15]).flat()];
-  return sheet(`${input.companyName}｜全部基金产品｜${input.period}`, headers, rows, widths, [2, 3], percentColumns, [], [], true);
+  const percentColumns = Array.from({ length: 10 }, (_, rank) => 7 + rank * 3);
+  const widths = [26, 12, 18, 24, 14, 3, ...Array.from({ length: 10 }, () => [18, 15, 15]).flat()];
+  return sheet(`${input.companyName}｜全部基金产品｜${input.period}`, headers, rows, widths, [2], percentColumns, [], [], true);
 }
 
 export function buildCompanyFundsWorkbook(input: CompanyFundsInput) {
   const overview = companyFundsSheet(input);
-  const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", input.source], ["基金类型口径", "东方财富基金基础资料原始分类；无法匹配时标记为类型待披露。"], ["基金产品口径", "按所选报告期实际存在的产品生成；A/C 等份额合并为一个基金产品，持仓只计算一次，基金代码为代表份额代码。"], ["净资产规模口径", "所选报告期末各份额净资产合计，单位亿元，不做估算。"], ["期末份额口径", "东方财富未披露当季净资产的 REIT 等产品，保留同期官方披露的期末份额（亿份），避免用旧规模冒充本期净资产。"], ["导出范围", `当前基金公司在报告期内的全部 ${input.funds.length} 只基金产品，不受页面搜索或当前选中基金影响。`], ["更新机制", "每个新季度集中刷新全市场产品、规模与持仓，校验通过后整体发布。"]], [24, 110]);
+  const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", input.source], ["基金类型口径", "东方财富基金基础资料原始分类；无法匹配时标记为类型待披露。"], ["基金产品口径", "按所选报告期实际存在的产品生成；A/C 等份额合并为一个基金产品，持仓只计算一次，基金代码为代表份额代码。"], ["净资产规模口径", "所选报告期末各份额净资产合计，单位亿元，不做估算。"], ["导出范围", `当前基金公司在报告期内的全部 ${input.funds.length} 只基金产品，不受页面搜索或当前选中基金影响。`], ["更新机制", "每个新季度集中刷新全市场产品、规模与持仓，校验通过后整体发布。"]], [24, 110]);
   return workbook([{ name: "基金产品总览", xml: overview }, { name: "数据口径", xml: notes }]);
 }
 
