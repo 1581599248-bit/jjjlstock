@@ -43,6 +43,23 @@ function managerProducts(manager: ManagerIndex, funds: FundItem[]) {
   });
 }
 
+function overviewRequestGroups(managers: ManagerIndex[], funds: FundItem[], maxUniqueProducts = 20) {
+  const groups: Array<Array<{ id: string; products: ReturnType<typeof managerProducts> }>> = [];
+  let current: Array<{ id: string; products: ReturnType<typeof managerProducts> }> = [];
+  let currentCodes = new Set<string>();
+  for (const manager of managers) {
+    const products = managerProducts(manager, funds);
+    const nextCodes = new Set([...currentCodes, ...products.map((product) => product.code)]);
+    if (current.length && nextCodes.size > maxUniqueProducts) {
+      groups.push(current); current = []; currentCodes = new Set<string>();
+    }
+    current.push({ id: manager.id, products });
+    products.forEach((product) => currentCodes.add(product.code));
+  }
+  if (current.length) groups.push(current);
+  return groups;
+}
+
 function Skeleton({ label }: { label: string }) { return <div className="loading-state"><span className="spinner" />{label}</div>; }
 
 function FundTable({ rows }: { rows: Holding[] }) {
@@ -165,19 +182,20 @@ export default function Home() {
     const missing = overviewManagers.filter((manager) => !overviewData[manager.id]);
     if (!missing.length) { setOverviewLoading(false); setOverviewProgress(overviewManagers.length); return; }
     const controller = new AbortController();
-    const cacheKey = `fund-overview:${companyId}:${period}:${missing.map((manager) => manager.id).join("-")}`;
-    try {
-      const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null") as { savedAt?: number; managers?: Record<string, ManagerPayload> } | null;
-      if (cached?.savedAt && cached.managers && Date.now() - cached.savedAt < 21_600_000) {
-        setOverviewData((current) => ({ ...current, ...cached.managers })); setOverviewProgress(overviewManagers.length); setOverviewLoading(false); return;
-      }
-    } catch { /* ignore invalid device cache */ }
+    const requestGroups = overviewRequestGroups(missing, funds);
     setOverviewLoading(true); setOverviewProgress(overviewManagers.length - missing.length);
-    fetch("/api/company-overview", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ companyId, period, managers: missing.map((manager) => ({ id: manager.id, products: managerProducts(manager, funds) })) }) })
-      .then(async (response) => { if (!response.ok) throw new Error("批量汇总失败"); return response.json(); })
-      .then((payload: { managers: Record<string, ManagerPayload> }) => { if (!controller.signal.aborted) { setOverviewData((current) => ({ ...current, ...payload.managers })); setOverviewProgress(overviewManagers.length); try { localStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), managers: payload.managers })); } catch { /* device storage unavailable */ } } })
-      .catch(() => { if (!controller.signal.aborted) setError("基金总览批量读取失败，请稍后重试"); })
-      .finally(() => { if (!controller.signal.aborted) setOverviewLoading(false); });
+    Promise.allSettled(requestGroups.map(async (group) => {
+      const response = await fetch("/api/company-overview", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ companyId, period, managers: group }) });
+      if (!response.ok) throw new Error("批量汇总失败");
+      const payload = await response.json() as { managers: Record<string, ManagerPayload> };
+      if (!controller.signal.aborted) {
+        setOverviewData((current) => ({ ...current, ...payload.managers }));
+        setOverviewProgress((current) => Math.min(overviewManagers.length, current + Object.keys(payload.managers).length));
+      }
+      return payload;
+    })).then((results) => {
+      if (!controller.signal.aborted && results.some((result) => result.status === "rejected")) setError("部分基金经理读取失败，请稍后重试");
+    }).finally(() => { if (!controller.signal.aborted) setOverviewLoading(false); });
     return () => controller.abort();
   }, [mode, overviewPage, period, companyId, overviewScope, overviewManagers.map((manager) => manager.id).join("|")]);
 
