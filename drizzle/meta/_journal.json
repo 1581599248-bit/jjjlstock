@@ -1,13 +1,5 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "6",
-      "when": 1784275731226,
-      "tag": "0000_equal_dorian_gray",
-      "breakpoints": true
-    }
-  ]
+  "entries": []
 }
