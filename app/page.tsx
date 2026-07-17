@@ -200,6 +200,22 @@ export default function Home() {
   }, [mode, overviewPage, period, companyId, overviewScope, overviewManagers.map((manager) => manager.id).join("|")]);
 
   useEffect(() => {
+    if (mode !== "overview" || overviewLoading || overviewPage + 1 >= overviewPageCount || !overviewManagers.every((manager) => overviewData[manager.id])) return;
+    const nextManagers = filteredManagers.slice((overviewPage + 1) * OVERVIEW_PAGE_SIZE, (overviewPage + 2) * OVERVIEW_PAGE_SIZE).filter((manager) => !overviewData[manager.id]);
+    if (!nextManagers.length) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      Promise.allSettled(overviewRequestGroups(nextManagers, []).map(async (group) => {
+        const response = await fetch("/api/company-overview", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ companyId, period, managers: group }) });
+        if (!response.ok) return;
+        const payload = await response.json() as { managers: Record<string, ManagerPayload> };
+        if (!controller.signal.aborted) setOverviewData((current) => ({ ...current, ...payload.managers }));
+      }));
+    }, 900);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [mode, overviewLoading, overviewPage, overviewPageCount, companyId, period, overviewManagers.map((manager) => `${manager.id}:${Boolean(overviewData[manager.id])}`).join("|"), filteredManagers.map((manager) => manager.id).join("|")]);
+
+  useEffect(() => {
     if (mode !== "fund" || !selectedFund?.code || !period) return;
     setDetailLoading(true); setFundHoldings(null); setError("");
     fetch(`/api/holdings?code=${selectedFund.code}&period=${period}`).then(async (response) => { if (!response.ok) throw new Error("基金持仓加载失败"); return response.json(); }).then(setFundHoldings).catch((reason) => setError(reason.message)).finally(() => setDetailLoading(false));
@@ -241,7 +257,7 @@ export default function Home() {
         {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>基金规模</small><b>{fundScale(selectedFund.netAsset)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <FundTable rows={fundHoldings?.holdings ?? []} />}</>}
       </div>}
     </section>
-    <section className="method"><div><span>自动化数据链路</span><h2>实时索引 → 公司总览 → 经理 / 基金持仓 → 共享季度缓存</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、报告期末净资产和定期报告持仓。</li><li><b>基金总览</b> 页面打开即并行汇总，每页 12 位经理批量读取，联合管理的重复基金只读取一次。</li><li><b>团队加速</b> 服务器按公司、基金和财报期共享已验证结果，同事之间可以复用，不依赖某一台手机。</li><li><b>更新</b> 每 6 小时刷新基金经理、在管关系、基金产品并探测最新财报期。</li><li><b>口径</b> A/C 等份额持仓不重复计算，净资产规模合并；未披露数据不估算。</li></ol></section>
+    <section className="method"><div><span>自动化数据链路</span><h2>实时索引 → 公司总览 → 经理 / 基金持仓 → 持久共享数据库</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、报告期末净资产和定期报告持仓。</li><li><b>基金总览</b> 页面只读取当前 12 位经理，完成后自动准备下一页，不会一次阻塞数百只产品。</li><li><b>团队加速</b> 每位经理按公司和财报期保存到服务器数据库；一位同事读取后，其他同事直接复用。</li><li><b>更新</b> 每 6 小时刷新基金经理、在管关系、基金产品并探测最新财报期。</li><li><b>口径</b> A/C 等份额持仓不重复计算，净资产规模合并；未披露数据不估算。</li></ol></section>
     <footer><strong>全市场持仓雷达</strong><span>索引更新 {market?.generatedAt ? new Date(market.generatedAt).toLocaleString("zh-CN") : "读取中"} · 数据仅供研究</span></footer>
   </main>;
 }
