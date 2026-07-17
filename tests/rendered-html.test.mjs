@@ -23,6 +23,7 @@ test("renders the mobile-first full-market holdings dashboard", async () => {
   assert.match(html, /净资产规模/);
   assert.match(html, /在管基金产品/);
   assert.match(html, /A\/C 等份额已去重/);
+  assert.match(html, /预计算静态数据/);
   assert.doesNotMatch(html, /在管基金代码/);
   assert.doesNotMatch(html, /当前原型来自|仅完整提供|浙商基金.*长信基金/);
 });

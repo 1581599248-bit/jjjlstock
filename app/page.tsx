@@ -8,6 +8,7 @@ type CompanyPayload = { company: CompanyIndex; funds: FundItem[]; mode: "live" |
 type ManagerHolding = { rank: number; stockCode: string; stockName: string; industry: string; marketValue: number; fundCount: number; weight: number; change: string; shares: number };
 type SectorHolding = { rank: number; industry: string; marketValue: number; navWeight: number; holdingShare: number; stockCount: number };
 type ManagerPayload = { period: string; requested: number; succeeded: number; failed: number; managedNav: number; holdings: ManagerHolding[]; sectors: SectorHolding[]; source: string };
+type StaticOverviewPayload = { companyId: string; period: string; managers: Record<string, ManagerPayload> };
 const FALLBACK_PERIODS = ["2026-03-31", "2025-12-31", "2025-09-30"];
 const OVERVIEW_PAGE_SIZE = 12;
 
@@ -114,6 +115,8 @@ export default function Home() {
   const [overviewPage, setOverviewPage] = useState(0);
   const [overviewData, setOverviewData] = useState<Record<string, ManagerPayload>>({});
   const [overviewScope, setOverviewScope] = useState("");
+  const [overviewStaticScope, setOverviewStaticScope] = useState("");
+  const [overviewStaticHit, setOverviewStaticHit] = useState(false);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewProgress, setOverviewProgress] = useState(0);
   const [companyLoading, setCompanyLoading] = useState(true);
@@ -175,10 +178,34 @@ export default function Home() {
   const selectedFund = funds.find((item) => item.code === selectedFundCode) ?? funds[0];
 
   useEffect(() => { setOverviewPage(0); }, [companyId, period, query]);
-  useEffect(() => { setOverviewData({}); setOverviewScope(`${companyId}|${period}`); }, [companyId, period]);
+  useEffect(() => {
+    const scope = `${companyId}|${period}`;
+    const controller = new AbortController();
+    setOverviewData({});
+    setOverviewScope(scope);
+    setOverviewStaticScope("");
+    setOverviewStaticHit(false);
+    setOverviewLoading(false);
+    setOverviewProgress(0);
+    fetch(`/data/overview/${period}/${companyId}.json`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("静态预计算数据不存在");
+        return response.json() as Promise<StaticOverviewPayload>;
+      })
+      .then((payload) => {
+        if (payload.companyId !== companyId || payload.period !== period) throw new Error("静态预计算数据范围不匹配");
+        if (!controller.signal.aborted) {
+          setOverviewData(payload.managers);
+          setOverviewStaticHit(true);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => { if (!controller.signal.aborted) setOverviewStaticScope(scope); });
+    return () => controller.abort();
+  }, [companyId, period]);
 
   useEffect(() => {
-    if (mode !== "overview" || !overviewManagers.length || !period || overviewScope !== `${companyId}|${period}`) return;
+    if (mode !== "overview" || !overviewManagers.length || !period || overviewScope !== `${companyId}|${period}` || overviewStaticScope !== `${companyId}|${period}`) return;
     const missing = overviewManagers.filter((manager) => !overviewData[manager.id]);
     if (!missing.length) { setOverviewLoading(false); setOverviewProgress(overviewManagers.length); return; }
     const controller = new AbortController();
@@ -197,7 +224,7 @@ export default function Home() {
       if (!controller.signal.aborted && results.some((result) => result.status === "rejected")) setError("部分基金经理读取失败，请稍后重试");
     }).finally(() => { if (!controller.signal.aborted) setOverviewLoading(false); });
     return () => controller.abort();
-  }, [mode, overviewPage, period, companyId, overviewScope, overviewManagers.map((manager) => manager.id).join("|")]);
+  }, [mode, overviewPage, period, companyId, overviewScope, overviewStaticScope, overviewManagers.map((manager) => manager.id).join("|")]);
 
   useEffect(() => {
     if (mode !== "fund" || !selectedFund?.code || !period) return;
@@ -231,9 +258,9 @@ export default function Home() {
         <div className="overview-title"><div><span>FUND HOUSE OVERVIEW</span><h2>{company?.name}基金总览</h2><p>{periodLabel(period)} · 公司信息与全部基金经理前十大重仓矩阵</p></div><em>全量经理</em></div>
         <div className="overview-company-metrics"><div><small>报告期基金总规模</small><b>{companyLoading ? "…" : `${fmt(companyScale, 1)} 亿`}</b></div><div><small>旗下基金产品</small><b>{companyProductCount || (companyLoading ? "…" : 0)}</b></div><div><small>在任基金经理</small><b>{managers.length || (companyLoading ? "…" : 0)}</b></div><div><small>份额规模覆盖</small><b>{companyLoading ? "…" : `${funds.length ? fmt(scaleDisclosed / funds.length * 100, 1) : 0}%`}</b></div></div>
         <div className="overview-toolbar"><div><strong>全部经理持仓总览</strong><span>每页 {OVERVIEW_PAGE_SIZE} 位 · 横向滑动</span></div><div className="pager"><button onClick={() => setOverviewPage((page) => Math.max(0, page - 1))} disabled={overviewPage === 0}>‹</button><b>{overviewPage + 1} / {overviewPageCount}</b><button onClick={() => setOverviewPage((page) => Math.min(overviewPageCount - 1, page + 1))} disabled={overviewPage >= overviewPageCount - 1}>›</button></div></div>
-        <div className="overview-progress"><i style={{ width: `${overviewManagers.length ? overviewProgress / overviewManagers.length * 100 : 0}%` }} /><span>{overviewLoading ? `正在汇总 ${overviewProgress}/${overviewManagers.length} 位经理` : `本页 ${overviewManagers.length} 位经理已就绪`}</span></div>
+        <div className="overview-progress"><i style={{ width: `${overviewManagers.length ? overviewProgress / overviewManagers.length * 100 : 0}%` }} /><span>{overviewLoading ? `正在汇总 ${overviewProgress}/${overviewManagers.length} 位经理` : overviewStaticHit ? `后台预计算数据已就绪 · 本页 ${overviewManagers.length} 位经理` : `本页 ${overviewManagers.length} 位经理已就绪`}</span></div>
         <OverviewMatrix managers={overviewManagers} data={overviewData} loading={overviewLoading} />
-        <p className="overview-note">规模与净值占比均为所选财报期公开披露值，不做估算。联合管理基金分别归入每位基金经理；A/C 等份额持仓只计算一次，份额规模全部合并。</p>
+        <p className="overview-note">规模与净值占比均为所选财报期公开披露值，不做估算。联合管理基金分别归入每位基金经理；A/C 等份额持仓只计算一次，份额规模全部合并。已生成的季度优先读取后台预计算静态数据，缺失时自动回退实时接口。</p>
       </> : companyLoading ? <Skeleton label="正在读取该公司全部基金、经理与报告期规模…" /> : <><div className="result-head"><strong>{mode === "manager" ? "全部基金经理" : "全部基金"}</strong><span>{mode === "manager" ? filteredManagers.length : filteredFunds.length} 条 · 横向滑动</span></div><div className="entity-rail">{mode === "manager" ? filteredManagers.map((item) => <button key={item.id} className={item.id === selectedManager?.id ? "active" : ""} onClick={() => setSelectedManagerId(item.id)}><strong>{item.name}</strong><small>{representativeCodes(item).length} 个产品 · 从业 {fmt(item.tenureDays / 365, 1)} 年</small></button>) : filteredFunds.map((item) => <button key={item.code} className={`fund-card${item.code === selectedFund?.code ? " active" : ""}`} onClick={() => setSelectedFundCode(item.code)}><strong>{item.name}</strong><small>{item.code} · {item.managers.join("、") || "经理待匹配"}</small><small className="fund-scale">期末规模 {fundScale(item.netAsset)}</small></button>)}</div></>}
       {error && <div className="error-banner">{error}</div>}
       {mode !== "overview" && <div className="detail-card">
