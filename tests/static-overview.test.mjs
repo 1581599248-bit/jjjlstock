@@ -9,6 +9,7 @@ const snapshot = JSON.parse(await readFile(new URL("app/data/market-index.json",
 const period = "2026-03-31";
 const overviewDirectory = new URL(`public/data/overview/${period}/`, root);
 const fundDirectory = new URL(`public/data/funds/${period}/`, root);
+const sectorDirectory = new URL(`public/data/sectors/${period}/`, root);
 const manifest = JSON.parse(await readFile(new URL("public/data/overview/manifest.json", root), "utf8"));
 const allowedChanges = new Set(["\u65b0\u8fdb", "\u4e0d\u53d8", "\u589e\u6301", "\u51cf\u6301"]);
 
@@ -94,4 +95,39 @@ test("every company has a complete Q1 fund-product export payload", async () => 
     productCount += fundPayload.productCount;
   }
   assert.ok(productCount > 10_000);
+});
+
+test("every company has source-backed manager-sector export data", async () => {
+  const files = (await readdir(sectorDirectory)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
+  assert.deepEqual(files, snapshot.companies.map((company) => `${company.id}.json`).sort());
+  let totalStocks = 0;
+  let classifiedStocks = 0;
+  for (const company of snapshot.companies) {
+    const payload = JSON.parse(await readFile(new URL(`${company.id}.json`, sectorDirectory), "utf8"));
+    const managerIds = company.managers.map((manager) => manager.id).sort();
+    assert.equal(payload.companyId, company.id);
+    assert.equal(payload.companyName, company.name);
+    assert.equal(payload.period, period);
+    assert.equal(payload.managerCount, managerIds.length);
+    assert.deepEqual(Object.keys(payload.managers).sort(), managerIds);
+    assert.equal(payload.contentHash, createHash("sha256").update(JSON.stringify(payload.managers)).digest("hex"));
+    for (const manager of Object.values(payload.managers)) {
+      let seenOther = false;
+      manager.sectors.forEach((sector, index) => {
+        const isOther = /^(其他|未分类|未知|其他\/未分类)$/.test(sector.industry.trim());
+        assert.equal(sector.rank, index + 1);
+        assert.ok(sector.industry);
+        assert.ok(Number.isFinite(sector.marketValue) && sector.marketValue >= 0);
+        assert.ok(Number.isFinite(sector.navWeight) && sector.navWeight >= 0);
+        assert.ok(Number.isFinite(sector.holdingShare) && sector.holdingShare >= 0);
+        assert.ok(Number.isInteger(sector.stockCount) && sector.stockCount > 0);
+        if (seenOther) assert.ok(isOther, "其他/未分类之后不能出现正式行业");
+        if (isOther) seenOther = true;
+        totalStocks += sector.stockCount;
+        if (!isOther) classifiedStocks += sector.stockCount;
+      });
+      assert.ok(manager.sectors.reduce((sum, sector) => sum + sector.navWeight, 0) <= 100.01);
+    }
+  }
+  assert.ok(classifiedStocks / totalStocks >= 0.99);
 });

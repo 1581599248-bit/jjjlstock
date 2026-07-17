@@ -99,6 +99,12 @@ if (failures.length) {
   throw new Error(`Market build incomplete: ${JSON.stringify(failures.slice(0, 10))}`);
 }
 
+await new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, [path.join(root, "scripts/build-static-sectors.mjs"), `--period=${period}`], { cwd: root, windowsHide: true, stdio: "inherit" });
+  child.on("error", reject);
+  child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`sector build exit ${code}`)));
+});
+
 const overviewRoot = path.join(root, "public/data/overview");
 const manifest = { version: 1, updatedAt: new Date().toISOString(), entries: {} };
 for (const periodEntry of await readdir(overviewRoot, { withFileTypes: true })) {

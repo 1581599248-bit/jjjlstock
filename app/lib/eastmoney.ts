@@ -239,10 +239,13 @@ export async function fetchFundNetAsset(code: string, period: string) {
   return null;
 }
 
-function securityId(code: string) {
+function securityIds(code: string) {
+  const ticker = code.trim().toUpperCase();
+  if (/^[A-Z][A-Z0-9.-]{0,11}$/.test(ticker)) return [`105.${ticker}`, `106.${ticker}`, `107.${ticker}`];
   const digits = code.replace(/\D/g, "");
-  if (digits.length === 5) return `116.${digits}`;
-  return `${/^[569]/.test(digits) ? "1" : "0"}.${digits}`;
+  if (digits.length === 5) return [`116.${digits}`];
+  if (digits.length === 6) return [`${/^[569]/.test(digits) ? "1" : "0"}.${digits}`];
+  return [];
 }
 
 export async function fetchStockIndustry(code: string) {
@@ -256,8 +259,14 @@ export async function fetchStockIndustry(code: string) {
       if (levels.length) return levels[1] ?? levels[0];
     } catch { /* fall through to the quote endpoint */ }
   }
-  const params = new URLSearchParams({ secid: securityId(code), fields: "f57,f58,f127" });
-  const text = await fetchText(`${QUOTE_API}?${params}`, "https://quote.eastmoney.com/");
-  const payload = JSON.parse(text) as { data?: { f127?: string } | null };
-  return payload.data?.f127?.trim() || "其他/未分类";
+  for (const secid of securityIds(code)) {
+    try {
+      const params = new URLSearchParams({ secid, fields: "f57,f58,f127" });
+      const text = await fetchText(`${QUOTE_API}?${params}`, "https://quote.eastmoney.com/");
+      const payload = JSON.parse(text) as { data?: { f127?: string } | null };
+      const industry = payload.data?.f127?.trim();
+      if (industry) return industry;
+    } catch { /* try the next supported market */ }
+  }
+  return "其他/未分类";
 }

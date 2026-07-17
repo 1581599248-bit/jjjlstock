@@ -13,10 +13,12 @@ if (!/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("Invalid 
 const root = process.cwd();
 const dataDir = path.join(root, "public/data/overview", period);
 const fundDataDir = path.join(root, "public/data/funds", period);
+const sectorDataDir = path.join(root, "public/data/sectors", period);
 const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
 const manifest = JSON.parse(await readFile(path.join(root, "public/data/overview/manifest.json"), "utf8"));
 const files = (await readdir(dataDir)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
 const fundFiles = (await readdir(fundDataDir)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
+const sectorFiles = (await readdir(sectorDataDir)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
 const expectedFiles = snapshot.companies.map((company) => `${company.id}.json`).sort();
 const issues = [];
 const allowedChanges = new Set(["\u65b0\u8fdb", "\u4e0d\u53d8", "\u589e\u6301", "\u51cf\u6301"]);
@@ -27,6 +29,9 @@ if (JSON.stringify(files) !== JSON.stringify(expectedFiles)) {
 }
 if (JSON.stringify(fundFiles) !== JSON.stringify(expectedFiles)) {
   addIssue("critical", "fund_export_file_set", { expected: expectedFiles.length, actual: fundFiles.length });
+}
+if (JSON.stringify(sectorFiles) !== JSON.stringify(expectedFiles)) {
+  addIssue("critical", "sector_export_file_set", { expected: expectedFiles.length, actual: sectorFiles.length });
 }
 
 const expectedManifestKeys = snapshot.companies.map((company) => `${company.id}:${period}`).sort();
@@ -41,6 +46,8 @@ const summary = {
   managers: 0,
   representativeProducts: 0,
   fundProducts: 0,
+  sectorStocks: 0,
+  classifiedSectorStocks: 0,
   expectedShareCodes: 0,
   matchedScaleShareCodes: 0,
   managersWithHoldings: 0,
@@ -55,9 +62,11 @@ for (const company of snapshot.companies) {
   const file = path.join(dataDir, `${company.id}.json`);
   let payload;
   let fundPayload;
+  let sectorPayload;
   try {
     payload = JSON.parse(await readFile(file, "utf8"));
     fundPayload = JSON.parse(await readFile(path.join(fundDataDir, `${company.id}.json`), "utf8"));
+    sectorPayload = JSON.parse(await readFile(path.join(sectorDataDir, `${company.id}.json`), "utf8"));
   } catch (error) {
     addIssue("critical", "unreadable_company_payload", { companyId: company.id, error: String(error) });
     continue;
@@ -117,8 +126,40 @@ for (const company of snapshot.companies) {
 
   const expectedManagerIds = company.managers.map((manager) => manager.id).sort();
   const actualManagerIds = Object.keys(payload.managers ?? {}).sort();
+  const actualSectorManagerIds = Object.keys(sectorPayload.managers ?? {}).sort();
   if (JSON.stringify(actualManagerIds) !== JSON.stringify(expectedManagerIds)) {
     addIssue("critical", "manager_roster", { companyId: company.id, expected: expectedManagerIds.length, actual: actualManagerIds.length });
+  }
+  const sectorHash = createHash("sha256").update(JSON.stringify(sectorPayload.managers ?? {})).digest("hex");
+  if (sectorPayload.companyId !== company.id
+    || sectorPayload.companyName !== company.name
+    || sectorPayload.period !== period
+    || sectorPayload.managerCount !== expectedManagerIds.length
+    || JSON.stringify(actualSectorManagerIds) !== JSON.stringify(expectedManagerIds)
+    || sectorPayload.contentHash !== sectorHash) {
+    addIssue("critical", "sector_export_identity_or_integrity", { companyId: company.id });
+  }
+  for (const [managerId, manager] of Object.entries(sectorPayload.managers ?? {})) {
+    let seenOther = false;
+    let navWeight = 0;
+    for (let index = 0; index < (manager.sectors ?? []).length; index += 1) {
+      const sector = manager.sectors[index];
+      const isOther = /^(其他|未分类|未知|其他\/未分类)$/.test(sector.industry?.trim() ?? "");
+      if (sector.rank !== index + 1
+        || !sector.industry
+        || !Number.isFinite(sector.marketValue) || sector.marketValue < 0
+        || !Number.isFinite(sector.navWeight) || sector.navWeight < 0
+        || !Number.isFinite(sector.holdingShare) || sector.holdingShare < 0
+        || !Number.isInteger(sector.stockCount) || sector.stockCount < 1
+        || (seenOther && !isOther)) {
+        addIssue("high", "sector_export_row", { companyId: company.id, managerId, rank: index + 1 });
+      }
+      if (isOther) seenOther = true;
+      navWeight += sector.navWeight;
+      summary.sectorStocks += sector.stockCount;
+      if (!isOther) summary.classifiedSectorStocks += sector.stockCount;
+    }
+    if (navWeight > 100.01) addIssue("high", "sector_export_nav_weight", { companyId: company.id, managerId, navWeight });
   }
   if (payload.managerCount !== expectedManagerIds.length
     || payload.quality?.requestedManagers !== expectedManagerIds.length
@@ -194,6 +235,8 @@ if (summary.managers !== snapshot.managerCount) {
   addIssue("critical", "market_manager_total", { expected: snapshot.managerCount, actual: summary.managers });
 }
 summary.scaleCoverage = summary.expectedShareCodes ? summary.matchedScaleShareCodes / summary.expectedShareCodes : 1;
+summary.industryClassificationCoverage = summary.sectorStocks ? summary.classifiedSectorStocks / summary.sectorStocks : 1;
+if (summary.industryClassificationCoverage < 0.99) addIssue("high", "industry_classification_coverage", { actual: summary.industryClassificationCoverage, minimum: 0.99 });
 if (summary.filesOver1Mb > 0) addIssue("medium", "mobile_payload_size", { filesOver1Mb: summary.filesOver1Mb });
 
 const result = {

@@ -28,19 +28,21 @@ type CompanyFund = {
   holdings: Holding[];
 };
 type CompanyFundsInput = { companyName: string; period: string; funds: CompanyFund[]; source: string };
+type CompanySectorManager = { name: string; tenureYears: number; fundCount: number; managedNav: number; sectors: SectorRow[] };
+type CompanyManagerSectorsInput = { companyName: string; period: string; managers: CompanySectorManager[]; source: string };
 
 const encoder = new TextEncoder();
 const xml = (value: Cell) => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const col = (index: number) => { let value = index + 1; let result = ""; while (value > 0) { value -= 1; result = String.fromCharCode(65 + value % 26) + result; value = Math.floor(value / 26); } return result; };
 
-function sheet(title: string, headers: string[], rows: Cell[][], widths: number[], numeric: number[] = [], percent: number[] = [], leftAlignedDataRows: number[] = []) {
+function sheet(title: string, headers: string[], rows: Cell[][], widths: number[], numeric: number[] = [], percent: number[] = [], leftAlignedDataRows: number[] = [], percentDataRows: number[] = []) {
   const all = [[title], headers, ...rows];
   const max = Math.max(headers.length, ...rows.map((row) => row.length));
   const body = all.map((row, rowIndex) => {
     if (row.every((value) => value === null)) return `<row r="${rowIndex + 1}" ht="8" customHeight="1"/>`;
     return `<row r="${rowIndex + 1}"${rowIndex === 0 ? ' ht="28" customHeight="1"' : ""}>${row.map((value, columnIndex) => {
     const ref = `${col(columnIndex)}${rowIndex + 1}`;
-    const style = rowIndex === 0 ? 1 : rowIndex === 1 ? 2 : leftAlignedDataRows.includes(rowIndex - 2) && columnIndex > 0 ? 5 : percent.includes(columnIndex) ? 4 : numeric.includes(columnIndex) ? 3 : 0;
+    const style = rowIndex === 0 ? 1 : rowIndex === 1 ? 2 : leftAlignedDataRows.includes(rowIndex - 2) && columnIndex > 0 ? 5 : percentDataRows.includes(rowIndex - 2) && columnIndex > 0 ? 4 : percent.includes(columnIndex) ? 4 : numeric.includes(columnIndex) ? 3 : 0;
     return typeof value === "number" ? `<c r="${ref}" s="${style}"><v>${Number.isFinite(value) ? value : 0}</v></c>` : `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${xml(value)}</t></is></c>`;
   }).join("")}</row>`;
   }).join("");
@@ -141,4 +143,35 @@ export function buildCompanyFundsWorkbook(input: CompanyFundsInput) {
 
 export function exportCompanyFundsWorkbook(input: CompanyFundsInput) {
   download(buildCompanyFundsWorkbook(input), `${input.companyName}_${input.period}_全部基金产品重仓股.xlsx`);
+}
+
+export function buildCompanyManagerSectorsWorkbook(input: CompanyManagerSectorsInput) {
+  const isOther = (industry: string) => /^(其他|未分类|未知|其他\/未分类)$/.test(industry.trim());
+  const managers = input.managers.map((manager) => ({ ...manager, sectors: [...manager.sectors].sort((a, b) => Number(isOther(a.industry)) - Number(isOther(b.industry)) || b.marketValue - a.marketValue) }));
+  const headers = ["指标", ...managers.map((manager) => manager.name)];
+  const rows: Cell[][] = [
+    ["在管基金总规模", ...managers.map((manager) => `${(manager.managedNav / 10_000).toFixed(2)}亿`)],
+    ["投资经理年限", ...managers.map((manager) => `${manager.tenureYears.toFixed(1)}年`)],
+    ["在任管理基金数", ...managers.map((manager) => manager.fundCount)],
+  ];
+  const percentDataRows: number[] = [];
+  for (let rank = 0; rank < 10; rank += 1) {
+    const base = rows.length;
+    rows.push(
+      [`第${rank + 1}行业`, ...managers.map((manager) => manager.sectors[rank]?.industry ?? "—")],
+      ["行业净值占比", ...managers.map((manager) => manager.sectors[rank] ? manager.sectors[rank].navWeight / 100 : "—")],
+      ["前十大内部占比", ...managers.map((manager) => manager.sectors[rank] ? manager.sectors[rank].holdingShare / 100 : "—")],
+      ["行业持仓市值(万元)", ...managers.map((manager) => manager.sectors[rank]?.marketValue ?? "—")],
+      ["涉及股票数", ...managers.map((manager) => manager.sectors[rank]?.stockCount ?? "—")],
+      Array.from({ length: managers.length + 1 }, () => null),
+    );
+    percentDataRows.push(base + 1, base + 2);
+  }
+  const overview = sheet(`${input.companyName}｜基金经理行业持仓｜${input.period}`, headers, rows, [24, ...managers.map(() => 16)], [], [], [2], percentDataRows);
+  const notes = sheet("数据源与口径", ["类别", "说明"], [["行业数据源", input.source], ["行业净值占比", "经理前十大重仓股中，同一行业股票的净值占比之和。"], ["前十大内部占比", "同一行业持仓市值占该经理前十大重仓股合计市值的比例。"], ["排序规则", "先按行业持仓市值从高到低排列；其他/未分类固定置于最后。"], ["导出范围", `当前基金公司旗下全部 ${input.managers.length} 位基金经理，不受页面搜索或当前选中经理影响。`], ["更新机制", "每个新季度随全市场基金、经理与持仓数据一起集中刷新并校验。"]], [24, 110]);
+  return workbook([{ name: "经理行业总览", xml: overview }, { name: "数据口径", xml: notes }]);
+}
+
+export function exportCompanyManagerSectorsWorkbook(input: CompanyManagerSectorsInput) {
+  download(buildCompanyManagerSectorsWorkbook(input), `${input.companyName}_${input.period}_全部基金经理行业持仓.xlsx`);
 }

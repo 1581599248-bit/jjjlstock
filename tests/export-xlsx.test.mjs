@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCompanyFundsWorkbook, buildCompanyOverviewWorkbook } from "../app/lib/export-xlsx.ts";
+import { buildCompanyFundsWorkbook, buildCompanyManagerSectorsWorkbook, buildCompanyOverviewWorkbook } from "../app/lib/export-xlsx.ts";
 
 test("company overview export contains every manager, left-aligns fund counts, and separates every rank", () => {
   const managers = Array.from({ length: 25 }, (_, index) => ({
@@ -37,5 +37,28 @@ test("company fund export contains every product, preserves leading-zero codes, 
   assert.match(content, /<c r="B3" s="5" t="inlineStr"><is><t xml:space="preserve">000001<\/t><\/is><\/c>/);
   assert.match(content, /当前基金公司旗下全部 25 只基金产品/);
   assert.match(content, /<row r="9" ht="8" customHeight="1"\/><row r="10"><c r="A10" s="0" t="inlineStr"><is><t xml:space="preserve">第2名<\/t><\/is><\/c>/);
+  assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 10);
+});
+
+test("company manager-sector export contains every manager, formats percentages, and puts other last", () => {
+  const managers = Array.from({ length: 25 }, (_, index) => ({
+    name: `经理${index + 1}`,
+    tenureYears: index + 0.5,
+    fundCount: index + 1,
+    managedNav: (index + 1) * 10_000,
+    sectors: [
+      { rank: 1, industry: "其他/未分类", marketValue: 40, navWeight: 4, holdingShare: 40, stockCount: 1 },
+      { rank: 2, industry: "电子", marketValue: 60, navWeight: 6, holdingShare: 60, stockCount: 2 },
+    ],
+  }));
+  const bytes = buildCompanyManagerSectorsWorkbook({ companyName: "测试基金", period: "2026-03-31", managers, source: "东方财富行业字段" });
+  const content = new TextDecoder().decode(bytes);
+  assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+  assert.match(content, /经理25/);
+  assert.match(content, /<c r="B6" s="0" t="inlineStr"><is><t xml:space="preserve">电子<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="B7" s="4"><v>0.06<\/v><\/c>/);
+  assert.match(content, /<c r="B8" s="4"><v>0.6<\/v><\/c>/);
+  assert.match(content, /<c r="B12" s="0" t="inlineStr"><is><t xml:space="preserve">其他\/未分类<\/t><\/is><\/c>/);
+  assert.match(content, /当前基金公司旗下全部 25 位基金经理/);
   assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 10);
 });

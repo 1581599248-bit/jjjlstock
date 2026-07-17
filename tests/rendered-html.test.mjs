@@ -35,6 +35,12 @@ test("offers the all-fund-products export action", async () => {
   assert.match(pageSource, /\/data\/funds\/\$\{period\}\/\$\{companyId\}\.json/);
 });
 
+test("offers the all-manager industry export action", async () => {
+  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(pageSource, /导出全部行业 Excel/);
+  assert.match(pageSource, /\/data\/sectors\/\$\{period\}\/\$\{companyId\}\.json/);
+});
+
 test("ships a complete full-market fallback index", async () => {
   const response = await (await worker()).fetch(new Request("http://localhost/api/market"), env, ctx);
   assert.equal(response.status, 200);
