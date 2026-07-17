@@ -25,4 +25,11 @@ assert.ok(manager.sectors.length > 0);
 assert.ok(Math.abs(manager.sectors.reduce((sum, item) => sum + item.holdingShare, 0) - 100) < 0.01);
 const firstOtherSector = manager.sectors.findIndex((item) => /^(其他|未分类|未知|其他\/未分类)$/.test(item.industry));
 if (firstOtherSector >= 0) assert.ok(manager.sectors.slice(firstOtherSector).every((item) => /^(其他|未分类|未知|其他\/未分类)$/.test(item.industry)), "其他/未分类行业必须固定置底");
+const orderingFixture = [
+  { industry: "其他/未分类", marketValue: 100 },
+  { industry: "其他交运设备", marketValue: 80 },
+  { industry: "汽车", marketValue: 90 },
+  { industry: "其他轻工", marketValue: 70 },
+].sort((a, b) => Number(/^(其他|未分类|未知|其他\/未分类)$/.test(a.industry)) - Number(/^(其他|未分类|未知|其他\/未分类)$/.test(b.industry)) || b.marketValue - a.marketValue);
+assert.deepEqual(orderingFixture.map((item) => item.industry), ["汽车", "其他交运设备", "其他轻工", "其他/未分类"], "正式行业不能因名称以‘其他’开头而被置底");
 console.log(JSON.stringify({ fund: fund.holdings[0], manager: { managedNav: manager.managedNav, first: manager.holdings[0], sectors: manager.sectors } }));
