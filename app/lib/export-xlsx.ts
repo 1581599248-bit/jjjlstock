@@ -193,8 +193,6 @@ function companyManagerSectorsSheet(input: CompanyManagerSectorsInput) {
       [`第${rank + 1}行业`, ...managers.map((manager) => manager.sectors[rank]?.industry ?? "—")],
       ["行业净值占比", ...managers.map((manager) => manager.sectors[rank] ? manager.sectors[rank].navWeight / 100 : "—")],
       ["前十大内部占比", ...managers.map((manager) => manager.sectors[rank] ? manager.sectors[rank].holdingShare / 100 : "—")],
-      ["行业持仓市值(万元)", ...managers.map((manager) => manager.sectors[rank]?.marketValue ?? "—")],
-      ["涉及股票数", ...managers.map((manager) => manager.sectors[rank]?.stockCount ?? "—")],
       Array.from({ length: managers.length + 1 }, () => null),
     );
     percentDataRows.push(base + 1, base + 2);

@@ -73,7 +73,9 @@ test("company manager-sector export contains every manager, left-aligns every ce
   assert.match(content, /<c r="B7" s="5" t="inlineStr"><is><t xml:space="preserve">电子<\/t><\/is><\/c>/);
   assert.match(content, /<c r="B8" s="9"><v>0.06<\/v><\/c>/);
   assert.match(content, /<c r="B9" s="9"><v>0.6<\/v><\/c>/);
-  assert.match(content, /<c r="B13" s="5" t="inlineStr"><is><t xml:space="preserve">其他\/未分类<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="B11" s="5" t="inlineStr"><is><t xml:space="preserve">其他\/未分类<\/t><\/is><\/c>/);
+  assert.doesNotMatch(content, /行业持仓市值\(万元\)/);
+  assert.doesNotMatch(content, /涉及股票数/);
   assert.doesNotMatch(content, /<c r="[A-Z]+\d+" s="[0-4]"/);
   assert.match(content, /当前基金公司旗下全部 25 位基金经理/);
   assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 11);
