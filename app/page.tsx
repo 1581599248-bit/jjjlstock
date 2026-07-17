@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { exportCompanyFundsWorkbook, exportCompanyManagerSectorsWorkbook, exportCompanyOverviewWorkbook, exportHoldingsWorkbook } from "./lib/export-xlsx";
+import { exportCompanyFundsWorkbook, exportCompanyInstitutionWorkbook, exportCompanyManagerSectorsWorkbook, exportCompanyOverviewWorkbook, exportHoldingsWorkbook } from "./lib/export-xlsx";
 import type { CompanyIndex, FundHoldings, FundItem, Holding, ManagerIndex, MarketIndex } from "./types";
 
 type CompanyPayload = { company: CompanyIndex; funds: FundItem[]; mode: "live" | "snapshot" };
@@ -185,6 +185,7 @@ export default function Home() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [fundExportLoading, setFundExportLoading] = useState(false);
   const [sectorExportLoading, setSectorExportLoading] = useState(false);
+  const [institutionExportLoading, setInstitutionExportLoading] = useState(false);
   const [stockIndex, setStockIndex] = useState<StockSearchIndex | null>(null);
   const [selectedStockCode, setSelectedStockCode] = useState("");
   const [stockDetail, setStockDetail] = useState<StockOwnerDetail | null>(null);
@@ -431,9 +432,55 @@ export default function Home() {
     } finally { setSectorExportLoading(false); }
   };
 
+  const exportInstitution = async () => {
+    if (!company || !funds.length || !managers.length || !managers.every((manager) => overviewData[manager.id])) return;
+    setInstitutionExportLoading(true); setError("");
+    try {
+      const sectorPromise = sectorData?.companyId === companyId && sectorData.period === period
+        ? Promise.resolve(sectorData)
+        : fetch(`/data/sectors/${period}/${companyId}.json`).then(async (response) => {
+          if (!response.ok) throw new Error("该季度的基金经理行业数据尚未发布");
+          return response.json() as Promise<StaticSectorPayload>;
+        });
+      const [fundResponse, sectorPayload] = await Promise.all([
+        fetch(`/data/funds/${period}/${companyId}.json`),
+        sectorPromise,
+      ]);
+      if (!fundResponse.ok) throw new Error("该季度的全部基金导出数据尚未发布");
+      const fundPayload = await fundResponse.json() as StaticFundPayload;
+      if (fundPayload.companyId !== companyId || fundPayload.period !== period) throw new Error("全部基金导出数据范围不匹配");
+      if (sectorPayload.companyId !== companyId || sectorPayload.period !== period || sectorPayload.managerCount !== managers.length) throw new Error("基金经理行业数据范围不匹配");
+      setSectorData(sectorPayload);
+      setSectorStaticScope(`${companyId}|${period}`);
+      const fundByCode = new Map(funds.map((fund) => [fund.code, fund]));
+      const exportFunds = fundPayload.products.map((product) => {
+        const disclosed = product.shareCodes.map((code) => fundByCode.get(code)?.netAsset).filter((value): value is number => typeof value === "number");
+        const fundType = product.shareCodes.map((code) => fundByCode.get(code)?.type).find((value): value is string => Boolean(value));
+        return { code: product.code, name: productKey(product.name) || product.name, type: fundType ?? "公募基金", managers: product.managers, netAsset: disclosed.length ? disclosed.reduce((sum, value) => sum + value, 0) : null, holdings: product.holdings };
+      });
+      exportCompanyInstitutionWorkbook({
+        companyName: company.name,
+        period,
+        source: `${fundPayload.source}；${sectorPayload.source}`,
+        funds: exportFunds,
+        managers: managers.map((manager) => ({
+          name: manager.name,
+          tenureYears: manager.tenureDays / 365,
+          fundCount: representativeCodes(manager).length,
+          managedNav: overviewData[manager.id].managedNav,
+          holdings: overviewData[manager.id].holdings,
+          sectors: orderSectors(sectorPayload.managers[manager.id]?.sectors ?? []),
+        })),
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "机构完整信息导出失败，请稍后重试");
+    } finally { setInstitutionExportLoading(false); }
+  };
+
   const canExport = mode === "overview" ? managers.length > 0 && managers.every((manager) => overviewData[manager.id]) : mode === "fund" ? funds.length > 0 : Boolean(managerHoldings);
   const exportDisabled = !canExport || fundExportLoading || (mode === "overview" && overviewLoading) || (mode === "manager" && detailLoading);
   const sectorExportDisabled = sectorExportLoading || !managers.length || !managers.every((manager) => overviewData[manager.id]);
+  const institutionExportDisabled = institutionExportLoading || fundExportLoading || sectorExportLoading || companyLoading || !funds.length || !managers.length || !managers.every((manager) => overviewData[manager.id]);
   const managerSectorPending = mode === "manager" && sectorStaticScope !== `${companyId}|${period}` && !(managerHoldings?.sectors.length);
   return <main>
     <header className="topbar"><div className="logo">仓</div><div><strong>全市场持仓雷达</strong><small>PUBLIC FUND HOLDINGS</small></div><span className="health snapshot"><i />{market ? "全市场库已加载" : "正在加载全市场库"}</span></header>
@@ -442,7 +489,7 @@ export default function Home() {
     {mode === "stock" ? <section className="coverage"><div><small>可反查股票</small><strong>{stockIndex?.stockCount ?? "…"}</strong></div><div><small>经理重仓记录</small><strong>{stockIndex ? fmt(stockIndex.managerHoldingCount, 0) : "…"}</strong></div><div><small>覆盖机构</small><strong>{stockIndex?.companyCount ?? "…"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section> : <section className="coverage"><div><small>该公司产品</small><strong>{companyProductCount || (companyLoading ? "…" : 0)}</strong></div><div><small>基金经理</small><strong>{managers.length || (companyLoading ? "…" : 0)}</strong></div><div><small>数据状态</small><strong className="status-text">{companyData?.mode === "live" ? "实时" : companyLoading ? "读取中" : "回退"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section>}
     <section className="workspace">
       <div className="tabs"><button className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>基金总览</button><button className={mode === "manager" ? "active" : ""} onClick={() => setMode("manager")}>基金经理</button><button className={mode === "fund" ? "active" : ""} onClick={() => setMode("fund")}>基金产品</button><button className={mode === "stock" ? "active" : ""} onClick={() => { setMode("stock"); setQuery(""); }}>股票反查</button></div>
-      <div className={`entity-tools${mode === "stock" ? " stock-tools" : ""}`}><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "stock" ? "输入股票代码或名称" : mode === "fund" ? "搜索基金代码、名称、经理" : "搜索经理、在管基金"} />{query && <button onClick={() => setQuery("")}>×</button>}</div>{mode !== "stock" && <div className="export-actions">{mode === "manager" ? <><button className="export secondary" onClick={exportCurrent} disabled={exportDisabled}>导出当前经理</button><button className="export" onClick={exportAllManagerSectors} disabled={sectorExportDisabled}>{sectorExportLoading ? "正在准备行业数据…" : "导出全部行业 Excel"}</button></> : <button className="export" onClick={exportCurrent} disabled={exportDisabled}>{mode === "overview" ? "导出全部经理 Excel" : fundExportLoading ? "正在准备全部基金…" : "导出全部基金 Excel"}</button>}</div>}</div>
+      <div className={`entity-tools${mode === "stock" ? " stock-tools" : ""}`}><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "stock" ? "输入股票代码或名称" : mode === "fund" ? "搜索基金代码、名称、经理" : "搜索经理、在管基金"} />{query && <button onClick={() => setQuery("")}>×</button>}</div>{mode !== "stock" && <div className="export-actions"><button className="export institution" onClick={exportInstitution} disabled={institutionExportDisabled}>{institutionExportLoading ? "正在准备机构完整信息…" : "导出机构完整 Excel"}</button>{mode === "manager" ? <><button className="export secondary" onClick={exportCurrent} disabled={exportDisabled}>导出当前经理</button><button className="export" onClick={exportAllManagerSectors} disabled={sectorExportDisabled}>{sectorExportLoading ? "正在准备行业数据…" : "导出全部行业 Excel"}</button></> : <button className="export secondary" onClick={exportCurrent} disabled={exportDisabled}>{mode === "overview" ? "导出全部经理 Excel" : fundExportLoading ? "正在准备全部基金…" : "导出全部基金 Excel"}</button>}</div>}</div>
       {mode === "stock" ? <StockReverseLookup query={query} items={filteredStocks} selectedCode={selectedStockCode} onSelect={setSelectedStockCode} detail={stockDetail} indexLoading={stockIndexLoading} detailLoading={stockDetailLoading} error={stockError} companyPage={stockCompanyPage} onCompanyPage={setStockCompanyPage} /> : mode === "overview" ? <>
         <div className="overview-title"><div><span>FUND HOUSE OVERVIEW</span><h2>{company?.name}基金总览</h2><p>{periodLabel(period)} · 公司信息与全部基金经理前十大重仓矩阵</p></div><em>全量经理</em></div>
         <div className="overview-company-metrics"><div><small>报告期基金总规模</small><b>{companyLoading ? "…" : `${fmt(companyScale, 1)} 亿`}</b></div><div><small>旗下基金产品</small><b>{companyProductCount || (companyLoading ? "…" : 0)}</b></div><div><small>在任基金经理</small><b>{managers.length || (companyLoading ? "…" : 0)}</b></div><div><small>份额规模覆盖</small><b>{companyLoading ? "…" : `${funds.length ? fmt(scaleDisclosed / funds.length * 100, 1) : 0}%`}</b></div></div>

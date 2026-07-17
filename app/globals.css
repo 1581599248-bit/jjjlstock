@@ -62,12 +62,13 @@ main{width:min(100%,760px);min-height:100vh;margin:0 auto;background:var(--paper
 .tabs button.active{color:var(--red-deep);background:#fff;box-shadow:0 3px 10px rgba(35,27,29,.08)}
 .entity-tools{margin:10px 0;display:grid;grid-template-columns:1fr auto;gap:7px}
 .entity-tools.stock-tools{grid-template-columns:1fr}
-.export-actions{display:flex;gap:6px;min-width:0}
+.export-actions{display:flex;gap:6px;min-width:0;flex-wrap:wrap}
 .search{height:40px;padding:0 10px;display:flex;align-items:center;gap:6px;background:#f8f8f9;border:1px solid var(--line);border-radius:9px}
 .search>span{color:#8c868c;font-family:Georgia,serif;font-size:18px}
 .search input{min-width:0;flex:1;border:0;outline:0;background:transparent;font-size:10px}
 .search button{border:0;background:transparent;color:#817b81;font-size:17px;cursor:pointer}
 .export{padding:0 12px;border:0;border-radius:9px;color:#fff;background:linear-gradient(135deg,var(--red),#f25431);box-shadow:0 5px 13px rgba(221,50,39,.2);font-size:10px;font-weight:800;cursor:pointer}
+.export.institution{background:linear-gradient(135deg,#b92820,#ff6a32);box-shadow:0 5px 14px rgba(185,40,32,.23)}
 .export.secondary{color:#b93329;background:#fff;border:1px solid #e4c5bf;box-shadow:none}
 .export:disabled{opacity:.42;box-shadow:none}
 .result-head{display:flex;justify-content:space-between;align-items:center;margin:0 1px 7px}
@@ -239,16 +240,18 @@ footer span{text-align:right;font-size:7px;line-height:1.5}
   .workspace{padding:14px}
   .entity-rail>button{flex-basis:170px}
 }
+@media(max-width:560px){
+  .entity-tools{grid-template-columns:1fr}
+  .export-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .export-actions>.institution{grid-column:1/-1}
+  .export{height:38px}
+}
 @media(max-width:390px){
   .controls{grid-template-columns:1fr}
   .coverage strong{font-size:18px}
   .mini-metrics{grid-template-columns:repeat(2,1fr)}
   .mini-metrics>div:nth-child(-n+2){border-bottom:1px solid var(--line)}
   .mini-metrics>div:nth-child(2){border-right:0}
-  .entity-tools{grid-template-columns:1fr}
-  .export-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
-  .export-actions>.export:only-child{grid-column:1/-1}
-  .export{height:38px}
   .market-strip b{font-size:16px}
   .sector-row{grid-template-columns:76px 1fr 64px}
   .sector-head>small{max-width:135px;overflow:hidden;text-overflow:ellipsis}

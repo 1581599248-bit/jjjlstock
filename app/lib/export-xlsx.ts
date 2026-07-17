@@ -31,6 +31,13 @@ type CompanyFund = {
 type CompanyFundsInput = { companyName: string; period: string; funds: CompanyFund[]; source: string };
 type CompanySectorManager = { name: string; tenureYears: number; fundCount: number; managedNav: number; sectors: SectorRow[] };
 type CompanyManagerSectorsInput = { companyName: string; period: string; managers: CompanySectorManager[]; source: string };
+type CompanyInstitutionInput = {
+  companyName: string;
+  period: string;
+  source: string;
+  managers: Array<OverviewManager & { sectors: SectorRow[] }>;
+  funds: CompanyFund[];
+};
 
 const encoder = new TextEncoder();
 const xml = (value: Cell) => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -100,7 +107,7 @@ export function exportHoldingsWorkbook(input: ExportInput) {
   download(workbook(sheets.map((value, index) => ({ name: ["概览", "十大重仓", "板块分布", "数据口径"][index], xml: value }))), `${input.companyName}_${input.entityName}_${input.period}_重仓股.xlsx`);
 }
 
-export function buildCompanyOverviewWorkbook(input: CompanyOverviewInput) {
+function companyOverviewSheet(input: CompanyOverviewInput) {
   const headers = ["指标", ...input.managers.map((manager) => manager.name)];
   const rows: Cell[][] = [
     ["在管基金总规模", ...input.managers.map((manager) => `${(manager.managedNav / 10_000).toFixed(2)}亿`)],
@@ -116,7 +123,11 @@ export function buildCompanyOverviewWorkbook(input: CompanyOverviewInput) {
       Array.from({ length: input.managers.length + 1 }, () => null),
     );
   }
-  const overview = sheet(`${input.companyName}｜基金总览｜${input.period}`, headers, rows, [22, ...input.managers.map(() => 16)], [], [], [2]);
+  return sheet(`${input.companyName}｜基金总览｜${input.period}`, headers, rows, [22, ...input.managers.map(() => 16)], [], [], [2]);
+}
+
+export function buildCompanyOverviewWorkbook(input: CompanyOverviewInput) {
+  const overview = companyOverviewSheet(input);
   const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", "东方财富基金公开数据"], ["经理持仓口径", "A/C 等份额持仓只计算一次，全部份额净资产合并；联合管理基金分别计入对应经理。"], ["规模口径", "所选报告期末净资产；无法披露时不估算。"], ["导出范围", `当前基金公司旗下全部 ${input.managers.length} 位基金经理。`]], [24, 100]);
   return workbook([{ name: "基金总览", xml: overview }, { name: "数据口径", xml: notes }]);
 }
@@ -125,7 +136,7 @@ export function exportCompanyOverviewWorkbook(input: CompanyOverviewInput) {
   download(buildCompanyOverviewWorkbook(input), `${input.companyName}_${input.period}_全部基金经理重仓股.xlsx`);
 }
 
-export function buildCompanyFundsWorkbook(input: CompanyFundsInput) {
+function companyFundsSheet(input: CompanyFundsInput) {
   const holdingHeaders = Array.from({ length: 10 }, (_, rank) => [
     `第${rank + 1}名股票名称`,
     `第${rank + 1}名净值占比`,
@@ -133,13 +144,14 @@ export function buildCompanyFundsWorkbook(input: CompanyFundsInput) {
   ]).flat();
   const headers = ["基金名称", "基金代码", "报告期末规模(亿元)", "基金经理（现任）", "基金类型", "", ...holdingHeaders];
   const rows: Cell[][] = input.funds.map((fund) => {
+    const displayCode = /^\d{1,6}$/.test(fund.code) ? fund.code.padStart(6, "0") : fund.code;
     const holdings = Array.from({ length: 10 }, (_, rank) => {
       const holding = fund.holdings[rank];
       return holding ? [holding.stockName, holding.weight / 100, holding.change] : ["—", "—", "—"];
     }).flat();
     return [
       fund.name,
-      fund.code,
+      displayCode,
       fund.netAsset,
       fund.managers.join("、") || "待匹配",
       fund.type || "公募基金",
@@ -149,7 +161,11 @@ export function buildCompanyFundsWorkbook(input: CompanyFundsInput) {
   });
   const percentColumns = Array.from({ length: 10 }, (_, rank) => 7 + rank * 3);
   const widths = [26, 12, 18, 24, 14, 3, ...Array.from({ length: 10 }, () => [18, 15, 15]).flat()];
-  const overview = sheet(`${input.companyName}｜全部基金产品｜${input.period}`, headers, rows, widths, [2], percentColumns, [], [], true);
+  return sheet(`${input.companyName}｜全部基金产品｜${input.period}`, headers, rows, widths, [2], percentColumns, [], [], true);
+}
+
+export function buildCompanyFundsWorkbook(input: CompanyFundsInput) {
+  const overview = companyFundsSheet(input);
   const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", input.source], ["基金产品口径", "A/C 等份额合并为一个基金产品，持仓只计算一次；基金代码为代表份额代码。"], ["规模口径", "所选报告期末各份额净资产合计；无法披露时标记为待披露，不做估算。"], ["导出范围", `当前基金公司旗下全部 ${input.funds.length} 只基金产品，不受页面搜索或当前选中基金影响。`], ["更新机制", "每个新季度集中刷新全市场产品、规模与持仓，校验通过后整体发布。"]], [24, 110]);
   return workbook([{ name: "基金产品总览", xml: overview }, { name: "数据口径", xml: notes }]);
 }
@@ -158,7 +174,7 @@ export function exportCompanyFundsWorkbook(input: CompanyFundsInput) {
   download(buildCompanyFundsWorkbook(input), `${input.companyName}_${input.period}_全部基金产品重仓股.xlsx`);
 }
 
-export function buildCompanyManagerSectorsWorkbook(input: CompanyManagerSectorsInput) {
+function companyManagerSectorsSheet(input: CompanyManagerSectorsInput) {
   const isOther = (industry: string) => /^(其他|未分类|未知|其他\/未分类)$/.test(industry.trim());
   const managers = input.managers.map((manager) => ({ ...manager, sectors: [...manager.sectors].sort((a, b) => Number(isOther(a.industry)) - Number(isOther(b.industry)) || b.marketValue - a.marketValue) }));
   const headers = ["指标", ...managers.map((manager) => manager.name)];
@@ -181,11 +197,44 @@ export function buildCompanyManagerSectorsWorkbook(input: CompanyManagerSectorsI
     );
     percentDataRows.push(base + 1, base + 2);
   }
-  const overview = sheet(`${input.companyName}｜基金经理行业持仓｜${input.period}`, headers, rows, [24, ...managers.map(() => 16)], [], [], [2], percentDataRows, true);
+  return sheet(`${input.companyName}｜基金经理行业持仓｜${input.period}`, headers, rows, [24, ...managers.map(() => 16)], [], [], [2], percentDataRows, true);
+}
+
+export function buildCompanyManagerSectorsWorkbook(input: CompanyManagerSectorsInput) {
+  const overview = companyManagerSectorsSheet(input);
   const notes = sheet("数据源与口径", ["类别", "说明"], [["行业数据源", input.source], ["行业净值占比", "经理前十大重仓股中，同一行业股票的净值占比之和。"], ["前十大内部占比", "同一行业持仓市值占该经理前十大重仓股合计市值的比例。"], ["排序规则", "先按行业持仓市值从高到低排列；其他/未分类固定置于最后。"], ["导出范围", `当前基金公司旗下全部 ${input.managers.length} 位基金经理，不受页面搜索或当前选中经理影响。`], ["更新机制", "每个新季度随全市场基金、经理与持仓数据一起集中刷新并校验。"]], [24, 110], [], [], [], [], true);
   return workbook([{ name: "经理行业总览", xml: overview }, { name: "数据口径", xml: notes }]);
 }
 
 export function exportCompanyManagerSectorsWorkbook(input: CompanyManagerSectorsInput) {
   download(buildCompanyManagerSectorsWorkbook(input), `${input.companyName}_${input.period}_全部基金经理行业持仓.xlsx`);
+}
+
+export function buildCompanyInstitutionWorkbook(input: CompanyInstitutionInput) {
+  const overviewInput: CompanyOverviewInput = {
+    companyName: input.companyName,
+    period: input.period,
+    managers: input.managers.map(({ sectors: _sectors, ...manager }) => manager),
+  };
+  const sectorInput: CompanyManagerSectorsInput = {
+    companyName: input.companyName,
+    period: input.period,
+    source: input.source,
+    managers: input.managers.map(({ holdings: _holdings, ...manager }) => manager),
+  };
+  const fundInput: CompanyFundsInput = {
+    companyName: input.companyName,
+    period: input.period,
+    source: input.source,
+    funds: input.funds,
+  };
+  return workbook([
+    { name: "基金总览", xml: companyOverviewSheet(overviewInput) },
+    { name: "基金经理行业", xml: companyManagerSectorsSheet(sectorInput) },
+    { name: "基金产品", xml: companyFundsSheet(fundInput) },
+  ]);
+}
+
+export function exportCompanyInstitutionWorkbook(input: CompanyInstitutionInput) {
+  download(buildCompanyInstitutionWorkbook(input), `${input.companyName}_${input.period}_机构完整信息.xlsx`);
 }

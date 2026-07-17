@@ -54,6 +54,14 @@ test("offers the all-manager industry export action", async () => {
   assert.match(pageSource, /切换经理无需再次逐只基金查询/);
 });
 
+test("offers a one-click three-sheet institution export", async () => {
+  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(pageSource, /导出机构完整 Excel/);
+  assert.match(pageSource, /exportCompanyInstitutionWorkbook/);
+  assert.match(pageSource, /funds: exportFunds/);
+  assert.match(pageSource, /sectors: orderSectors/);
+});
+
 test("ships a complete full-market fallback index", async () => {
   const response = await (await worker()).fetch(new Request("http://localhost/api/market"), env, ctx);
   assert.equal(response.status, 200);

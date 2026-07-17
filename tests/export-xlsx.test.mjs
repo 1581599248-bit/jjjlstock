@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCompanyFundsWorkbook, buildCompanyManagerSectorsWorkbook, buildCompanyOverviewWorkbook } from "../app/lib/export-xlsx.ts";
+import { buildCompanyFundsWorkbook, buildCompanyInstitutionWorkbook, buildCompanyManagerSectorsWorkbook, buildCompanyOverviewWorkbook } from "../app/lib/export-xlsx.ts";
 
 test("company overview export contains every manager, left-aligns fund counts, and separates every rank", () => {
   const managers = Array.from({ length: 25 }, (_, index) => ({
@@ -25,7 +25,7 @@ test("company overview export contains every manager, left-aligns fund counts, a
 
 test("company fund export follows the reference row-wise product layout", () => {
   const funds = Array.from({ length: 25 }, (_, index) => ({
-    code: String(index + 1).padStart(6, "0"),
+    code: String(index + 1),
     name: `基金产品${index + 1}`,
     type: "混合型",
     managers: [`经理${index + 1}`],
@@ -75,4 +75,35 @@ test("company manager-sector export contains every manager, left-aligns every ce
   assert.doesNotMatch(content, /<c r="[A-Z]+\d+" s="[0-4]"/);
   assert.match(content, /当前基金公司旗下全部 25 位基金经理/);
   assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 11);
+});
+
+test("institution export combines overview, manager industries, and products into exactly three sheets", () => {
+  const managers = Array.from({ length: 3 }, (_, index) => ({
+    name: `经理${index + 1}`,
+    tenureYears: index + 1.5,
+    fundCount: index + 1,
+    managedNav: (index + 1) * 10_000,
+    holdings: [{ stockName: `股票${index + 1}`, weight: index + 0.5, change: "增持" }],
+    sectors: [{ rank: 1, industry: "电子", marketValue: 100, navWeight: 5, holdingShare: 50, stockCount: 2 }],
+  }));
+  const funds = [{
+    code: "000001",
+    name: "测试产品",
+    type: "混合型",
+    managers: ["经理1"],
+    netAsset: 1.25,
+    holdings: [{ rank: 1, stockCode: "600000", stockName: "浦发银行", weight: 3.5, shares: 10, marketValue: 100, change: "增持", changeShares: 1 }],
+  }];
+  const bytes = buildCompanyInstitutionWorkbook({ companyName: "测试基金", period: "2026-03-31", source: "测试数据源", managers, funds });
+  const content = new TextDecoder().decode(bytes);
+  assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+  assert.match(content, /<sheet name="基金总览"/);
+  assert.match(content, /<sheet name="基金经理行业"/);
+  assert.match(content, /<sheet name="基金产品"/);
+  assert.equal(content.match(/<sheet name=/g)?.length, 3);
+  assert.match(content, /经理3/);
+  assert.match(content, /电子/);
+  assert.match(content, /测试产品/);
+  assert.match(content, /浦发银行/);
+  assert.doesNotMatch(content, /<sheet name="数据口径"/);
 });
