@@ -46,6 +46,7 @@ main{width:min(100%,760px);min-height:100vh;margin:0 auto;background:var(--paper
 .controls label{min-width:0;display:flex;flex-direction:column;gap:5px}
 .controls label span{color:var(--muted);font-size:9px;font-weight:750}
 .controls select{width:100%;height:42px;padding:0 28px 0 10px;appearance:none;color:var(--ink);background:#f8f8f9 linear-gradient(45deg,transparent 50%,#777176 50%) calc(100% - 14px) 18px/5px 5px no-repeat;border:1px solid var(--line);border-radius:9px;font-size:11px;font-weight:750}
+.scope-display{height:42px;padding:0 10px;display:flex;align-items:center;color:#b93127;background:#fff4f0;border:1px solid #f0d9d2;border-radius:9px;font-size:11px;font-weight:800}
 .controls select:focus,.search input:focus{outline:2px solid rgba(230,59,46,.2);outline-offset:1px}
 
 .coverage{padding:18px 12px 14px;display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
@@ -56,10 +57,11 @@ main{width:min(100%,760px);min-height:100vh;margin:0 auto;background:var(--paper
 
 .workspace,.method{margin:0 12px 15px;padding:11px;background:var(--card);border:1px solid var(--line);border-radius:16px}
 .workspace{box-shadow:0 8px 26px rgba(34,28,30,.04)}
-.tabs{padding:3px;display:grid;grid-template-columns:repeat(3,1fr);background:#f0eff0;border-radius:11px}
+.tabs{padding:3px;display:grid;grid-template-columns:repeat(4,1fr);background:#f0eff0;border-radius:11px}
 .tabs button{height:39px;border:0;border-radius:8px;background:transparent;color:#777278;font-size:12px;font-weight:800;cursor:pointer}
 .tabs button.active{color:var(--red-deep);background:#fff;box-shadow:0 3px 10px rgba(35,27,29,.08)}
 .entity-tools{margin:10px 0;display:grid;grid-template-columns:1fr auto;gap:7px}
+.entity-tools.stock-tools{grid-template-columns:1fr}
 .export-actions{display:flex;gap:6px;min-width:0}
 .search{height:40px;padding:0 10px;display:flex;align-items:center;gap:6px;background:#f8f8f9;border:1px solid var(--line);border-radius:9px}
 .search>span{color:#8c868c;font-family:Georgia,serif;font-size:18px}
@@ -176,6 +178,48 @@ main{width:min(100%,760px);min-height:100vh;margin:0 auto;background:var(--paper
 .matrix-change.flat{color:#575158}
 .overview-note{margin:8px 1px 1px;color:#888287;font-size:7px;line-height:1.65}
 
+.stock-lookup-title{padding:8px 1px 11px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.stock-lookup-title span{color:var(--red);font-size:7px;font-weight:850;letter-spacing:.16em}
+.stock-lookup-title h2{margin:3px 0 2px;font-family:Georgia,"Songti SC",serif;font-size:20px}
+.stock-lookup-title p{margin:0;max-width:510px;color:#817c82;font-size:8px;line-height:1.55}
+.stock-lookup-title em{padding:5px 8px;color:#c83227;background:var(--soft);border-radius:999px;font-size:8px;font-style:normal;font-weight:800;white-space:nowrap}
+.stock-result-rail{display:flex;gap:7px;overflow-x:auto;padding:1px 1px 11px;scrollbar-width:none;scroll-snap-type:x proximity}
+.stock-result-rail::-webkit-scrollbar{display:none}
+.stock-result-rail button{flex:0 0 145px;min-height:76px;padding:10px;text-align:left;scroll-snap-align:start;color:#373235;background:#fff;border:1px solid var(--line);border-radius:11px;cursor:pointer}
+.stock-result-rail strong,.stock-result-rail small,.stock-result-rail span{display:block}
+.stock-result-rail strong{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stock-result-rail small{margin-top:2px;color:#8f898e;font-family:Arial,monospace;font-size:8px}
+.stock-result-rail span{margin-top:7px;color:#c4362b;font-size:8px;font-weight:800}
+.stock-result-rail button.active{color:#fff;background:linear-gradient(135deg,#d93128,#ee4b2f);border-color:transparent;box-shadow:0 7px 16px rgba(205,45,35,.2)}
+.stock-result-rail button.active small,.stock-result-rail button.active span{color:#ffe3da}
+.stock-owner-detail{padding-top:12px;border-top:1px solid var(--line)}
+.stock-owner-head{padding:12px 13px;display:flex;align-items:center;justify-content:space-between;gap:12px;color:#fff;background:linear-gradient(135deg,#292326,#211c1d);border-radius:12px}
+.stock-owner-head span{color:#ff9b79;font-family:Arial,monospace;font-size:9px;font-weight:800}
+.stock-owner-head h2{margin:2px 0 1px;font-family:Georgia,"Songti SC",serif;font-size:20px}
+.stock-owner-head p{margin:0;color:#bbb5b7;font-size:8px}
+.stock-owner-head>b{flex:0 0 auto;display:grid;place-items:center;min-width:46px;height:46px;padding:0 8px;color:#fff;background:linear-gradient(135deg,var(--red),var(--orange));border-radius:13px;font-family:Georgia,serif;font-size:18px}
+.stock-owner-toolbar{margin:12px 1px 8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stock-owner-toolbar>div:first-child{display:flex;flex-direction:column;gap:2px}
+.stock-owner-toolbar strong{font-size:10px}
+.stock-owner-toolbar span{color:#8b868c;font-size:7px}
+.owner-company-list{display:grid;gap:9px}
+.owner-company{overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:11px}
+.owner-company>header{padding:8px 10px;display:flex;align-items:center;justify-content:space-between;background:#fff7f4;border-bottom:1px solid #f0dfda}
+.owner-company>header strong,.owner-company>header small{display:block}
+.owner-company>header strong{font-family:Georgia,"Songti SC",serif;font-size:12px}
+.owner-company>header small{margin-top:2px;color:#90898e;font-size:7px}
+.owner-company>header>span{padding:3px 6px;color:#b9342a;background:#ffe5dc;border-radius:999px;font-size:7px;font-weight:800}
+.owner-manager-list{display:grid}
+.owner-manager{min-height:48px;padding:7px 9px;display:grid;grid-template-columns:minmax(0,1fr) 63px 48px;align-items:center;gap:7px;border-bottom:1px solid #efedef}
+.owner-manager:last-child{border-bottom:0}
+.owner-manager>div:first-child{min-width:0}
+.owner-manager b{display:block;font-size:10px}
+.owner-manager small{display:block;margin-top:2px;color:#8e888d;font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.owner-weight{text-align:right}
+.owner-weight strong{display:block;color:#c42f25;font-family:Georgia,serif;font-size:11px}
+.owner-weight small{font-size:6px}
+.owner-manager>.change{text-align:center;font-size:8px;font-weight:800}
+
 .method{padding:14px;background:linear-gradient(145deg,#fff4ef,#fff9f7);border-color:#f0ddd7}
 .method span{color:var(--red);font-size:8px;font-weight:850;letter-spacing:.15em}
 .method h2{margin:4px 0 10px;color:#3a292b;font-family:Georgia,"Songti SC",serif;font-size:16px}
@@ -210,5 +254,8 @@ footer span{text-align:right;font-size:7px;line-height:1.5}
   .sector-head>small{max-width:135px;overflow:hidden;text-overflow:ellipsis}
   .overview-company-metrics{grid-template-columns:repeat(2,1fr)}
   .overview-company-metrics>div:nth-child(-n+2){border-bottom:1px solid rgba(255,255,255,.1)}
+  .tabs button{font-size:10px}
+  .stock-owner-toolbar{align-items:flex-end}
+  .stock-owner-toolbar span{max-width:175px}
 }
 @media(prefers-reduced-motion:reduce){.spinner{animation:none}}

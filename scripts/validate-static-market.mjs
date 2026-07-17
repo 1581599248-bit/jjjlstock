@@ -14,11 +14,15 @@ const root = process.cwd();
 const dataDir = path.join(root, "public/data/overview", period);
 const fundDataDir = path.join(root, "public/data/funds", period);
 const sectorDataDir = path.join(root, "public/data/sectors", period);
+const stockDataDir = path.join(root, "public/data/stocks", period);
+const stockBucketDir = path.join(stockDataDir, "buckets");
 const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
 const manifest = JSON.parse(await readFile(path.join(root, "public/data/overview/manifest.json"), "utf8"));
 const files = (await readdir(dataDir)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
 const fundFiles = (await readdir(fundDataDir)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
 const sectorFiles = (await readdir(sectorDataDir)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
+const stockIndex = JSON.parse(await readFile(path.join(stockDataDir, "index.json"), "utf8"));
+const stockBucketFiles = (await readdir(stockBucketDir)).filter((name) => /^[0-9a-f]{2}\.json$/.test(name)).sort();
 const expectedFiles = snapshot.companies.map((company) => `${company.id}.json`).sort();
 const issues = [];
 const allowedChanges = new Set(["\u65b0\u8fdb", "\u4e0d\u53d8", "\u589e\u6301", "\u51cf\u6301"]);
@@ -53,6 +57,9 @@ const summary = {
   managersWithHoldings: 0,
   zeroNavManagers: 0,
   disclosedHoldings: 0,
+  stockSearchStocks: 0,
+  stockSearchRecords: 0,
+  stockSearchBuckets: stockBucketFiles.length,
   filesOver1Mb: 0,
   maxPayloadBytes: 0,
   maxPayloadCompany: "",
@@ -233,6 +240,62 @@ for (const company of snapshot.companies) {
 
 if (summary.managers !== snapshot.managerCount) {
   addIssue("critical", "market_manager_total", { expected: snapshot.managerCount, actual: summary.managers });
+}
+const expectedStockHash = createHash("sha256").update(JSON.stringify(stockIndex.stocks ?? [])).digest("hex");
+const stockCodes = new Set();
+const expectedBuckets = new Set();
+const bucketCache = new Map();
+for (const stock of stockIndex.stocks ?? []) {
+  if (stockCodes.has(stock.stockCode)
+    || !/^[A-Z0-9._-]{1,16}$/i.test(stock.stockCode)
+    || !stock.stockName
+    || !Number.isInteger(stock.companyCount) || stock.companyCount < 1
+    || !Number.isInteger(stock.managerCount) || stock.managerCount < 1
+    || !/^[0-9a-f]{2}$/.test(stock.bucket)) {
+    addIssue("high", "stock_search_index_row", { stockCode: stock.stockCode });
+    continue;
+  }
+  stockCodes.add(stock.stockCode);
+  expectedBuckets.add(`${stock.bucket}.json`);
+  let bucket = bucketCache.get(stock.bucket);
+  if (!bucket) {
+    bucket = JSON.parse(await readFile(path.join(stockBucketDir, `${stock.bucket}.json`), "utf8"));
+    bucketCache.set(stock.bucket, bucket);
+  }
+  const detail = bucket.stocks?.[stock.stockCode];
+  const detailManagers = detail?.companies?.flatMap((company) => company.managers ?? []) ?? [];
+  if (bucket.period !== period
+    || detail?.stockCode !== stock.stockCode
+    || detail?.stockName !== stock.stockName
+    || detail?.companyCount !== stock.companyCount
+    || detail?.managerCount !== stock.managerCount
+    || detail?.companies?.length !== stock.companyCount
+    || detailManagers.length !== stock.managerCount) {
+    addIssue("critical", "stock_search_detail_identity", { stockCode: stock.stockCode });
+    continue;
+  }
+  const managerKeys = new Set();
+  for (const company of detail.companies) for (const manager of company.managers) {
+    const key = `${company.companyId}:${manager.managerId}`;
+    if (!company.companyName || managerKeys.has(key)
+      || !manager.managerName
+      || !Number.isInteger(manager.rank) || manager.rank < 1 || manager.rank > 10
+      || !Number.isFinite(manager.navWeight) || manager.navWeight < 0
+      || !Number.isFinite(manager.marketValue) || manager.marketValue < 0
+      || !Number.isInteger(manager.fundCount) || manager.fundCount < 1
+      || !allowedChanges.has(manager.change)) addIssue("high", "stock_search_manager_row", { stockCode: stock.stockCode, key });
+    managerKeys.add(key);
+  }
+  summary.stockSearchRecords += detailManagers.length;
+}
+summary.stockSearchStocks = stockCodes.size;
+if (stockIndex.period !== period
+  || stockIndex.stockCount !== stockCodes.size
+  || stockIndex.managerHoldingCount !== summary.stockSearchRecords
+  || stockIndex.contentHash !== expectedStockHash
+  || JSON.stringify([...expectedBuckets].sort()) !== JSON.stringify(stockBucketFiles)
+  || summary.stockSearchRecords !== summary.disclosedHoldings) {
+  addIssue("critical", "stock_search_completeness", { indexStocks: stockIndex.stockCount, actualStocks: stockCodes.size, indexRecords: stockIndex.managerHoldingCount, reverseRecords: summary.stockSearchRecords, disclosedHoldings: summary.disclosedHoldings, expectedBuckets: expectedBuckets.size, actualBuckets: stockBucketFiles.length });
 }
 summary.scaleCoverage = summary.expectedShareCodes ? summary.matchedScaleShareCodes / summary.expectedShareCodes : 1;
 summary.industryClassificationCoverage = summary.sectorStocks ? summary.classifiedSectorStocks / summary.sectorStocks : 1;

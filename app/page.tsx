@@ -12,13 +12,22 @@ type StaticOverviewPayload = { companyId: string; period: string; managers: Reco
 type StaticFundProduct = { code: string; name: string; shareCodes: string[]; managers: string[]; holdings: Holding[] };
 type StaticFundPayload = { companyId: string; companyName: string; period: string; source: string; productCount: number; products: StaticFundProduct[] };
 type StaticSectorPayload = { companyId: string; companyName: string; period: string; source: string; managerCount: number; managers: Record<string, { name: string; sectors: SectorHolding[] }> };
+type StockIndexItem = { stockCode: string; stockName: string; companyCount: number; managerCount: number; bucket: string };
+type StockSearchIndex = { period: string; generatedAt: string; source: string; stockCount: number; companyCount: number; managerCount: number; managerHoldingCount: number; stocks: StockIndexItem[] };
+type StockOwnerManager = { managerId: string; managerName: string; rank: number; navWeight: number; marketValue: number; change: string; fundCount: number };
+type StockOwnerCompany = { companyId: string; companyName: string; managers: StockOwnerManager[] };
+type StockOwnerDetail = { stockCode: string; stockName: string; companyCount: number; managerCount: number; companies: StockOwnerCompany[] };
+type StockBucketPayload = { period: string; source: string; stocks: Record<string, StockOwnerDetail> };
 const AVAILABLE_PERIODS = ["2026-03-31"];
 const OVERVIEW_PAGE_SIZE = 12;
+const STOCK_COMPANY_PAGE_SIZE = 10;
+const stockBucketCache = new Map<string, Promise<StockBucketPayload>>();
 
 const fmt = (value: number, digits = 1) => new Intl.NumberFormat("zh-CN", { maximumFractionDigits: digits }).format(value);
 const fundScale = (value: number | null) => value === null ? "待披露" : `${fmt(value, value >= 100 ? 1 : 2)} 亿`;
 const periodLabel = (period: string) => `${period.slice(0, 4)} ${period.slice(5, 7) === "03" ? "一季报" : period.slice(5, 7) === "06" ? "中报" : period.slice(5, 7) === "09" ? "三季报" : "年报"}`;
 const changeTone = (change: string) => change === "增持" || change === "新进" ? "up" : change === "减持" ? "down" : "flat";
+const holdingMarketValue = (value: number) => value >= 10_000 ? `${fmt(value / 10_000, 2)}亿` : `${fmt(value, 0)}万`;
 const isOtherIndustry = (industry: string) => /^(其他|未分类|未知|其他\/未分类)$/.test(industry.trim());
 const orderSectors = (rows: SectorHolding[]) => [...rows].sort((a, b) => Number(isOtherIndustry(a.industry)) - Number(isOtherIndustry(b.industry)) || b.marketValue - a.marketValue);
 const productKey = (name: string) => name
@@ -28,6 +37,19 @@ const productKey = (name: string) => name
   .replace(/(?:人民币|美元现汇|美元现钞|美汇|美钞|美元)$/i, "")
   .replace(/[A-EHIOY](?:\d+)?$/i, "")
   .trim();
+
+function fetchStockBucket(period: string, bucket: string) {
+  const key = `${period}|${bucket}`;
+  if (!stockBucketCache.has(key)) {
+    stockBucketCache.set(key, fetch(`/data/stocks/${period}/buckets/${bucket}.json`).then(async (response) => {
+      if (!response.ok) throw new Error("股票机构数据读取失败");
+      const payload = await response.json() as StockBucketPayload;
+      if (payload.period !== period) throw new Error("股票机构数据财报期不匹配");
+      return payload;
+    }).catch((error) => { stockBucketCache.delete(key); throw error; }));
+  }
+  return stockBucketCache.get(key)!;
+}
 
 function representativeCodes(manager: ManagerIndex) {
   const result = new Map<string, string>();
@@ -88,6 +110,36 @@ function SectorBreakdown({ rows }: { rows: SectorHolding[] }) {
   return <section className="sector-card" aria-label="基金经理重仓行业分布"><div className="sector-head"><div><span>INDUSTRY ALLOCATION</span><h3>重仓行业分布</h3></div><small>行业：东方财富原始分类</small></div><div className="sector-list">{orderedRows.map((row) => <div className={`sector-row${isOtherIndustry(row.industry) ? " other" : ""}`} key={row.industry}><div className="sector-label"><b>{row.industry}</b><small>{row.stockCount} 只股票</small></div><div className="sector-track"><i style={{ width: `${Math.max(row.holdingShare, 2)}%` }} /></div><div className="sector-values"><b>{fmt(row.holdingShare, 1)}%</b><small>净值 {fmt(row.navWeight, 2)}%</small></div></div>)}</div><p>行业名称直接读取东方财富行业字段，不做模型推断；无法识别的证券归入“其他/未分类”并固定置底。柱形为该行业占经理前十大重仓市值的比例。</p></section>;
 }
 
+function StockReverseLookup({ query, items, selectedCode, onSelect, detail, indexLoading, detailLoading, error, companyPage, onCompanyPage }: {
+  query: string;
+  items: StockIndexItem[];
+  selectedCode: string;
+  onSelect: (code: string) => void;
+  detail: StockOwnerDetail | null;
+  indexLoading: boolean;
+  detailLoading: boolean;
+  error: string;
+  companyPage: number;
+  onCompanyPage: (page: number) => void;
+}) {
+  const pageCount = Math.max(1, Math.ceil((detail?.companies.length ?? 0) / STOCK_COMPANY_PAGE_SIZE));
+  const companies = detail?.companies.slice(companyPage * STOCK_COMPANY_PAGE_SIZE, (companyPage + 1) * STOCK_COMPANY_PAGE_SIZE) ?? [];
+  return <>
+    <div className="stock-lookup-title"><div><span>STOCK OWNERSHIP LOOKUP</span><h2>股票重仓反查</h2><p>输入股票代码或名称，查看全市场哪些基金公司与基金经理将其列入前十大重仓。</p></div><em>全市场</em></div>
+    {indexLoading ? <Skeleton label="正在读取全市场股票反查索引…" /> : <>
+      <div className="result-head"><strong>{query.trim() ? "匹配股票" : "基金经理覆盖最多"}</strong><span>{items.length} 条结果 · 横向滑动</span></div>
+      {items.length ? <div className="stock-result-rail">{items.map((item) => <button key={item.stockCode} className={item.stockCode === selectedCode ? "active" : ""} onClick={() => onSelect(item.stockCode)}><strong>{item.stockName}</strong><small>{item.stockCode}</small><span>{item.companyCount} 家机构 · {item.managerCount} 位经理</span></button>)}</div> : <div className="empty-state">没有找到进入基金经理前十大重仓的匹配股票</div>}
+    </>}
+    {error && <div className="error-banner">{error}</div>}
+    {selectedCode && <div className="stock-owner-detail">{detailLoading ? <Skeleton label="正在读取该股票的机构与经理…" /> : detail ? <>
+      <div className="stock-owner-head"><div><span>{detail.stockCode}</span><h2>{detail.stockName}</h2><p>{detail.companyCount} 家基金公司 · {detail.managerCount} 位基金经理的前十大重仓</p></div><b>{detail.managerCount}</b></div>
+      <div className="stock-owner-toolbar"><div><strong>持仓机构与基金经理</strong><span>按机构覆盖经理数排序；经理按净值占比排序</span></div><div className="pager"><button onClick={() => onCompanyPage(Math.max(0, companyPage - 1))} disabled={companyPage === 0}>‹</button><b>{companyPage + 1} / {pageCount}</b><button onClick={() => onCompanyPage(Math.min(pageCount - 1, companyPage + 1))} disabled={companyPage >= pageCount - 1}>›</button></div></div>
+      <div className="owner-company-list">{companies.map((company) => <article className="owner-company" key={company.companyId}><header><div><strong>{company.companyName}</strong><small>{company.managers.length} 位重仓经理</small></div><span>机构</span></header><div className="owner-manager-list">{company.managers.map((manager) => <div className="owner-manager" key={manager.managerId}><div><b>{manager.managerName}</b><small>第 {manager.rank} 名 · 涉及 {manager.fundCount} 只基金 · 市值 {holdingMarketValue(manager.marketValue)}</small></div><div className="owner-weight"><strong>{fmt(manager.navWeight, 2)}%</strong><small>净值占比</small></div><span className={`change ${changeTone(manager.change)}`}>{manager.change}</span></div>)}</div></article>)}</div>
+      <p className="overview-note">口径为基金经理在管产品合并后的前十大重仓。联合管理基金会分别计入对应经理；机构数量和经理数量用于表示覆盖范围，不将经理市值再次汇总为机构市值。未出现不代表完全未持有，只表示未进入经理汇总前十。</p>
+    </> : null}</div>}
+  </>;
+}
+
 function OverviewMatrix({ managers, data, loading }: { managers: ManagerIndex[]; data: Record<string, ManagerPayload>; loading: boolean }) {
   if (!managers.length) return <div className="empty-state">未找到符合条件的基金经理</div>;
   const holdingAt = (manager: ManagerIndex, rank: number) => data[manager.id]?.holdings[rank];
@@ -114,7 +166,7 @@ export default function Home() {
   const [period, setPeriod] = useState(AVAILABLE_PERIODS[0]);
   const [companyId, setCompanyId] = useState("80000222");
   const [companyData, setCompanyData] = useState<CompanyPayload | null>(null);
-  const [mode, setMode] = useState<"overview" | "manager" | "fund">("overview");
+  const [mode, setMode] = useState<"overview" | "manager" | "fund" | "stock">("overview");
   const [query, setQuery] = useState("");
   const [selectedManagerId, setSelectedManagerId] = useState("");
   const [selectedFundCode, setSelectedFundCode] = useState("");
@@ -133,6 +185,13 @@ export default function Home() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [fundExportLoading, setFundExportLoading] = useState(false);
   const [sectorExportLoading, setSectorExportLoading] = useState(false);
+  const [stockIndex, setStockIndex] = useState<StockSearchIndex | null>(null);
+  const [selectedStockCode, setSelectedStockCode] = useState("");
+  const [stockDetail, setStockDetail] = useState<StockOwnerDetail | null>(null);
+  const [stockIndexLoading, setStockIndexLoading] = useState(false);
+  const [stockDetailLoading, setStockDetailLoading] = useState(false);
+  const [stockCompanyPage, setStockCompanyPage] = useState(0);
+  const [stockError, setStockError] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -142,6 +201,19 @@ export default function Home() {
       if (!marketResult.companies.some((item: CompanyIndex) => item.id === companyId)) setCompanyId(marketResult.companies[0]?.id ?? "");
     }).catch(() => setError("全市场索引加载失败，请稍后重试"));
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setStockIndexLoading(true); setStockIndex(null); setSelectedStockCode(""); setStockDetail(null); setStockError("");
+    fetch(`/data/stocks/${period}/index.json`, { signal: controller.signal }).then(async (response) => {
+      if (!response.ok) throw new Error("该季度的股票反查数据尚未发布");
+      return response.json() as Promise<StockSearchIndex>;
+    }).then((payload) => {
+      if (payload.period !== period) throw new Error("股票反查数据财报期不匹配");
+      if (!controller.signal.aborted) setStockIndex(payload);
+    }).catch((reason) => { if (!controller.signal.aborted) setStockError(reason instanceof Error ? reason.message : "股票反查索引读取失败"); }).finally(() => { if (!controller.signal.aborted) setStockIndexLoading(false); });
+    return () => controller.abort();
+  }, [period]);
 
   const company = useMemo(() => market?.companies.find((item) => item.id === companyId) ?? null, [market, companyId]);
   useEffect(() => {
@@ -181,12 +253,42 @@ export default function Home() {
   }, [managers, selectedManagerId]);
   const filteredManagers = useMemo(() => { const key = query.trim().toLowerCase(); return key ? managers.filter((item) => `${item.name} ${item.fundNames.join(" ")}`.toLowerCase().includes(key)) : managers; }, [managers, query]);
   const filteredFunds = useMemo(() => { const key = query.trim().toLowerCase(); return key ? funds.filter((item) => `${item.code} ${item.name} ${item.pinyin} ${item.managers.join(" ")}`.toLowerCase().includes(key)) : funds; }, [funds, query]);
+  const filteredStocks = useMemo(() => {
+    const key = query.trim().replace(/\s+/g, "").toLowerCase();
+    const rows = key ? (stockIndex?.stocks ?? []).filter((item) => `${item.stockCode}${item.stockName}`.replace(/\s+/g, "").toLowerCase().includes(key)) : stockIndex?.stocks ?? [];
+    return rows.slice(0, key ? 40 : 20);
+  }, [stockIndex, query]);
   const overviewPageCount = Math.max(1, Math.ceil(filteredManagers.length / OVERVIEW_PAGE_SIZE));
   const overviewManagers = filteredManagers.slice(overviewPage * OVERVIEW_PAGE_SIZE, (overviewPage + 1) * OVERVIEW_PAGE_SIZE);
   const companyScale = funds.reduce((sum, fund) => sum + (fund.netAsset ?? 0), 0);
   const scaleDisclosed = funds.filter((fund) => fund.netAsset !== null).length;
   const selectedManager = managers.find((item) => item.id === selectedManagerId) ?? managers[0];
   const selectedFund = funds.find((item) => item.code === selectedFundCode) ?? funds[0];
+
+  useEffect(() => {
+    if (mode !== "stock") return;
+    const key = query.trim().replace(/\s+/g, "").toLowerCase();
+    const exact = filteredStocks.find((item) => item.stockCode.toLowerCase() === key || item.stockName.replace(/\s+/g, "").toLowerCase() === key);
+    const next = filteredStocks.some((item) => item.stockCode === selectedStockCode)
+      ? selectedStockCode
+      : !key ? filteredStocks[0]?.stockCode ?? ""
+        : exact?.stockCode ?? (filteredStocks.length === 1 ? filteredStocks[0].stockCode : "");
+    if (next !== selectedStockCode) setSelectedStockCode(next);
+  }, [mode, filteredStocks, selectedStockCode, query]);
+
+  useEffect(() => {
+    if (mode !== "stock" || !selectedStockCode || !stockIndex) return;
+    const item = stockIndex.stocks.find((stock) => stock.stockCode === selectedStockCode);
+    if (!item) return;
+    let active = true;
+    setStockDetailLoading(true); setStockDetail(null); setStockError(""); setStockCompanyPage(0);
+    fetchStockBucket(period, item.bucket).then((payload) => {
+      const detail = payload.stocks[selectedStockCode];
+      if (!detail) throw new Error("未找到该股票的机构明细");
+      if (active) setStockDetail(detail);
+    }).catch((reason) => { if (active) setStockError(reason instanceof Error ? reason.message : "股票机构明细读取失败"); }).finally(() => { if (active) setStockDetailLoading(false); });
+    return () => { active = false; };
+  }, [mode, selectedStockCode, stockIndex, period]);
 
   useEffect(() => { setOverviewPage(0); }, [companyId, period, query]);
   useEffect(() => {
@@ -334,13 +436,13 @@ export default function Home() {
   const managerSectorPending = mode === "manager" && sectorStaticScope !== `${companyId}|${period}` && !(managerHoldings?.sectors.length);
   return <main>
     <header className="topbar"><div className="logo">仓</div><div><strong>全市场持仓雷达</strong><small>PUBLIC FUND HOLDINGS</small></div><span className="health snapshot"><i />{market ? "全市场库已加载" : "正在加载全市场库"}</span></header>
-    <section className="hero"><p className="kicker">QUARTERLY OWNERSHIP INTELLIGENCE</p><h1>全市场基金与基金经理<br />最新季度重仓股</h1><p>覆盖全部基金公司，按公司穿透全部基金与基金经理；当前提供 2026 年一季完整数据，并可导出高密度 Excel。</p><div className="market-strip"><span><b>{market?.companyCount ?? "—"}</b> 管理机构</span><span><b>{fmt(market?.managerCount ?? 0, 0)}</b> 基金经理</span><span><b>{fmt(marketProductCount, 0)}</b> 在管基金产品<small>A/C 等份额已去重</small></span></div></section>
-    <section className="controls"><label><span>当前已发布财报期</span><select value={period} onChange={(event) => setPeriod(event.target.value)}>{periods.map((item) => <option key={item} value={item}>{periodLabel(item)} · {item}</option>)}</select></label><label><span>基金公司 · 全市场</span><select value={companyId} onChange={(event) => setCompanyId(event.target.value)} disabled={!market}>{market?.companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></section>
-    <section className="coverage"><div><small>该公司产品</small><strong>{companyProductCount || (companyLoading ? "…" : 0)}</strong></div><div><small>基金经理</small><strong>{managers.length || (companyLoading ? "…" : 0)}</strong></div><div><small>数据状态</small><strong className="status-text">{companyData?.mode === "live" ? "实时" : companyLoading ? "读取中" : "回退"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section>
+    <section className="hero"><p className="kicker">QUARTERLY OWNERSHIP INTELLIGENCE</p><h1>全市场基金与基金经理<br />最新季度重仓股</h1><p>覆盖全部基金公司，按公司穿透基金与基金经理，也可从一只股票反查重仓机构；当前提供 2026 年一季完整数据，并可导出高密度 Excel。</p><div className="market-strip"><span><b>{market?.companyCount ?? "—"}</b> 管理机构</span><span><b>{fmt(market?.managerCount ?? 0, 0)}</b> 基金经理</span><span><b>{fmt(marketProductCount, 0)}</b> 在管基金产品<small>A/C 等份额已去重</small></span></div></section>
+    <section className="controls"><label><span>当前已发布财报期</span><select value={period} onChange={(event) => setPeriod(event.target.value)}>{periods.map((item) => <option key={item} value={item}>{periodLabel(item)} · {item}</option>)}</select></label>{mode === "stock" ? <label><span>股票反查范围</span><div className="scope-display">全市场基金公司与基金经理</div></label> : <label><span>基金公司 · 全市场</span><select value={companyId} onChange={(event) => setCompanyId(event.target.value)} disabled={!market}>{market?.companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}</section>
+    {mode === "stock" ? <section className="coverage"><div><small>可反查股票</small><strong>{stockIndex?.stockCount ?? "…"}</strong></div><div><small>经理重仓记录</small><strong>{stockIndex ? fmt(stockIndex.managerHoldingCount, 0) : "…"}</strong></div><div><small>覆盖机构</small><strong>{stockIndex?.companyCount ?? "…"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section> : <section className="coverage"><div><small>该公司产品</small><strong>{companyProductCount || (companyLoading ? "…" : 0)}</strong></div><div><small>基金经理</small><strong>{managers.length || (companyLoading ? "…" : 0)}</strong></div><div><small>数据状态</small><strong className="status-text">{companyData?.mode === "live" ? "实时" : companyLoading ? "读取中" : "回退"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section>}
     <section className="workspace">
-      <div className="tabs"><button className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>基金总览</button><button className={mode === "manager" ? "active" : ""} onClick={() => setMode("manager")}>基金经理</button><button className={mode === "fund" ? "active" : ""} onClick={() => setMode("fund")}>基金产品</button></div>
-      <div className="entity-tools"><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "fund" ? "搜索基金代码、名称、经理" : "搜索经理、在管基金"} />{query && <button onClick={() => setQuery("")}>×</button>}</div><div className="export-actions">{mode === "manager" ? <><button className="export secondary" onClick={exportCurrent} disabled={exportDisabled}>导出当前经理</button><button className="export" onClick={exportAllManagerSectors} disabled={sectorExportDisabled}>{sectorExportLoading ? "正在准备行业数据…" : "导出全部行业 Excel"}</button></> : <button className="export" onClick={exportCurrent} disabled={exportDisabled}>{mode === "overview" ? "导出全部经理 Excel" : fundExportLoading ? "正在准备全部基金…" : "导出全部基金 Excel"}</button>}</div></div>
-      {mode === "overview" ? <>
+      <div className="tabs"><button className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>基金总览</button><button className={mode === "manager" ? "active" : ""} onClick={() => setMode("manager")}>基金经理</button><button className={mode === "fund" ? "active" : ""} onClick={() => setMode("fund")}>基金产品</button><button className={mode === "stock" ? "active" : ""} onClick={() => { setMode("stock"); setQuery(""); }}>股票反查</button></div>
+      <div className={`entity-tools${mode === "stock" ? " stock-tools" : ""}`}><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "stock" ? "输入股票代码或名称" : mode === "fund" ? "搜索基金代码、名称、经理" : "搜索经理、在管基金"} />{query && <button onClick={() => setQuery("")}>×</button>}</div>{mode !== "stock" && <div className="export-actions">{mode === "manager" ? <><button className="export secondary" onClick={exportCurrent} disabled={exportDisabled}>导出当前经理</button><button className="export" onClick={exportAllManagerSectors} disabled={sectorExportDisabled}>{sectorExportLoading ? "正在准备行业数据…" : "导出全部行业 Excel"}</button></> : <button className="export" onClick={exportCurrent} disabled={exportDisabled}>{mode === "overview" ? "导出全部经理 Excel" : fundExportLoading ? "正在准备全部基金…" : "导出全部基金 Excel"}</button>}</div>}</div>
+      {mode === "stock" ? <StockReverseLookup query={query} items={filteredStocks} selectedCode={selectedStockCode} onSelect={setSelectedStockCode} detail={stockDetail} indexLoading={stockIndexLoading} detailLoading={stockDetailLoading} error={stockError} companyPage={stockCompanyPage} onCompanyPage={setStockCompanyPage} /> : mode === "overview" ? <>
         <div className="overview-title"><div><span>FUND HOUSE OVERVIEW</span><h2>{company?.name}基金总览</h2><p>{periodLabel(period)} · 公司信息与全部基金经理前十大重仓矩阵</p></div><em>全量经理</em></div>
         <div className="overview-company-metrics"><div><small>报告期基金总规模</small><b>{companyLoading ? "…" : `${fmt(companyScale, 1)} 亿`}</b></div><div><small>旗下基金产品</small><b>{companyProductCount || (companyLoading ? "…" : 0)}</b></div><div><small>在任基金经理</small><b>{managers.length || (companyLoading ? "…" : 0)}</b></div><div><small>份额规模覆盖</small><b>{companyLoading ? "…" : `${funds.length ? fmt(scaleDisclosed / funds.length * 100, 1) : 0}%`}</b></div></div>
         <div className="overview-toolbar"><div><strong>全部经理持仓总览</strong><span>每页 {OVERVIEW_PAGE_SIZE} 位 · 横向滑动</span></div><div className="pager"><button onClick={() => setOverviewPage((page) => Math.max(0, page - 1))} disabled={overviewPage === 0}>‹</button><b>{overviewPage + 1} / {overviewPageCount}</b><button onClick={() => setOverviewPage((page) => Math.min(overviewPageCount - 1, page + 1))} disabled={overviewPage >= overviewPageCount - 1}>›</button></div></div>
@@ -348,13 +450,13 @@ export default function Home() {
         <OverviewMatrix managers={overviewManagers} data={overviewData} loading={overviewLoading} />
         <p className="overview-note">规模与净值占比均为所选财报期公开披露值，不做估算。联合管理基金分别归入每位基金经理；A/C 等份额持仓只计算一次，份额规模全部合并。“导出全部经理 Excel”不受当前分页或搜索影响，一次包含该公司全部基金经理。已生成的季度优先读取后台预计算静态数据，缺失时自动回退实时接口。</p>
       </> : mode === "manager" ? <><div className="result-head"><strong>全部基金经理</strong><span>{filteredManagers.length} 条 · 横向滑动</span></div><div className="entity-rail">{filteredManagers.map((item) => <button key={item.id} className={item.id === selectedManager?.id ? "active" : ""} onClick={() => setSelectedManagerId(item.id)}><strong>{item.name}</strong><small>{representativeCodes(item).length} 个产品 · 从业 {fmt(item.tenureDays / 365, 1)} 年</small></button>)}</div></> : companyLoading ? <Skeleton label="正在读取该公司全部基金与报告期规模…" /> : <><div className="result-head"><strong>全部基金</strong><span>{filteredFunds.length} 条 · 横向滑动</span></div><div className="entity-rail">{filteredFunds.map((item) => <button key={item.code} className={`fund-card${item.code === selectedFund?.code ? " active" : ""}`} onClick={() => setSelectedFundCode(item.code)}><strong>{item.name}</strong><small>{item.code} · {item.managers.join("、") || "经理待匹配"}</small><small className="fund-scale">期末规模 {fundScale(item.netAsset)}</small></button>)}</div></>}
-      {error && <div className="error-banner">{error}</div>}
-      {mode !== "overview" && <div className="detail-card">
+      {mode !== "stock" && error && <div className="error-banner">{error}</div>}
+      {(mode === "manager" || mode === "fund") && <div className="detail-card">
         {mode === "manager" && selectedManager && <><div className="detail-title"><div><span>FUND MANAGER</span><h2>{selectedManager.name}</h2><p>{company?.name} · {representativeCodes(selectedManager).length} 个在管基金产品（份额已去重） · 在管产品持仓汇总</p></div><em>经理汇总</em></div><div className="mini-metrics"><div><small>从业年限</small><b>{fmt(selectedManager.tenureDays / 365, 1)} 年</b></div><div><small>去重后产品</small><b>{representativeCodes(selectedManager).length} 只</b></div><div><small>在管净值</small><b>{managerHoldings ? `${fmt(managerHoldings.managedNav / 10000, 1)} 亿` : "—"}</b></div><div><small>成功汇总</small><b>{managerHoldings?.succeeded ?? "—"} 只</b></div></div>{detailLoading ? <Skeleton label="正在读取经理持仓…" /> : <>{managerSectorPending ? <Skeleton label="正在读取已预生成的行业数据…" /> : <SectorBreakdown rows={managerHoldings?.sectors ?? []} />}<ManagerTable rows={managerHoldings?.holdings ?? []} /><p className="value-note">经理持仓与行业分布均优先读取后台预生成季度数据；切换经理无需再次逐只基金查询。“导出全部行业 Excel”不受当前搜索或选中经理影响。</p></>}</>}
         {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>基金规模</small><b>{fundScale(selectedFund.netAsset)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <><FundTable rows={fundHoldings?.holdings ?? []} /><p className="value-note">“导出全部基金 Excel”一次包含该公司全部基金产品，不受当前搜索或选中基金影响；A/C 等份额合并规模，持仓只保留一份。</p></>}</>}
       </div>}
     </section>
-    <section className="method"><div><span>自动化数据链路</span><h2>市场索引 → 公司总览 → 经理 / 基金持仓 → 共享季度静态库</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、报告期末净资产和定期报告持仓。</li><li><b>基金总览</b> 页面优先读取已验证的季度静态数据，联合管理基金分别计入对应经理，同一产品的 A/C 等份额不重复持仓。</li><li><b>团队加速</b> 全市场数据随网站部署，同事同时打开也直接读取同一份静态结果，不依赖某一台手机的本地缓存。</li><li><b>更新</b> 每个新季度集中刷新全市场公司、基金经理、产品、规模和持仓，并在校验通过后整体发布。</li><li><b>口径</b> 净值占比由定期报告披露市值与报告期末净资产计算；未披露数据不填充。</li></ol></section>
+    <section className="method"><div><span>自动化数据链路</span><h2>市场索引 → 公司总览 → 经理 / 基金持仓 → 股票反查</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、报告期末净资产和定期报告持仓。</li><li><b>基金总览</b> 页面优先读取已验证的季度静态数据，联合管理基金分别计入对应经理，同一产品的 A/C 等份额不重复持仓。</li><li><b>股票反查</b> 后台为所有经理前十大重仓建立倒排索引，输入代码或名称后直接定位机构与经理，不在页面临时扫描全市场。</li><li><b>团队加速</b> 全市场数据随网站部署，同事同时打开也直接读取同一份静态结果，不依赖某一台手机的本地缓存。</li><li><b>更新</b> 每个新季度集中刷新全市场公司、基金经理、产品、规模、持仓和股票反查索引，并在校验通过后整体发布。</li><li><b>口径</b> 净值占比由定期报告披露市值与报告期末净资产计算；未披露数据不填充。</li></ol></section>
     <footer><strong>全市场持仓雷达</strong><span>索引更新 {market?.generatedAt ? new Date(market.generatedAt).toLocaleString("zh-CN") : "读取中"} · 数据仅供研究</span></footer>
   </main>;
 }

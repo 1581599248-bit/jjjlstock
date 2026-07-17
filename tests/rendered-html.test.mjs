@@ -18,6 +18,7 @@ test("renders the mobile-first full-market holdings dashboard", async () => {
   assert.match(html, /全市场基金与基金经理/);
   assert.match(html, /基金经理/);
   assert.match(html, /基金产品/);
+  assert.match(html, /股票反查/);
   assert.match(html, /基金总览/);
   assert.match(html, /当前已发布财报期/);
   assert.match(html, /导出全部经理 Excel/);
@@ -27,6 +28,16 @@ test("renders the mobile-first full-market holdings dashboard", async () => {
   assert.match(html, /预计算静态数据/);
   assert.doesNotMatch(html, /在管基金代码/);
   assert.doesNotMatch(html, /当前原型来自|仅完整提供|浙商基金.*长信基金/);
+});
+
+test("offers a full-market stock reverse lookup backed by static buckets", async () => {
+  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(pageSource, /输入股票代码或名称/);
+  assert.match(pageSource, /\/data\/stocks\/\$\{period\}\/index\.json/);
+  assert.match(pageSource, /\/data\/stocks\/\$\{period\}\/buckets\/\$\{bucket\}\.json/);
+  assert.match(pageSource, /哪些基金公司与基金经理将其列入前十大重仓/);
+  assert.match(pageSource, /净值占比/);
+  assert.match(pageSource, /涉及 \{manager\.fundCount\} 只基金/);
 });
 
 test("offers the all-fund-products export action", async () => {

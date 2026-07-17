@@ -105,6 +105,12 @@ await new Promise((resolve, reject) => {
   child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`sector build exit ${code}`)));
 });
 
+await new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, [path.join(root, "scripts/build-static-stock-search.mjs"), `--period=${period}`], { cwd: root, windowsHide: true, stdio: "inherit" });
+  child.on("error", reject);
+  child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`stock search build exit ${code}`)));
+});
+
 const overviewRoot = path.join(root, "public/data/overview");
 const manifest = { version: 1, updatedAt: new Date().toISOString(), entries: {} };
 for (const periodEntry of await readdir(overviewRoot, { withFileTypes: true })) {
