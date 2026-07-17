@@ -17,27 +17,42 @@ const periodLabel = (period: string) => `${period.slice(0, 4)} ${period.slice(5,
 const changeTone = (change: string) => change === "增持" || change === "新进" ? "up" : change === "减持" ? "down" : "flat";
 const isOtherIndustry = (industry: string) => /^(其他|未分类|未知|其他\/未分类)$/.test(industry.trim());
 const orderSectors = (rows: SectorHolding[]) => [...rows].sort((a, b) => Number(isOtherIndustry(a.industry)) - Number(isOtherIndustry(b.industry)) || b.marketValue - a.marketValue);
+const productKey = (name: string) => name.replace(/\((?:QDII|FOF)\)/gi, "").replace(/[A-EHIOY]$/, "").replace(/人民币.*$/, "").trim();
 
 function representativeCodes(manager: ManagerIndex) {
   const result = new Map<string, string>();
   manager.fundCodes.forEach((code, index) => {
     const name = manager.fundNames[index] ?? code;
-    const key = name.replace(/\((?:QDII|FOF)\)/gi, "").replace(/[A-EHIOY]$/, "").replace(/人民币.*$/, "").trim();
+    const key = productKey(name);
     if (!result.has(key)) result.set(key, code);
   });
   return [...result.values()];
+}
+
+function managerProducts(manager: ManagerIndex, funds: FundItem[]) {
+  const fundMap = new Map(funds.map((fund) => [fund.code, fund]));
+  const grouped = new Map<string, { code: string; shareCodes: string[] }>();
+  manager.fundCodes.forEach((code, index) => {
+    const key = productKey(manager.fundNames[index] ?? code);
+    const group = grouped.get(key) ?? { code, shareCodes: [] };
+    group.shareCodes.push(code); grouped.set(key, group);
+  });
+  return [...grouped.values()].map((group) => {
+    const disclosed = group.shareCodes.map((code) => fundMap.get(code)?.netAsset).filter((value): value is number => typeof value === "number");
+    return { code: group.code, shareCodes: group.shareCodes, netAsset: disclosed.length ? disclosed.reduce((sum, value) => sum + value, 0) : null };
+  });
 }
 
 function Skeleton({ label }: { label: string }) { return <div className="loading-state"><span className="spinner" />{label}</div>; }
 
 function FundTable({ rows }: { rows: Holding[] }) {
   if (!rows.length) return <div className="empty-state">该财报期未披露股票前十大持仓</div>;
-  return <div className="table-wrap" tabIndex={0} role="region" aria-label="基金前十大重仓股，可横向滚动"><table><thead><tr><th>#</th><th>股票</th><th className="num core-col">净值占比</th><th className="core-col">持仓变化</th><th className="optional-col">代码</th><th className="num optional-col">持股/万</th><th className="num optional-col">市值/万</th></tr></thead><tbody>{rows.map((row) => <tr key={row.stockCode}><td><b className={`rank r${row.rank}`}>{row.rank}</b></td><td><strong>{row.stockName}</strong></td><td className="num accent core-col">{fmt(row.weight, 2)}%</td><td className="core-col"><span className={`change ${changeTone(row.change)}`}>{row.change}</span></td><td className="muted mono optional-col">{row.stockCode}</td><td className="num mono optional-col">{fmt(row.shares, 2)}</td><td className="num mono optional-col">{fmt(row.marketValue, 0)}</td></tr>)}</tbody></table></div>;
+  return <div className="table-wrap" tabIndex={0} role="region" aria-label="基金前十大重仓股，可横向滚动"><table><thead><tr><th>#</th><th>股票</th><th className="num core-col">净值占比</th><th className="core-col">持仓变化</th><th className="num optional-col">持股/万</th><th className="num optional-col">披露市值/万</th></tr></thead><tbody>{rows.map((row) => <tr key={row.stockCode}><td><b className={`rank r${row.rank}`}>{row.rank}</b></td><td><strong>{row.stockName}</strong></td><td className="num accent core-col">{fmt(row.weight, 2)}%</td><td className="core-col"><span className={`change ${changeTone(row.change)}`}>{row.change}</span></td><td className="num mono optional-col">{fmt(row.shares, 2)}</td><td className="num mono optional-col">{fmt(row.marketValue, 0)}</td></tr>)}</tbody></table></div>;
 }
 
 function ManagerTable({ rows }: { rows: ManagerHolding[] }) {
   if (!rows.length) return <div className="empty-state">在管基金未披露股票前十大持仓</div>;
-  return <div className="table-wrap" tabIndex={0} role="region" aria-label="基金经理汇总前十大重仓股，可横向滚动"><table><thead><tr><th>#</th><th>股票</th><th className="num core-col">净值占比</th><th className="core-col">持仓变化</th><th className="optional-col">代码</th><th className="num optional-col">汇总市值/万</th><th className="num optional-col">涉及基金</th></tr></thead><tbody>{rows.map((row) => <tr key={row.stockCode}><td><b className={`rank r${row.rank}`}>{row.rank}</b></td><td><strong>{row.stockName}</strong></td><td className="num accent core-col">{fmt(row.weight, 2)}%</td><td className="core-col"><span className={`change ${changeTone(row.change)}`}>{row.change}</span></td><td className="muted mono optional-col">{row.stockCode}</td><td className="num mono optional-col">{fmt(row.marketValue, 0)}</td><td className="num mono optional-col">{row.fundCount}</td></tr>)}</tbody></table></div>;
+  return <><div className="table-wrap" tabIndex={0} role="region" aria-label="基金经理汇总前十大重仓股，可横向滚动"><table><thead><tr><th>#</th><th>股票</th><th className="num core-col">净值占比</th><th className="core-col">持仓变化</th><th className="num optional-col">披露市值/万</th><th className="num optional-col">涉及基金</th></tr></thead><tbody>{rows.map((row) => <tr key={row.stockCode}><td><b className={`rank r${row.rank}`}>{row.rank}</b></td><td><strong>{row.stockName}</strong></td><td className="num accent core-col">{fmt(row.weight, 2)}%</td><td className="core-col"><span className={`change ${changeTone(row.change)}`}>{row.change}</span></td><td className="num mono optional-col">{fmt(row.marketValue, 0)}</td><td className="num mono optional-col">{row.fundCount}</td></tr>)}</tbody></table></div><p className="value-note">披露市值直接加总各产品定期报告数据；A/C 等份额持仓只计算一次，净资产规模合并后用于计算经理净值占比。</p></>;
 }
 
 function SectorBreakdown({ rows }: { rows: SectorHolding[] }) {
@@ -134,28 +149,25 @@ export default function Home() {
   useEffect(() => { setOverviewData({}); setOverviewScope(`${companyId}|${period}`); }, [companyId, period]);
 
   useEffect(() => {
-    if (mode !== "overview" || !overviewManagers.length || !period || overviewScope !== `${companyId}|${period}`) return;
+    if (mode !== "overview" || companyLoading || !overviewManagers.length || !period || overviewScope !== `${companyId}|${period}`) return;
     const missing = overviewManagers.filter((manager) => !overviewData[manager.id]);
     if (!missing.length) { setOverviewLoading(false); setOverviewProgress(overviewManagers.length); return; }
-    const controller = new AbortController(); let cursor = 0; let completed = overviewManagers.length - missing.length;
-    setOverviewLoading(true); setOverviewProgress(completed);
-    const worker = async () => {
-      while (cursor < missing.length && !controller.signal.aborted) {
-        const manager = missing[cursor++];
-        const codes = representativeCodes(manager).join(",");
-        try {
-          const response = await fetch(`/api/manager-holdings?codes=${encodeURIComponent(codes)}&period=${encodeURIComponent(period)}`, { signal: controller.signal });
-          if (!response.ok) throw new Error("经理汇总失败");
-          const payload = await response.json() as ManagerPayload;
-          setOverviewData((current) => ({ ...current, [manager.id]: payload }));
-        } catch {
-          if (!controller.signal.aborted) setOverviewData((current) => ({ ...current, [manager.id]: { period, requested: representativeCodes(manager).length, succeeded: 0, failed: representativeCodes(manager).length, managedNav: 0, holdings: [], sectors: [], source: "读取失败" } }));
-        } finally { if (!controller.signal.aborted) { completed += 1; setOverviewProgress(completed); } }
+    const controller = new AbortController();
+    const cacheKey = `fund-overview:${companyId}:${period}:${missing.map((manager) => manager.id).join("-")}`;
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null") as { savedAt?: number; managers?: Record<string, ManagerPayload> } | null;
+      if (cached?.savedAt && cached.managers && Date.now() - cached.savedAt < 21_600_000) {
+        setOverviewData((current) => ({ ...current, ...cached.managers })); setOverviewProgress(overviewManagers.length); setOverviewLoading(false); return;
       }
-    };
-    Promise.all(Array.from({ length: Math.min(3, missing.length) }, worker)).finally(() => { if (!controller.signal.aborted) setOverviewLoading(false); });
+    } catch { /* ignore invalid device cache */ }
+    setOverviewLoading(true); setOverviewProgress(overviewManagers.length - missing.length);
+    fetch("/api/company-overview", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ period, managers: missing.map((manager) => ({ id: manager.id, products: managerProducts(manager, funds) })) }) })
+      .then(async (response) => { if (!response.ok) throw new Error("批量汇总失败"); return response.json(); })
+      .then((payload: { managers: Record<string, ManagerPayload> }) => { if (!controller.signal.aborted) { setOverviewData((current) => ({ ...current, ...payload.managers })); setOverviewProgress(overviewManagers.length); try { localStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), managers: payload.managers })); } catch { /* device storage unavailable */ } } })
+      .catch(() => { if (!controller.signal.aborted) setError("基金总览批量读取失败，请稍后重试"); })
+      .finally(() => { if (!controller.signal.aborted) setOverviewLoading(false); });
     return () => controller.abort();
-  }, [mode, overviewPage, period, companyId, overviewScope, overviewManagers.map((manager) => manager.id).join("|")]);
+  }, [mode, overviewPage, period, companyId, overviewScope, companyLoading, funds.length, overviewManagers.map((manager) => manager.id).join("|")]);
 
   useEffect(() => {
     if (mode !== "fund" || !selectedFund?.code || !period) return;
@@ -166,9 +178,8 @@ export default function Home() {
   useEffect(() => {
     if (mode !== "manager" || !selectedManager?.id || !period) return;
     setDetailLoading(true); setManagerHoldings(null); setError("");
-    const codes = representativeCodes(selectedManager).join(",");
-    fetch(`/api/manager-holdings?codes=${encodeURIComponent(codes)}&period=${encodeURIComponent(period)}`).then(async (response) => { if (!response.ok) throw new Error("经理持仓汇总失败"); return response.json(); }).then(setManagerHoldings).catch((reason) => setError(reason.message)).finally(() => setDetailLoading(false));
-  }, [mode, selectedManager?.id, period]);
+    fetch("/api/manager-holdings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ products: managerProducts(selectedManager, funds), period }) }).then(async (response) => { if (!response.ok) throw new Error("经理持仓汇总失败"); return response.json(); }).then(setManagerHoldings).catch((reason) => setError(reason.message)).finally(() => setDetailLoading(false));
+  }, [mode, selectedManager?.id, period, funds.length]);
 
   const exportCurrent = () => {
     if (!company) return;
@@ -192,7 +203,7 @@ export default function Home() {
         <div className="overview-toolbar"><div><strong>全部经理持仓总览</strong><span>每页 {OVERVIEW_PAGE_SIZE} 位 · 横向滑动</span></div><div className="pager"><button onClick={() => setOverviewPage((page) => Math.max(0, page - 1))} disabled={overviewPage === 0}>‹</button><b>{overviewPage + 1} / {overviewPageCount}</b><button onClick={() => setOverviewPage((page) => Math.min(overviewPageCount - 1, page + 1))} disabled={overviewPage >= overviewPageCount - 1}>›</button></div></div>
         <div className="overview-progress"><i style={{ width: `${overviewManagers.length ? overviewProgress / overviewManagers.length * 100 : 0}%` }} /><span>{overviewLoading ? `正在汇总 ${overviewProgress}/${overviewManagers.length} 位经理` : `本页 ${overviewManagers.length} 位经理已就绪`}</span></div>
         <OverviewMatrix managers={overviewManagers} data={overviewData} loading={overviewLoading} />
-        <p className="overview-note">规模与净值占比均为所选财报期公开披露值，不做估算。联合管理基金分别归入每位基金经理；A/C 等份额按产品名称去重后选取代表代码汇总。</p>
+        <p className="overview-note">规模与净值占比均为所选财报期公开披露值，不做估算。联合管理基金分别归入每位基金经理；A/C 等份额持仓只计算一次，份额规模全部合并。</p>
       </> : <><div className="result-head"><strong>{mode === "manager" ? "全部基金经理" : "全部基金"}</strong><span>{mode === "manager" ? filteredManagers.length : filteredFunds.length} 条 · 横向滑动</span></div><div className="entity-rail">{mode === "manager" ? filteredManagers.map((item) => <button key={item.id} className={item.id === selectedManager?.id ? "active" : ""} onClick={() => setSelectedManagerId(item.id)}><strong>{item.name}</strong><small>{item.fundCodes.length} 只 · 从业 {fmt(item.tenureDays / 365, 1)} 年</small></button>) : filteredFunds.map((item) => <button key={item.code} className={`fund-card${item.code === selectedFund?.code ? " active" : ""}`} onClick={() => setSelectedFundCode(item.code)}><strong>{item.name}</strong><small>{item.code} · {item.managers.join("、") || "经理待匹配"}</small><small className="fund-scale">期末规模 {fundScale(item.netAsset)}</small></button>)}</div></>}
       {error && <div className="error-banner">{error}</div>}
       {mode !== "overview" && <div className="detail-card">
@@ -200,7 +211,7 @@ export default function Home() {
         {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>基金规模</small><b>{fundScale(selectedFund.netAsset)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <FundTable rows={fundHoldings?.holdings ?? []} />}</>}
       </div>}
     </section>
-    <section className="method"><div><span>自动化数据链路</span><h2>实时索引 → 公司总览 → 经理 / 基金持仓 → 季度缓存</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、报告期末净资产和定期报告持仓。</li><li><b>基金总览</b> 每页汇总 12 位经理，三路并发并按报告期缓存；大型公司也可稳定查看全部经理。</li><li><b>更新</b> 每 6 小时刷新基金经理、在管关系、基金产品并探测最新财报期。</li><li><b>口径</b> 每只基金规模为所选财报期末净资产；未完成披露时显示“待披露”，不使用其他日期替代。</li></ol></section>
+    <section className="method"><div><span>自动化数据链路</span><h2>实时索引 → 公司总览 → 经理 / 基金持仓 → 季度缓存</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、报告期末净资产和定期报告持仓。</li><li><b>基金总览</b> 每页 12 位经理一次批量汇总，联合管理的重复基金只读取一次。</li><li><b>更新</b> 每 6 小时刷新基金经理、在管关系、基金产品并探测最新财报期。</li><li><b>口径</b> A/C 等份额持仓不重复计算，净资产规模合并；未披露数据不估算。</li></ol></section>
     <footer><strong>全市场持仓雷达</strong><span>索引更新 {market?.generatedAt ? new Date(market.generatedAt).toLocaleString("zh-CN") : "读取中"} · 数据仅供研究</span></footer>
   </main>;
 }

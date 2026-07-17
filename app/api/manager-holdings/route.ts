@@ -1,14 +1,16 @@
 import { fetchFundHoldings, fetchFundNetAsset, fetchStockIndustry } from "../../lib/eastmoney";
 
-async function buildManagerHoldings(codesInput: string[], period: string) {
-  const codes = [...new Set(codesInput.filter((code) => /^\d{6}$/.test(code)))].slice(0, 80);
-  if (!codes.length || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) return Response.json({ error: "参数无效" }, { status: 400 });
+type ProductInput = { code: string; shareCodes?: string[]; netAsset: number | null };
+
+async function buildManagerHoldings(productsInput: ProductInput[], period: string) {
+  const products = [...new Map(productsInput.filter((product) => /^\d{6}$/.test(product.code)).map((product) => [product.code, { ...product, shareCodes: [...new Set((product.shareCodes ?? [product.code]).filter((code) => /^\d{6}$/.test(code)))] }])).values()].slice(0, 80);
+  if (!products.length || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) return Response.json({ error: "参数无效" }, { status: 400 });
   const results: Array<{ holdings: Awaited<ReturnType<typeof fetchFundHoldings>>; netAsset: number | null }> = [];
   let failed = 0;
-  for (let index = 0; index < codes.length; index += 4) {
-    const batch = await Promise.allSettled(codes.slice(index, index + 4).map(async (code) => {
-      const holdings = await fetchFundHoldings(code, period);
-      const netAsset = await fetchFundNetAsset(code, period);
+  for (let index = 0; index < products.length; index += 8) {
+    const batch = await Promise.allSettled(products.slice(index, index + 8).map(async (product) => {
+      const holdings = await fetchFundHoldings(product.code, period);
+      const netAsset = product.netAsset === null ? (await Promise.all(product.shareCodes.map((code) => fetchFundNetAsset(code, period)))).reduce((sum, value) => sum + (value ?? 0), 0) || null : product.netAsset * 10_000;
       return { holdings, netAsset };
     }));
     for (const item of batch) {
@@ -66,15 +68,21 @@ async function buildManagerHoldings(codesInput: string[], period: string) {
     rank: index + 1,
     holdingShare: topMarketValue > 0 ? sector.marketValue / topMarketValue * 100 : 0,
   }));
-  return Response.json({ period, requested: codes.length, succeeded, failed, managedNav, holdings, sectors, source: "东方财富基金公开数据（报告期期末净资产、在管基金持仓与股票行业）" }, { headers: { "cache-control": "public, max-age=1800, s-maxage=86400" } });
+  return Response.json({ period, requested: products.length, succeeded, failed, managedNav, holdings, sectors, source: "东方财富基金公开数据（各份额规模合并、基金持仓与股票行业）" }, { headers: { "cache-control": "public, max-age=1800, s-maxage=86400" } });
 }
 
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
-  return buildManagerHoldings((params.get("codes") ?? "").split(","), params.get("period") ?? "");
+  const products = (params.get("products") ?? "").split(",").map((item) => {
+    const [code, netAssetText] = item.split(":");
+    const netAsset = Number.parseFloat(netAssetText ?? "");
+    return { code, shareCodes: [code], netAsset: Number.isFinite(netAsset) && netAsset >= 0 ? netAsset : null };
+  });
+  const fallback = (params.get("codes") ?? "").split(",").map((code) => ({ code, shareCodes: [code], netAsset: null }));
+  return buildManagerHoldings(products.some((product) => product.code) ? products : fallback, params.get("period") ?? "");
 }
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({})) as { codes?: string[]; period?: string };
-  return buildManagerHoldings(body.codes ?? [], body.period ?? "");
+  const body = await request.json().catch(() => ({})) as { codes?: string[]; products?: ProductInput[]; period?: string };
+  return buildManagerHoldings(body.products ?? (body.codes ?? []).map((code) => ({ code, shareCodes: [code], netAsset: null })), body.period ?? "");
 }
