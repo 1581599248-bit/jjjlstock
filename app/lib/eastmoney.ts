@@ -130,7 +130,7 @@ export async function fetchMarketIndex() {
 }
 
 export function parseFundRows(text: string): FundItem[] {
-  return extractJsonArray(text, "datas:").map((row) => ({ code: row[0] ?? "", name: row[1] ?? "", pinyin: row[2] ?? "", type: "公募基金", managers: [], netAsset: null, scalePeriod: "" })).filter((item) => /^\d{6}$/.test(item.code));
+  return extractJsonArray(text, "datas:").map((row) => ({ code: row[0] ?? "", name: row[1] ?? "", pinyin: row[2] ?? "", type: "类型待披露", managers: [], netAsset: null, scalePeriod: "" })).filter((item) => /^\d{6}$/.test(item.code));
 }
 
 export async function fetchCompanyFunds(companyId: string) {

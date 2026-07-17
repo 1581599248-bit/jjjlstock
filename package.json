@@ -9,6 +9,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
+    "data:sync:fund-types": "node scripts/sync-fund-types.mjs",
     "data:build:q1": "node scripts/build-static-market.mjs --period=2026-03-31",
     "data:build:fund-exports:q1": "node scripts/build-static-fund-exports.mjs --period=2026-03-31",
     "data:build:sectors:q1": "node scripts/build-static-sectors.mjs --period=2026-03-31",

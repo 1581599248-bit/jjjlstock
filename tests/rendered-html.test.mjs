@@ -42,8 +42,12 @@ test("offers a full-market stock reverse lookup backed by static buckets", async
 
 test("offers the all-fund-products export action", async () => {
   const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const routeSource = await readFile(new URL("../app/api/company/route.ts", import.meta.url), "utf8");
   assert.match(pageSource, /导出全部基金 Excel/);
   assert.match(pageSource, /\/data\/funds\/\$\{period\}\/\$\{companyId\}\.json/);
+  assert.match(routeSource, /fundTypeSnapshot/);
+  assert.match(routeSource, /type: fundType\(fund\.code\)/);
+  assert.doesNotMatch(routeSource, /type: "公募基金"/);
 });
 
 test("offers the all-manager industry export action", async () => {

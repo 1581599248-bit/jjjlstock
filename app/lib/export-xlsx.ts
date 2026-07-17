@@ -154,7 +154,7 @@ function companyFundsSheet(input: CompanyFundsInput) {
       displayCode,
       fund.netAsset,
       fund.managers.join("、") || "待匹配",
-      fund.type || "公募基金",
+      fund.type || "类型待披露",
       null,
       ...holdings,
     ];
@@ -166,7 +166,7 @@ function companyFundsSheet(input: CompanyFundsInput) {
 
 export function buildCompanyFundsWorkbook(input: CompanyFundsInput) {
   const overview = companyFundsSheet(input);
-  const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", input.source], ["基金产品口径", "A/C 等份额合并为一个基金产品，持仓只计算一次；基金代码为代表份额代码。"], ["规模口径", "所选报告期末各份额净资产合计；无法披露时标记为待披露，不做估算。"], ["导出范围", `当前基金公司旗下全部 ${input.funds.length} 只基金产品，不受页面搜索或当前选中基金影响。`], ["更新机制", "每个新季度集中刷新全市场产品、规模与持仓，校验通过后整体发布。"]], [24, 110]);
+  const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", input.source], ["基金类型口径", "东方财富基金基础资料原始分类；无法匹配时标记为类型待披露。"], ["基金产品口径", "A/C 等份额合并为一个基金产品，持仓只计算一次；基金代码为代表份额代码。"], ["规模口径", "所选报告期末各份额净资产合计；无法披露时标记为待披露，不做估算。"], ["导出范围", `当前基金公司旗下全部 ${input.funds.length} 只基金产品，不受页面搜索或当前选中基金影响。`], ["更新机制", "每个新季度集中刷新全市场产品、规模与持仓，校验通过后整体发布。"]], [24, 110]);
   return workbook([{ name: "基金产品总览", xml: overview }, { name: "数据口径", xml: notes }]);
 }
 

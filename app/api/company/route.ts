@@ -1,5 +1,9 @@
 import snapshot from "../../data/market-index.json";
+import fundTypeSnapshot from "../../data/fund-types.json";
 import { fetchCompanyFunds, fetchCompanyFundScales } from "../../lib/eastmoney";
+
+const fundTypes = fundTypeSnapshot.types as Record<string, string>;
+const fundType = (code: string) => fundTypes[code] ?? "类型待披露";
 
 export async function GET(request: Request) {
   const id = new URL(request.url).searchParams.get("id") ?? "";
@@ -15,12 +19,12 @@ export async function GET(request: Request) {
       names.push(manager.name);
       managerByFund.set(code, names);
     }
-    return Response.json({ company, funds: funds.map((fund) => ({ ...fund, managers: managerByFund.get(fund.code) ?? [], netAsset: scales.get(fund.code) ?? null, scalePeriod: period })), mode: "live" }, { headers: { "cache-control": "public, max-age=900, s-maxage=21600" } });
+    return Response.json({ company, funds: funds.map((fund) => ({ ...fund, type: fundType(fund.code), managers: managerByFund.get(fund.code) ?? [], netAsset: scales.get(fund.code) ?? null, scalePeriod: period })), mode: "live" }, { headers: { "cache-control": "public, max-age=900, s-maxage=21600" } });
   } catch {
     const scales = await fetchCompanyFundScales(id, period).catch(() => new Map<string, number>());
     const fallback = new Map<string, { code: string; name: string; type: string; pinyin: string; managers: string[]; netAsset: number | null; scalePeriod: string }>();
     for (const manager of company.managers) manager.fundCodes.forEach((code, index) => {
-      const item = fallback.get(code) ?? { code, name: manager.fundNames[index] ?? code, type: "公募基金", pinyin: "", managers: [], netAsset: scales.get(code) ?? null, scalePeriod: period };
+      const item = fallback.get(code) ?? { code, name: manager.fundNames[index] ?? code, type: fundType(code), pinyin: "", managers: [], netAsset: scales.get(code) ?? null, scalePeriod: period };
       item.managers.push(manager.name);
       fallback.set(code, item);
     });

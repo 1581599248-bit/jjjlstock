@@ -221,7 +221,7 @@ export default function Home() {
     if (!companyId) return;
     setCompanyLoading(true); setError(""); setQuery("");
     setCompanyData(null);
-    fetch(`/api/company?id=${encodeURIComponent(companyId)}&period=${encodeURIComponent(period)}`).then(async (response) => { if (!response.ok) throw new Error("公司数据加载失败"); return response.json(); }).then((result: CompanyPayload) => {
+    fetch(`/api/company?id=${encodeURIComponent(companyId)}&period=${encodeURIComponent(period)}&metadata=2`).then(async (response) => { if (!response.ok) throw new Error("公司数据加载失败"); return response.json(); }).then((result: CompanyPayload) => {
       setCompanyData(result); setSelectedFundCode(result.funds[0]?.code ?? "");
     }).catch((reason) => setError(reason.message)).finally(() => setCompanyLoading(false));
   }, [companyId, period]);
@@ -392,7 +392,7 @@ export default function Home() {
         const exportFunds = payload.products.map((product) => {
           const disclosed = product.shareCodes.map((code) => fundByCode.get(code)?.netAsset).filter((value): value is number => typeof value === "number");
           const fundType = product.shareCodes.map((code) => fundByCode.get(code)?.type).find((value): value is string => Boolean(value));
-          return { code: product.code, name: productKey(product.name) || product.name, type: fundType ?? "公募基金", managers: product.managers, netAsset: disclosed.length ? disclosed.reduce((sum, value) => sum + value, 0) : null, holdings: product.holdings };
+          return { code: product.code, name: productKey(product.name) || product.name, type: fundType ?? "类型待披露", managers: product.managers, netAsset: disclosed.length ? disclosed.reduce((sum, value) => sum + value, 0) : null, holdings: product.holdings };
         });
         exportCompanyFundsWorkbook({ companyName: company.name, period, funds: exportFunds, source: payload.source });
       } catch (reason) {
@@ -456,7 +456,7 @@ export default function Home() {
       const exportFunds = fundPayload.products.map((product) => {
         const disclosed = product.shareCodes.map((code) => fundByCode.get(code)?.netAsset).filter((value): value is number => typeof value === "number");
         const fundType = product.shareCodes.map((code) => fundByCode.get(code)?.type).find((value): value is string => Boolean(value));
-        return { code: product.code, name: productKey(product.name) || product.name, type: fundType ?? "公募基金", managers: product.managers, netAsset: disclosed.length ? disclosed.reduce((sum, value) => sum + value, 0) : null, holdings: product.holdings };
+        return { code: product.code, name: productKey(product.name) || product.name, type: fundType ?? "类型待披露", managers: product.managers, netAsset: disclosed.length ? disclosed.reduce((sum, value) => sum + value, 0) : null, holdings: product.holdings };
       });
       exportCompanyInstitutionWorkbook({
         companyName: company.name,

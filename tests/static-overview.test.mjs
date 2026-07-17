@@ -6,6 +6,7 @@ import { companyProducts } from "../scripts/lib/company-products.mjs";
 
 const root = new URL("../", import.meta.url);
 const snapshot = JSON.parse(await readFile(new URL("app/data/market-index.json", root), "utf8"));
+const fundTypeSnapshot = JSON.parse(await readFile(new URL("app/data/fund-types.json", root), "utf8"));
 const period = "2026-03-31";
 const overviewDirectory = new URL(`public/data/overview/${period}/`, root);
 const fundDirectory = new URL(`public/data/funds/${period}/`, root);
@@ -20,6 +21,20 @@ test("the Q1 static market covers every company and manifest entry", async () =>
     Object.keys(manifest.entries).filter((key) => key.endsWith(`:${period}`)).sort(),
     snapshot.companies.map((company) => `${company.id}:${period}`).sort(),
   );
+});
+
+test("fund type metadata uses source classifications instead of a generic public-fund label", () => {
+  const marketCodes = new Set(snapshot.companies.flatMap((company) => company.managers.flatMap((manager) => manager.fundCodes)));
+  const matchedCodes = [...marketCodes].filter((code) => fundTypeSnapshot.types[code]);
+  assert.ok(fundTypeSnapshot.count >= 20_000);
+  assert.equal(fundTypeSnapshot.count, Object.keys(fundTypeSnapshot.types).length);
+  assert.ok(matchedCodes.length / marketCodes.size >= 0.999);
+  assert.equal(fundTypeSnapshot.types["001924"], "混合型-灵活");
+  assert.equal(fundTypeSnapshot.types["000015"], "债券型-长债");
+  assert.equal(fundTypeSnapshot.types["000343"], "货币型-普通货币");
+  assert.equal(fundTypeSnapshot.types["005534"], "QDII-混合灵活");
+  assert.equal(fundTypeSnapshot.types["508016"], "REITs");
+  assert.ok(!Object.values(fundTypeSnapshot.types).includes("公募基金"));
 });
 
 test("every Q1 payload has the exact manager roster and valid holdings", async () => {
