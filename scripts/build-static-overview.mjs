@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { companyProducts, managerProducts } from "./lib/company-products.mjs";
+import { companyProductsForPeriod, managerProductsForPeriod } from "./lib/company-products.mjs";
+import { fetchCompanyScaleRows, productScaleFields } from "./lib/company-scales.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -15,13 +16,13 @@ if (!/^\d{8}$/.test(companyId) || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(peri
 
 const root = process.cwd();
 const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
+const fundTypes = JSON.parse(await readFile(path.join(root, "app/data/fund-types.json"), "utf8")).types;
 const company = snapshot.companies.find((item) => item.id === companyId);
 if (!company) throw new Error(`Unknown company ${companyId}`);
 const expectedShareCodes = new Set(company.managers.flatMap((manager) => manager.fundCodes));
 
 const HEADERS = { "user-agent": "Mozilla/5.0 (compatible; FundHoldingsStaticBuilder/1.0)", referer: "https://fund.eastmoney.com/" };
 const HOLDINGS_API = "https://fundf10.eastmoney.com/FundArchivesDatas.aspx";
-const SCALE_API = "https://fund.eastmoney.com/Company1/GMBD/QMore";
 const checkpointDir = path.join(root, "work/static-overview", period, companyId);
 const outputDir = path.join(root, "public/data/overview", period);
 const fundOutputDir = path.join(root, "public/data/funds", period);
@@ -102,30 +103,15 @@ async function fetchHolding(code) {
 }
 
 async function fetchScales() {
-  let best = { map: new Map(), matched: 0 };
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const cacheBust = `${Date.now()}-${companyId}-${attempt}-${Math.random().toString(36).slice(2)}`;
-    const params = new URLSearchParams({ id: companyId, curyear: period.slice(0, 4), pagesize: "10", Q: String(Number(period.slice(5, 7)) / 3), fundtype: "0", JZRQ: period, ftype: "全部", rt: cacheBust, cb: cacheBust });
-    const payload = JSON.parse(await fetchText(`${SCALE_API}?${params}`, `https://fund.eastmoney.com/Company1/f10/gmbd_${companyId}.html`));
-    const result = new Map();
-    for (const row of payload.Datas ?? []) {
-      if (row.FSRQ && String(row.FSRQ) !== period) continue;
-      const code = String(row.BZDM ?? "");
-      const netAsset = Number.parseFloat(String(row.QMJZC ?? "").replace(/,/g, ""));
-      if (/^\d{6}$/.test(code) && Number.isFinite(netAsset) && netAsset >= 0) result.set(code, netAsset);
-    }
-    const matched = [...expectedShareCodes].filter((code) => result.has(code)).length;
-    if (matched > best.matched || (matched === best.matched && result.size > best.map.size)) best = { map: result, matched };
-    const minimumMatched = Math.min(expectedShareCodes.size, Math.max(1, Math.ceil(expectedShareCodes.size * 0.35)));
-    if (matched >= minimumMatched) return result;
-    if (attempt < 4) await sleep(500 * (attempt + 1) + Number(companyId.slice(-2)) * 7);
-  }
-  return best.map;
+  return fetchCompanyScaleRows(companyId, period, { expectedCodes: expectedShareCodes });
 }
 
-const productsByManager = new Map(company.managers.map((manager) => [manager.id, managerProducts(manager)]));
-const productCatalog = companyProducts(company);
-const representativeCodes = [...new Set([...productsByManager.values()].flat().map((product) => product.code))];
+const scaleRows = await fetchScales();
+const scaleByCode = new Map(scaleRows.map((row) => [row.code, row]));
+const scaleMap = new Map(scaleRows.filter((row) => row.netAsset !== null).map((row) => [row.code, row.netAsset]));
+const productsByManager = new Map(company.managers.map((manager) => [manager.id, managerProductsForPeriod(manager, scaleRows)]));
+const productCatalog = companyProductsForPeriod(company, scaleRows);
+const representativeCodes = productCatalog.map((product) => product.code);
 const fundMap = new Map();
 const failures = [];
 let cursor = 0;
@@ -145,11 +131,9 @@ async function worker() {
   }
 }
 
-const scaleMapPromise = fetchScales();
 await Promise.all(Array.from({ length: concurrency }, () => worker()));
 process.stdout.write("\n");
 if (failures.length) throw new Error(`Holding downloads failed: ${JSON.stringify(failures.slice(0, 10))}`);
-const scaleMap = await scaleMapPromise;
 const matchedScaleShareCodes = [...expectedShareCodes].filter((code) => scaleMap.has(code)).length;
 
 const summaries = {};
@@ -177,11 +161,24 @@ for (const manager of company.managers) {
 }
 
 const generatedAt = new Date().toISOString();
-const fundProducts = productCatalog.map((product) => ({ ...product, holdings: fundMap.get(product.code)?.holdings ?? [] }));
+const fundProducts = productCatalog.map((product) => ({
+  ...product,
+  type: product.shareCodes.map((code) => fundTypes[code]).find(Boolean) ?? "类型待披露",
+  ...productScaleFields(product, scaleByCode),
+  holdings: fundMap.get(product.code)?.holdings ?? [],
+}));
 const fundPayload = {
-  version: 1, companyId, companyName: company.name, period, generatedAt,
-  source: "东方财富基金公开数据（后台预计算基金产品持仓）",
+  version: 2, companyId, companyName: company.name, period, generatedAt,
+  source: "东方财富基金公开数据（报告期产品范围、净资产/份额规模与预计算持仓）",
   productCount: fundProducts.length, products: fundProducts,
+  quality: {
+    periodShareCodes: scaleRows.length,
+    netAssetShareCodes: scaleRows.filter((row) => row.netAsset !== null).length,
+    periodProducts: fundProducts.length,
+    netAssetProducts: fundProducts.filter((product) => product.netAsset !== null).length,
+    shareOnlyProducts: fundProducts.filter((product) => product.netAsset === null && product.endShares !== null).length,
+    missingScaleProducts: fundProducts.filter((product) => product.netAsset === null && product.endShares === null).length,
+  },
 };
 fundPayload.contentHash = createHash("sha256").update(JSON.stringify(fundProducts)).digest("hex");
 await writeFile(path.join(fundOutputDir, `${companyId}.json`), JSON.stringify(fundPayload));
@@ -194,6 +191,7 @@ const payload = {
     completedManagers: Object.keys(summaries).length,
     fetchedProducts: fundMap.size,
     failedDownloads: failures.length,
+    periodScaleShareCodes: scaleRows.length,
     scaleShareCodes: scaleMap.size,
     expectedShareCodes: expectedShareCodes.size,
     matchedScaleShareCodes,

@@ -2,7 +2,6 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { companyProducts } from "./lib/company-products.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -38,7 +37,9 @@ async function isComplete(company) {
       && JSON.stringify(actual) === JSON.stringify(expected)
       && fundPayload.companyId === company.id
       && fundPayload.period === period
-      && fundPayload.productCount === companyProducts(company).length;
+      && fundPayload.version === 2
+      && fundPayload.productCount === fundPayload.quality?.periodProducts
+      && fundPayload.quality?.missingScaleProducts === 0;
   } catch { return false; }
 }
 

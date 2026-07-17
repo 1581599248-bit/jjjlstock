@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
-import { companyProducts } from "./lib/company-products.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -50,6 +49,8 @@ const summary = {
   managers: 0,
   representativeProducts: 0,
   fundProducts: 0,
+  fundProductsWithNetAsset: 0,
+  fundProductsWithShareScale: 0,
   sectorStocks: 0,
   classifiedSectorStocks: 0,
   expectedShareCodes: 0,
@@ -97,22 +98,31 @@ for (const company of snapshot.companies) {
   if (payload.companyId !== company.id || payload.companyName !== company.name || payload.period !== period) {
     addIssue("critical", "company_identity", { companyId: company.id });
   }
-  const expectedFundProducts = companyProducts(company);
   const fundHash = createHash("sha256").update(JSON.stringify(fundPayload.products ?? [])).digest("hex");
   if (fundPayload.companyId !== company.id
     || fundPayload.companyName !== company.name
     || fundPayload.period !== period
-    || fundPayload.productCount !== expectedFundProducts.length
-    || fundPayload.products?.length !== expectedFundProducts.length
+    || fundPayload.version !== 2
+    || fundPayload.productCount !== fundPayload.quality?.periodProducts
+    || fundPayload.products?.length !== fundPayload.productCount
+    || fundPayload.quality?.missingScaleProducts !== 0
+    || fundPayload.quality?.netAssetProducts + fundPayload.quality?.shareOnlyProducts !== fundPayload.productCount
     || fundPayload.contentHash !== fundHash) {
     addIssue("critical", "fund_export_identity_or_integrity", { companyId: company.id });
   }
+  summary.fundProductsWithNetAsset += fundPayload.quality?.netAssetProducts ?? 0;
+  summary.fundProductsWithShareScale += fundPayload.quality?.shareOnlyProducts ?? 0;
   const fundCodes = new Set();
   for (const product of fundPayload.products ?? []) {
     if (!/^\d{6}$/.test(product.code)
       || !product.name
       || !product.shareCodes?.includes(product.code)
-      || !product.managers?.length
+      || !Array.isArray(product.managers)
+      || !product.type || product.type === "公募基金"
+      || product.scalePeriod !== period
+      || (product.netAsset === null && product.endShares === null)
+      || (product.netAsset !== null && (!Number.isFinite(product.netAsset) || product.netAsset < 0))
+      || (product.endShares !== null && (!Number.isFinite(product.endShares) || product.endShares < 0))
       || fundCodes.has(product.code)
       || !Array.isArray(product.holdings)
       || product.holdings.length > 10) {
@@ -298,6 +308,9 @@ if (stockIndex.period !== period
   addIssue("critical", "stock_search_completeness", { indexStocks: stockIndex.stockCount, actualStocks: stockCodes.size, indexRecords: stockIndex.managerHoldingCount, reverseRecords: summary.stockSearchRecords, disclosedHoldings: summary.disclosedHoldings, expectedBuckets: expectedBuckets.size, actualBuckets: stockBucketFiles.length });
 }
 summary.scaleCoverage = summary.expectedShareCodes ? summary.matchedScaleShareCodes / summary.expectedShareCodes : 1;
+summary.fundScaleDisplayCoverage = summary.fundProducts ? (summary.fundProductsWithNetAsset + summary.fundProductsWithShareScale) / summary.fundProducts : 1;
+summary.fundNetAssetCoverage = summary.fundProducts ? summary.fundProductsWithNetAsset / summary.fundProducts : 1;
+if (summary.fundScaleDisplayCoverage < 1 || summary.fundNetAssetCoverage < 0.99) addIssue("high", "fund_product_scale_coverage", { display: summary.fundScaleDisplayCoverage, netAsset: summary.fundNetAssetCoverage });
 summary.industryClassificationCoverage = summary.sectorStocks ? summary.classifiedSectorStocks / summary.sectorStocks : 1;
 if (summary.industryClassificationCoverage < 0.99) addIssue("high", "industry_classification_coverage", { actual: summary.industryClassificationCoverage, minimum: 0.99 });
 if (summary.filesOver1Mb > 0) addIssue("medium", "mobile_payload_size", { filesOver1Mb: summary.filesOver1Mb });

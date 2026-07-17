@@ -30,6 +30,7 @@ test("company fund export follows the reference row-wise product layout", () => 
     type: "混合型",
     managers: [`经理${index + 1}`],
     netAsset: index + 0.25,
+    endShares: index + 0.5,
     holdings: [{ rank: 1, stockCode: "600000", stockName: `股票${index + 1}`, weight: index + 0.5, shares: 10, marketValue: 100, change: "增持", changeShares: 1 }],
   }));
   const bytes = buildCompanyFundsWorkbook({ companyName: "测试基金", period: "2026-03-31", funds, source: "测试数据源" });
@@ -39,14 +40,15 @@ test("company fund export follows the reference row-wise product layout", () => 
   assert.match(content, /<c r="B3" s="5" t="inlineStr"><is><t xml:space="preserve">000001<\/t><\/is><\/c>/);
   assert.match(content, /<c r="C3" s="8"><v>0.25<\/v><\/c>/);
   assert.match(content, /<numFmt numFmtId="164" formatCode="0.00##"\/>/);
-  assert.match(content, /<c r="D3" s="5" t="inlineStr"><is><t xml:space="preserve">经理1<\/t><\/is><\/c>/);
-  assert.match(content, /<c r="E3" s="5" t="inlineStr"><is><t xml:space="preserve">混合型<\/t><\/is><\/c>/);
-  assert.match(content, /<c r="G3" s="5" t="inlineStr"><is><t xml:space="preserve">股票1<\/t><\/is><\/c>/);
-  assert.match(content, /<c r="H3" s="9"><v>0.005<\/v><\/c>/);
-  assert.match(content, /<c r="I3" s="5" t="inlineStr"><is><t xml:space="preserve">增持<\/t><\/is><\/c>/);
-  assert.match(content, /<mergeCell ref="A1:AJ1"\/>/);
-  assert.match(content, /<autoFilter ref="A2:AJ27"\/>/);
-  assert.match(content, /当前基金公司旗下全部 25 只基金产品/);
+  assert.match(content, /<c r="D3" s="8"><v>0.5<\/v><\/c>/);
+  assert.match(content, /<c r="E3" s="5" t="inlineStr"><is><t xml:space="preserve">经理1<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="F3" s="5" t="inlineStr"><is><t xml:space="preserve">混合型<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="H3" s="5" t="inlineStr"><is><t xml:space="preserve">股票1<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="I3" s="9"><v>0.005<\/v><\/c>/);
+  assert.match(content, /<c r="J3" s="5" t="inlineStr"><is><t xml:space="preserve">增持<\/t><\/is><\/c>/);
+  assert.match(content, /<mergeCell ref="A1:AK1"\/>/);
+  assert.match(content, /<autoFilter ref="A2:AK27"\/>/);
+  assert.match(content, /当前基金公司在报告期内的全部 25 只基金产品/);
   assert.doesNotMatch(content, /ht="8" customHeight="1"\/>/);
 });
 
@@ -92,6 +94,7 @@ test("institution export combines overview, manager industries, and products int
     type: "混合型",
     managers: ["经理1"],
     netAsset: 1.25,
+    endShares: 1.1,
     holdings: [{ rank: 1, stockCode: "600000", stockName: "浦发银行", weight: 3.5, shares: 10, marketValue: 100, change: "增持", changeShares: 1 }],
   }];
   const bytes = buildCompanyInstitutionWorkbook({ companyName: "测试基金", period: "2026-03-31", source: "测试数据源", managers, funds });

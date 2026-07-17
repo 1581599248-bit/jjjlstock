@@ -36,6 +36,7 @@ export type FundItem = {
   pinyin: string;
   managers: string[];
   netAsset: number | null;
+  endShares: number | null;
   scalePeriod: string;
 };
 

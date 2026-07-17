@@ -22,10 +22,10 @@ test("renders the mobile-first full-market holdings dashboard", async () => {
   assert.match(html, /基金总览/);
   assert.match(html, /当前已发布财报期/);
   assert.match(html, /导出全部经理 Excel/);
-  assert.match(html, /报告期基金总规模/);
+  assert.match(html, /已披露净资产合计/);
   assert.match(html, /在管基金产品/);
   assert.match(html, /A\/C 等份额已去重/);
-  assert.match(html, /预计算静态数据/);
+  assert.match(html, /规模可用覆盖/);
   assert.doesNotMatch(html, /在管基金代码/);
   assert.doesNotMatch(html, /当前原型来自|仅完整提供|浙商基金.*长信基金/);
 });
@@ -46,7 +46,8 @@ test("offers the all-fund-products export action", async () => {
   assert.match(pageSource, /导出全部基金 Excel/);
   assert.match(pageSource, /\/data\/funds\/\$\{period\}\/\$\{companyId\}\.json/);
   assert.match(routeSource, /fundTypeSnapshot/);
-  assert.match(routeSource, /type: fundType\(fund\.code\)/);
+  assert.match(routeSource, /type: fundType\(scale\.code\)/);
+  assert.match(routeSource, /endShares/);
   assert.doesNotMatch(routeSource, /type: "公募基金"/);
 });
 

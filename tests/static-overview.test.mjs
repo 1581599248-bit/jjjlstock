@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import test from "node:test";
-import { companyProducts } from "../scripts/lib/company-products.mjs";
 
 const root = new URL("../", import.meta.url);
 const snapshot = JSON.parse(await readFile(new URL("app/data/market-index.json", root), "utf8"));
@@ -80,22 +79,31 @@ test("every company has a complete Q1 fund-product export payload", async () => 
   const files = (await readdir(fundDirectory)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
   assert.deepEqual(files, snapshot.companies.map((company) => `${company.id}.json`).sort());
   let productCount = 0;
+  let netAssetProducts = 0;
+  let shareOnlyProducts = 0;
   for (const company of snapshot.companies) {
     const fundPayload = JSON.parse(await readFile(new URL(`${company.id}.json`, fundDirectory), "utf8"));
     const overview = JSON.parse(await readFile(new URL(`${company.id}.json`, overviewDirectory), "utf8"));
     assert.equal(fundPayload.companyId, company.id);
     assert.equal(fundPayload.companyName, company.name);
     assert.equal(fundPayload.period, period);
-    assert.ok(overview.representativeProductCount >= fundPayload.productCount);
-    assert.equal(fundPayload.productCount, companyProducts(company).length);
+    assert.equal(fundPayload.version, 2);
+    assert.equal(fundPayload.productCount, fundPayload.quality.periodProducts);
     assert.equal(fundPayload.products.length, fundPayload.productCount);
+    assert.equal(fundPayload.quality.missingScaleProducts, 0);
+    assert.equal(fundPayload.quality.netAssetProducts + fundPayload.quality.shareOnlyProducts, fundPayload.productCount);
     assert.equal(fundPayload.contentHash, createHash("sha256").update(JSON.stringify(fundPayload.products)).digest("hex"));
     const codes = new Set();
     for (const product of fundPayload.products) {
       assert.match(product.code, /^\d{6}$/);
       assert.ok(product.name);
       assert.ok(product.shareCodes.includes(product.code));
-      assert.ok(product.managers.length > 0);
+      assert.ok(Array.isArray(product.managers));
+      assert.ok(product.type && product.type !== "公募基金");
+      assert.equal(product.scalePeriod, period);
+      assert.ok(product.netAsset !== null || product.endShares !== null);
+      assert.ok(product.netAsset === null || Number.isFinite(product.netAsset) && product.netAsset >= 0);
+      assert.ok(product.endShares === null || Number.isFinite(product.endShares) && product.endShares >= 0);
       assert.ok(!codes.has(product.code));
       codes.add(product.code);
       assert.ok(product.holdings.length <= 10);
@@ -108,8 +116,12 @@ test("every company has a complete Q1 fund-product export payload", async () => 
       });
     }
     productCount += fundPayload.productCount;
+    netAssetProducts += fundPayload.quality.netAssetProducts;
+    shareOnlyProducts += fundPayload.quality.shareOnlyProducts;
   }
   assert.ok(productCount > 10_000);
+  assert.ok(netAssetProducts / productCount >= 0.99);
+  assert.ok(shareOnlyProducts > 0);
 });
 
 test("every company has source-backed manager-sector export data", async () => {

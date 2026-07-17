@@ -130,7 +130,7 @@ export async function fetchMarketIndex() {
 }
 
 export function parseFundRows(text: string): FundItem[] {
-  return extractJsonArray(text, "datas:").map((row) => ({ code: row[0] ?? "", name: row[1] ?? "", pinyin: row[2] ?? "", type: "类型待披露", managers: [], netAsset: null, scalePeriod: "" })).filter((item) => /^\d{6}$/.test(item.code));
+  return extractJsonArray(text, "datas:").map((row) => ({ code: row[0] ?? "", name: row[1] ?? "", pinyin: row[2] ?? "", type: "类型待披露", managers: [], netAsset: null, endShares: null, scalePeriod: "" })).filter((item) => /^\d{6}$/.test(item.code));
 }
 
 export async function fetchCompanyFunds(companyId: string) {
@@ -139,6 +139,11 @@ export async function fetchCompanyFunds(companyId: string) {
 }
 
 export async function fetchCompanyFundScales(companyId: string, period: string) {
+  const rows = await fetchCompanyFundScaleDetails(companyId, period);
+  return new Map(rows.filter((row) => row.netAsset !== null).map((row) => [row.code, row.netAsset as number]));
+}
+
+export async function fetchCompanyFundScaleDetails(companyId: string, period: string) {
   if (!/^\d{8}$/.test(companyId) || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("invalid company scale query");
   const params = new URLSearchParams({
     id: companyId,
@@ -151,14 +156,18 @@ export async function fetchCompanyFundScales(companyId: string, period: string) 
     rt: String(Date.now()),
   });
   const text = await fetchText(`${COMPANY_FUND_SCALE_API}?${params}`, `https://fund.eastmoney.com/Company1/f10/gmbd_${companyId}.html`);
-  const payload = JSON.parse(text) as { Datas?: Array<{ BZDM?: string; QMJZC?: string | number | null }> };
-  const result = new Map<string, number>();
+  const payload = JSON.parse(text) as { Datas?: Array<{ FSRQ?: string; BZDM?: string; SHORTNAME?: string; QMJZC?: string | number | null; QMZFE?: string | number | null }> };
+  const result = new Map<string, { code: string; name: string; netAsset: number | null; endShares: number | null; scalePeriod: string }>();
+  const numberOrNull = (value: string | number | null | undefined) => {
+    const parsed = Number.parseFloat(String(value ?? "").replace(/,/g, ""));
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  };
   for (const row of payload.Datas ?? []) {
+    if (row.FSRQ && row.FSRQ !== period) continue;
     const code = String(row.BZDM ?? "");
-    const netAsset = Number.parseFloat(String(row.QMJZC ?? "").replace(/,/g, ""));
-    if (/^\d{6}$/.test(code) && Number.isFinite(netAsset) && netAsset >= 0) result.set(code, netAsset);
+    if (/^\d{6}$/.test(code)) result.set(code, { code, name: String(row.SHORTNAME ?? code), netAsset: numberOrNull(row.QMJZC), endShares: numberOrNull(row.QMZFE), scalePeriod: period });
   }
-  return result;
+  return [...result.values()];
 }
 
 function stripTags(value: string) { return unescapeHtml(value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()); }
