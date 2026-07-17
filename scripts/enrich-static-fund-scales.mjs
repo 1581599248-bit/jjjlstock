@@ -3,6 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { companyProductsForPeriod, productKey } from "./lib/company-products.mjs";
 import { fetchCompanyScaleRows, productScaleFields } from "./lib/company-scales.mjs";
+import { loadMarketSnapshot } from "./lib/market-snapshot.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -13,7 +14,7 @@ const concurrency = Math.max(1, Math.min(12, Number(args.get("concurrency") ?? 6
 if (!/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("Invalid period");
 
 const root = process.cwd();
-const market = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
+const market = await loadMarketSnapshot(root, period);
 const fundTypes = JSON.parse(await readFile(path.join(root, "app/data/fund-types.json"), "utf8")).types;
 const companyFilter = new Set((args.get("company") ?? "").split(",").filter(Boolean));
 const selectedCompanies = companyFilter.size ? market.companies.filter((company) => companyFilter.has(company.id)) : market.companies;

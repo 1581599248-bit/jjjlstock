@@ -1,0 +1,71 @@
+name: Quarterly holdings refresh
+
+on:
+  schedule:
+    - cron: "17 2 * * 1,4"
+  workflow_dispatch:
+    inputs:
+      period:
+        description: "Optional report period, for example 2026-06-30"
+        required: false
+        type: string
+      force:
+        description: "Build even when the disclosure probe is below the threshold"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: quarterly-holdings-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check source and build a newly disclosed quarter
+        env:
+          REQUESTED_PERIOD: ${{ inputs.period }}
+          FORCE_REFRESH: ${{ inputs.force }}
+        run: |
+          args=()
+          if [ -n "$REQUESTED_PERIOD" ]; then args+=("--period=$REQUESTED_PERIOD"); fi
+          if [ "$FORCE_REFRESH" = "true" ]; then args+=("--force=true"); fi
+          node scripts/refresh-quarter.mjs "${args[@]}"
+
+      - name: Detect generated data
+        id: changes
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate website and exports
+        if: steps.changes.outputs.changed == 'true'
+        run: npm test
+
+      - name: Commit the validated quarter
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add app/data/market-index.json app/data/fund-types.json app/data/published-periods.json public/data/market public/data/overview public/data/funds public/data/sectors public/data/stocks
+          git commit -m "Publish newly disclosed quarterly holdings [skip ci]"
+          git push

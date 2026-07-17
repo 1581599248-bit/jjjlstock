@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { companyProductsForPeriod, managerProductsForPeriod } from "./lib/company-products.mjs";
 import { fetchCompanyScaleRows, productScaleFields } from "./lib/company-scales.mjs";
+import { loadMarketSnapshot } from "./lib/market-snapshot.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -12,10 +13,11 @@ const args = new Map(process.argv.slice(2).map((item) => {
 const companyId = args.get("company") ?? "80000222";
 const period = args.get("period") ?? "2026-03-31";
 const concurrency = Math.max(1, Math.min(12, Number(args.get("concurrency") ?? 6)));
+const force = args.get("force") === "true";
 if (!/^\d{8}$/.test(companyId) || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("Invalid company or period");
 
 const root = process.cwd();
-const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
+const snapshot = await loadMarketSnapshot(root, period);
 const fundTypes = JSON.parse(await readFile(path.join(root, "app/data/fund-types.json"), "utf8")).types;
 const company = snapshot.companies.find((item) => item.id === companyId);
 if (!company) throw new Error(`Unknown company ${companyId}`);
@@ -121,9 +123,9 @@ async function worker() {
     const code = representativeCodes[cursor++];
     const checkpoint = path.join(checkpointDir, `${code}.json`);
     try {
-      const value = existsSync(checkpoint) ? JSON.parse(await readFile(checkpoint, "utf8")) : await fetchHolding(code);
+      const value = !force && existsSync(checkpoint) ? JSON.parse(await readFile(checkpoint, "utf8")) : await fetchHolding(code);
       fundMap.set(code, value);
-      if (!existsSync(checkpoint)) await writeFile(checkpoint, JSON.stringify(value));
+      if (force || !existsSync(checkpoint)) await writeFile(checkpoint, JSON.stringify(value));
     } catch (error) {
       failures.push({ code, error: error instanceof Error ? error.message : String(error) });
     }

@@ -1,8 +1,8 @@
-const availablePeriods = ["2026-03-31"];
+import published from "../../data/published-periods.json";
 
 export async function GET() {
   return Response.json(
-    { periods: availablePeriods, mode: "published", checkedAt: new Date().toISOString() },
-    { headers: { "cache-control": "public, max-age=3600, s-maxage=86400" } },
+    { periods: published.periods, mode: "published", publishedAt: published.updatedAt, checkedAt: new Date().toISOString() },
+    { headers: { "cache-control": "public, max-age=300, s-maxage=600" } },
   );
 }

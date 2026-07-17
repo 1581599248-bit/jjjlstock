@@ -4,9 +4,9 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
-const snapshot = JSON.parse(await readFile(new URL("app/data/market-index.json", root), "utf8"));
 const fundTypeSnapshot = JSON.parse(await readFile(new URL("app/data/fund-types.json", root), "utf8"));
 const period = "2026-03-31";
+const snapshot = JSON.parse(await readFile(new URL(`public/data/market/${period}.json`, root), "utf8"));
 const overviewDirectory = new URL(`public/data/overview/${period}/`, root);
 const fundDirectory = new URL(`public/data/funds/${period}/`, root);
 const sectorDirectory = new URL(`public/data/sectors/${period}/`, root);

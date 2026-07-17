@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { exportCompanyFundsWorkbook, exportCompanyInstitutionWorkbook, exportCompanyManagerSectorsWorkbook, exportCompanyOverviewWorkbook, exportHoldingsWorkbook } from "./lib/export-xlsx";
 import type { CompanyIndex, FundHoldings, FundItem, Holding, ManagerIndex, MarketIndex } from "./types";
+import publishedPeriods from "./data/published-periods.json";
 
 type CompanyPayload = { company: CompanyIndex; funds: FundItem[]; mode: "static" | "live" | "snapshot" };
 type ManagerHolding = { rank: number; stockCode: string; stockName: string; industry: string; marketValue: number; fundCount: number; weight: number; change: string; shares: number };
@@ -18,7 +19,7 @@ type StockOwnerManager = { managerId: string; managerName: string; rank: number;
 type StockOwnerCompany = { companyId: string; companyName: string; managers: StockOwnerManager[] };
 type StockOwnerDetail = { stockCode: string; stockName: string; companyCount: number; managerCount: number; companies: StockOwnerCompany[] };
 type StockBucketPayload = { period: string; source: string; stocks: Record<string, StockOwnerDetail> };
-const AVAILABLE_PERIODS = ["2026-03-31"];
+const AVAILABLE_PERIODS = publishedPeriods.periods;
 const OVERVIEW_PAGE_SIZE = 12;
 const STOCK_COMPANY_PAGE_SIZE = 10;
 const stockBucketCache = new Map<string, Promise<StockBucketPayload>>();
@@ -199,12 +200,28 @@ export default function Home() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([fetch("/api/market").then((response) => response.json()), fetch("/api/periods").then((response) => response.json())]).then(([marketResult, periodResult]) => {
-      setMarket(marketResult);
+    fetch("/api/periods").then((response) => response.json()).then((periodResult) => {
       const nextPeriods = periodResult.periods?.length ? periodResult.periods : AVAILABLE_PERIODS; setPeriods(nextPeriods); setPeriod(nextPeriods[0]);
-      if (!marketResult.companies.some((item: CompanyIndex) => item.id === companyId)) setCompanyId(marketResult.companies[0]?.id ?? "");
-    }).catch(() => setError("全市场索引加载失败，请稍后重试"));
+    }).catch(() => setError("财报期索引加载失败，请稍后重试"));
   }, []);
+
+  useEffect(() => {
+    if (!period) return;
+    const controller = new AbortController();
+    fetch(`/data/market/${period}.json`, { signal: controller.signal }).then(async (response) => {
+      if (!response.ok) {
+        const fallback = await fetch("/api/market", { signal: controller.signal });
+        if (!fallback.ok) throw new Error("全市场索引加载失败");
+        return fallback.json() as Promise<MarketIndex>;
+      }
+      return response.json() as Promise<MarketIndex>;
+    }).then((marketResult) => {
+      if (controller.signal.aborted) return;
+      setMarket(marketResult);
+      setCompanyId((current) => marketResult.companies.some((item) => item.id === current) ? current : marketResult.companies[0]?.id ?? "");
+    }).catch((reason) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "全市场索引加载失败，请稍后重试"); });
+    return () => controller.abort();
+  }, [period]);
 
   useEffect(() => {
     const controller = new AbortController();

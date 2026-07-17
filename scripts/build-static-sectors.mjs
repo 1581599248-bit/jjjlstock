@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fetchStockIndustry } from "../app/lib/eastmoney.ts";
+import { loadMarketSnapshot } from "./lib/market-snapshot.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -17,7 +18,7 @@ const overviewDir = path.join(root, "public/data/overview", period);
 const outputDir = path.join(root, "public/data/sectors", period);
 const cacheDir = path.join(root, "work/industry-cache");
 const cacheFile = path.join(cacheDir, "eastmoney-stock-industries.json");
-const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
+const snapshot = await loadMarketSnapshot(root, period);
 await mkdir(outputDir, { recursive: true });
 await mkdir(cacheDir, { recursive: true });
 

@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { companyProductsForPeriod } from "./lib/company-products.mjs";
 import { fetchCompanyScaleRows, productScaleFields } from "./lib/company-scales.mjs";
+import { loadMarketSnapshot } from "./lib/market-snapshot.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -13,7 +14,7 @@ const period = args.get("period") ?? "2026-03-31";
 if (!/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("Invalid period");
 
 const root = process.cwd();
-const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
+const snapshot = await loadMarketSnapshot(root, period);
 const fundTypes = JSON.parse(await readFile(path.join(root, "app/data/fund-types.json"), "utf8")).types;
 const outputDir = path.join(root, "public/data/funds", period);
 await mkdir(outputDir, { recursive: true });

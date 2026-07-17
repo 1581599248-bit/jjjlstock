@@ -1,13 +1,16 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { loadMarketSnapshot } from "./lib/market-snapshot.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
   return [key, rest.join("=") || "true"];
 }));
 const period = args.get("period") ?? "2026-03-31";
+const baselinePeriod = args.get("baseline") ?? "";
 if (!/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("Invalid period");
+if (baselinePeriod && !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(baselinePeriod)) throw new Error("Invalid baseline period");
 
 const root = process.cwd();
 const dataDir = path.join(root, "public/data/overview", period);
@@ -15,7 +18,7 @@ const fundDataDir = path.join(root, "public/data/funds", period);
 const sectorDataDir = path.join(root, "public/data/sectors", period);
 const stockDataDir = path.join(root, "public/data/stocks", period);
 const stockBucketDir = path.join(stockDataDir, "buckets");
-const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
+const snapshot = await loadMarketSnapshot(root, period);
 const manifest = JSON.parse(await readFile(path.join(root, "public/data/overview/manifest.json"), "utf8"));
 const files = (await readdir(dataDir)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
 const fundFiles = (await readdir(fundDataDir)).filter((name) => /^\d{8}\.json$/.test(name)).sort();
@@ -314,6 +317,39 @@ if (summary.fundScaleDisplayCoverage < 1 || summary.fundNetAssetCoverage < 0.99)
 summary.industryClassificationCoverage = summary.sectorStocks ? summary.classifiedSectorStocks / summary.sectorStocks : 1;
 if (summary.industryClassificationCoverage < 0.99) addIssue("high", "industry_classification_coverage", { actual: summary.industryClassificationCoverage, minimum: 0.99 });
 if (summary.filesOver1Mb > 0) addIssue("medium", "mobile_payload_size", { filesOver1Mb: summary.filesOver1Mb });
+
+if (baselinePeriod && baselinePeriod !== period) {
+  const baselineMarket = await loadMarketSnapshot(root, baselinePeriod);
+  const baselineFundDir = path.join(root, "public/data/funds", baselinePeriod);
+  const baselineFundFiles = (await readdir(baselineFundDir)).filter((name) => /^\d{8}\.json$/.test(name));
+  let baselineFundProducts = 0;
+  for (const file of baselineFundFiles) {
+    const payload = JSON.parse(await readFile(path.join(baselineFundDir, file), "utf8"));
+    baselineFundProducts += Number(payload.productCount ?? 0);
+  }
+  const baselineStocks = JSON.parse(await readFile(path.join(root, "public/data/stocks", baselinePeriod, "index.json"), "utf8"));
+  const baseline = {
+    period: baselinePeriod,
+    companies: baselineMarket.companyCount,
+    managers: baselineMarket.managerCount,
+    fundProducts: baselineFundProducts,
+    disclosedHoldings: Number(baselineStocks.managerHoldingCount ?? 0),
+    stocks: Number(baselineStocks.stockCount ?? 0),
+  };
+  summary.baseline = baseline;
+  const checks = [
+    ["companies", summary.companies, baseline.companies, 0.95],
+    ["managers", summary.managers, baseline.managers, 0.90],
+    ["fundProducts", summary.fundProducts, baseline.fundProducts, 0.85],
+    ["disclosedHoldings", summary.disclosedHoldings, baseline.disclosedHoldings, 0.80],
+    ["stocks", summary.stockSearchStocks, baseline.stocks, 0.75],
+  ];
+  for (const [metric, actual, previous, minimumRatio] of checks) {
+    if (previous > 0 && actual / previous < minimumRatio) {
+      addIssue("critical", "cross_quarter_completeness", { metric, actual, previous, ratio: actual / previous, minimumRatio, baselinePeriod });
+    }
+  }
+}
 
 const result = {
   status: issues.some((issue) => issue.severity === "critical" || issue.severity === "high") ? "failed" : "passed",

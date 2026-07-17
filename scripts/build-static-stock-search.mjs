@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { loadMarketSnapshot } from "./lib/market-snapshot.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -13,7 +14,7 @@ const root = process.cwd();
 const overviewDir = path.join(root, "public/data/overview", period);
 const outputDir = path.join(root, "public/data/stocks", period);
 const bucketDir = path.join(outputDir, "buckets");
-const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
+const snapshot = await loadMarketSnapshot(root, period);
 await mkdir(bucketDir, { recursive: true });
 for (const file of await readdir(bucketDir)) if (/^[0-9a-f]{2}\.json$/.test(file)) await unlink(path.join(bucketDir, file));
 

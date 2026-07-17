@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { loadMarketSnapshot } from "./lib/market-snapshot.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -15,7 +16,7 @@ const force = args.get("force") === "true";
 if (!/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("Invalid period");
 
 const root = process.cwd();
-const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
+const snapshot = await loadMarketSnapshot(root, period);
 const outputDir = path.join(root, "public/data/overview", period);
 const progressFile = path.join(root, "work/static-overview", period, "market-progress.json");
 await mkdir(outputDir, { recursive: true });
@@ -64,7 +65,7 @@ function runCompany(company) {
     const child = spawn(process.execPath, [
       path.join(root, "scripts/build-static-overview.mjs"),
       `--company=${company.id}`, `--period=${period}`,
-      `--concurrency=${fundConcurrency}`, "--skip-manifest=true",
+      `--concurrency=${fundConcurrency}`, `--force=${force}`, "--skip-manifest=true",
     ], { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     let output = "";
     child.stdout.on("data", (chunk) => { output = `${output}${chunk}`.slice(-8_000); });

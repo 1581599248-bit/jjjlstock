@@ -1,6 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import vm from "node:vm";
+import { saveMarketSnapshot } from "./lib/market-snapshot.mjs";
+
+const period = process.argv.find((item) => item.startsWith("--period="))?.slice(9) ?? "";
+if (period && !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("Invalid period");
 
 const base = "https://fund.eastmoney.com/Data/FundDataPortfolio_Interface.aspx";
 const headers = { "user-agent": "Mozilla/5.0 (compatible; FundHoldingsRadar/1.0)", referer: "https://fund.eastmoney.com/manager/default.html" };
@@ -52,4 +56,5 @@ for (const manager of normalizedManagers) { const entry = grouped.get(manager.co
 const companies = [...grouped.entries()].map(([id, entry]) => ({ id, name: entry.name, managerCount: entry.managers.length, managedFundCount: new Set(entry.managers.flatMap((manager) => manager.fundCodes)).size, managers: entry.managers.sort((a, b) => a.name.localeCompare(b.name, "zh-CN")) })).sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
 const output = { generatedAt: new Date().toISOString(), source: "东方财富基金公开数据", sourceUrl: base, companyCount: companies.length, managerCount: normalizedManagers.length, managedFundCount: new Set(normalizedManagers.flatMap((manager) => manager.fundCodes)).size, companies };
 await fs.writeFile(path.resolve("app/data/market-index.json"), `${JSON.stringify(output)}\n`, "utf8");
-console.log(JSON.stringify({ companies: output.companyCount, managers: output.managerCount, funds: output.managedFundCount, generatedAt: output.generatedAt }));
+if (period) await saveMarketSnapshot(process.cwd(), period, output);
+console.log(JSON.stringify({ period: period || null, companies: output.companyCount, managers: output.managerCount, funds: output.managedFundCount, generatedAt: output.generatedAt }));
