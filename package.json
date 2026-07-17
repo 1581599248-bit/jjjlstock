@@ -9,6 +9,8 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
+    "data:build:q1": "node scripts/build-static-market.mjs --period=2026-03-31",
+    "data:validate:q1": "node scripts/validate-static-market.mjs --period=2026-03-31",
     "test": "npm run build && node --test tests/rendered-html.test.mjs tests/static-overview.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"

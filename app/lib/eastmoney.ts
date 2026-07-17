@@ -84,14 +84,40 @@ export function parseManagerRows(text: string): ManagerIndex[] {
   })).filter((item) => item.id && item.name && item.companyId);
 }
 
+function dedupeManagerRows(managers: ManagerIndex[]) {
+  const unique = new Map<string, ManagerIndex>();
+  for (const manager of managers) {
+    const key = `${manager.companyId}:${manager.id}`;
+    const existing = unique.get(key);
+    if (!existing) {
+      unique.set(key, manager);
+      continue;
+    }
+    const funds = new Map(existing.fundCodes.map((code, index) => [code, existing.fundNames[index] ?? ""]));
+    manager.fundCodes.forEach((code, index) => funds.set(code, manager.fundNames[index] ?? funds.get(code) ?? ""));
+    const preferManager = (manager.bestReturn ?? -Infinity) > (existing.bestReturn ?? -Infinity);
+    unique.set(key, {
+      ...existing,
+      fundCodes: [...funds.keys()],
+      fundNames: [...funds.values()],
+      tenureDays: Math.max(existing.tenureDays, manager.tenureDays),
+      bestReturn: preferManager ? manager.bestReturn : existing.bestReturn,
+      bestFundCode: preferManager ? manager.bestFundCode : existing.bestFundCode,
+      bestFundName: preferManager ? manager.bestFundName : existing.bestFundName,
+    });
+  }
+  return [...unique.values()];
+}
+
 export function buildMarketIndex(managers: ManagerIndex[], generatedAt = new Date().toISOString()): MarketIndex {
+  const normalizedManagers = dedupeManagerRows(managers);
   const grouped = new Map<string, { name: string; managers: ManagerIndex[] }>();
-  for (const manager of managers) { const entry = grouped.get(manager.companyId) ?? { name: manager.companyName, managers: [] }; entry.managers.push(manager); grouped.set(manager.companyId, entry); }
+  for (const manager of normalizedManagers) { const entry = grouped.get(manager.companyId) ?? { name: manager.companyName, managers: [] }; entry.managers.push(manager); grouped.set(manager.companyId, entry); }
   const companies = [...grouped.entries()].map(([id, entry]) => {
     const codes = new Set(entry.managers.flatMap((manager) => manager.fundCodes));
     return { id, name: entry.name, managerCount: entry.managers.length, managedFundCount: codes.size, managers: entry.managers.sort((a, b) => a.name.localeCompare(b.name, "zh-CN")) };
   }).sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
-  return { generatedAt, source: "东方财富基金公开数据", sourceUrl: MANAGER_API, companyCount: companies.length, managerCount: managers.length, managedFundCount: new Set(managers.flatMap((manager) => manager.fundCodes)).size, companies };
+  return { generatedAt, source: "东方财富基金公开数据", sourceUrl: MANAGER_API, companyCount: companies.length, managerCount: normalizedManagers.length, managedFundCount: new Set(normalizedManagers.flatMap((manager) => manager.fundCodes)).size, companies };
 }
 
 export async function fetchMarketIndex() {

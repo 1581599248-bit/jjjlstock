@@ -16,6 +16,7 @@ const root = process.cwd();
 const snapshot = JSON.parse(await readFile(path.join(root, "app/data/market-index.json"), "utf8"));
 const company = snapshot.companies.find((item) => item.id === companyId);
 if (!company) throw new Error(`Unknown company ${companyId}`);
+const expectedShareCodes = new Set(company.managers.flatMap((manager) => manager.fundCodes));
 
 const HEADERS = { "user-agent": "Mozilla/5.0 (compatible; FundHoldingsStaticBuilder/1.0)", referer: "https://fund.eastmoney.com/" };
 const HOLDINGS_API = "https://fundf10.eastmoney.com/FundArchivesDatas.aspx";
@@ -26,7 +27,12 @@ await mkdir(checkpointDir, { recursive: true });
 await mkdir(outputDir, { recursive: true });
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-const productKey = (name) => name.replace(/\((?:QDII|FOF)\)/gi, "").replace(/[A-EHIOY]$/, "").replace(/人民币.*$/, "").trim();
+const productKey = (name) => name
+  .replace(/[A-EHIOY](?:\d+)?$/i, "")
+  .replace(/(?:人民币|美元现汇|美元现钞|美汇|美钞|美元)$/i, "")
+  .replace(/[A-EHIOY](?:\d+)?$/i, "")
+  .replace(/\s+/g, "")
+  .trim();
 const unescapeHtml = (value) => value.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"');
 const stripTags = (value) => unescapeHtml(value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
 
@@ -79,15 +85,18 @@ function previousPeriod(value) {
 }
 
 async function fetchHolding(code) {
-  const years = new Set([period.slice(0, 4), previousPeriod(period).slice(0, 4)]);
-  const maps = await Promise.all([...years].map(async (year) => {
+  const fetchYear = async (year) => {
     const params = new URLSearchParams({ type: "jjcc", code, topline: "10", year, month: period.slice(5, 7), rt: String(Date.now()) });
     return parseQuarterTables(await fetchText(`${HOLDINGS_API}?${params}`, `https://fundf10.eastmoney.com/ccmx_${code}.html`));
-  }));
-  const quarters = new Map();
-  for (const map of maps) for (const [date, rows] of map) quarters.set(date, rows);
-  const previous = new Map((quarters.get(previousPeriod(period)) ?? []).map((row) => [row.stockCode, row.shares]));
-  const holdings = (quarters.get(period) ?? []).map((row) => {
+  };
+  const currentYear = period.slice(0, 4);
+  const prior = previousPeriod(period);
+  const currentMap = await fetchYear(currentYear);
+  const currentRows = currentMap.get(period) ?? [];
+  if (!currentRows.length) return { code, period, holdings: [] };
+  const priorMap = prior.slice(0, 4) === currentYear ? currentMap : await fetchYear(prior.slice(0, 4));
+  const previous = new Map((priorMap.get(prior) ?? []).map((row) => [row.stockCode, row.shares]));
+  const holdings = currentRows.map((row) => {
     const previousShares = previous.get(row.stockCode);
     const changeShares = previousShares === undefined ? row.shares : row.shares - previousShares;
     return { ...row, changeShares, change: previousShares === undefined ? "新进" : Math.abs(changeShares) < 0.005 ? "不变" : changeShares > 0 ? "增持" : "减持" };
@@ -96,15 +105,25 @@ async function fetchHolding(code) {
 }
 
 async function fetchScales() {
-  const params = new URLSearchParams({ id: companyId, curyear: period.slice(0, 4), pagesize: "10", Q: String(Number(period.slice(5, 7)) / 3), fundtype: "0", JZRQ: period, ftype: "全部", rt: String(Date.now()) });
-  const payload = JSON.parse(await fetchText(`${SCALE_API}?${params}`, `https://fund.eastmoney.com/Company1/f10/gmbd_${companyId}.html`));
-  const result = new Map();
-  for (const row of payload.Datas ?? []) {
-    const code = String(row.BZDM ?? "");
-    const netAsset = Number.parseFloat(String(row.QMJZC ?? "").replace(/,/g, ""));
-    if (/^\d{6}$/.test(code) && Number.isFinite(netAsset) && netAsset >= 0) result.set(code, netAsset);
+  let best = { map: new Map(), matched: 0 };
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const cacheBust = `${Date.now()}-${companyId}-${attempt}-${Math.random().toString(36).slice(2)}`;
+    const params = new URLSearchParams({ id: companyId, curyear: period.slice(0, 4), pagesize: "10", Q: String(Number(period.slice(5, 7)) / 3), fundtype: "0", JZRQ: period, ftype: "全部", rt: cacheBust, cb: cacheBust });
+    const payload = JSON.parse(await fetchText(`${SCALE_API}?${params}`, `https://fund.eastmoney.com/Company1/f10/gmbd_${companyId}.html`));
+    const result = new Map();
+    for (const row of payload.Datas ?? []) {
+      if (row.FSRQ && String(row.FSRQ) !== period) continue;
+      const code = String(row.BZDM ?? "");
+      const netAsset = Number.parseFloat(String(row.QMJZC ?? "").replace(/,/g, ""));
+      if (/^\d{6}$/.test(code) && Number.isFinite(netAsset) && netAsset >= 0) result.set(code, netAsset);
+    }
+    const matched = [...expectedShareCodes].filter((code) => result.has(code)).length;
+    if (matched > best.matched || (matched === best.matched && result.size > best.map.size)) best = { map: result, matched };
+    const minimumMatched = Math.min(expectedShareCodes.size, Math.max(1, Math.ceil(expectedShareCodes.size * 0.35)));
+    if (matched >= minimumMatched) return result;
+    if (attempt < 4) await sleep(500 * (attempt + 1) + Number(companyId.slice(-2)) * 7);
   }
-  return result;
+  return best.map;
 }
 
 function managerProducts(manager) {
@@ -144,6 +163,7 @@ await Promise.all(Array.from({ length: concurrency }, () => worker()));
 process.stdout.write("\n");
 if (failures.length) throw new Error(`Holding downloads failed: ${JSON.stringify(failures.slice(0, 10))}`);
 const scaleMap = await scaleMapPromise;
+const matchedScaleShareCodes = [...expectedShareCodes].filter((code) => scaleMap.has(code)).length;
 
 const summaries = {};
 let managersWithHoldings = 0;
@@ -180,6 +200,9 @@ const payload = {
     fetchedProducts: fundMap.size,
     failedDownloads: failures.length,
     scaleShareCodes: scaleMap.size,
+    expectedShareCodes: expectedShareCodes.size,
+    matchedScaleShareCodes,
+    scaleCoverage: expectedShareCodes.size ? matchedScaleShareCodes / expectedShareCodes.size : 1,
     managersWithHoldings,
     zeroNavManagers,
   },
@@ -189,10 +212,12 @@ const outputFile = path.join(outputDir, `${companyId}.json`);
 await writeFile(outputFile, JSON.stringify(payload));
 
 const manifestFile = path.join(root, "public/data/overview/manifest.json");
-let manifest = { version: 1, updatedAt: generatedAt, entries: {} };
-if (existsSync(manifestFile)) manifest = JSON.parse(await readFile(manifestFile, "utf8"));
-manifest.updatedAt = generatedAt;
-manifest.entries[`${companyId}:${period}`] = { companyId, companyName: company.name, period, generatedAt, managerCount: payload.managerCount, productCount: payload.representativeProductCount, path: `/data/overview/${period}/${companyId}.json`, contentHash: payload.contentHash };
-await mkdir(path.dirname(manifestFile), { recursive: true });
-await writeFile(manifestFile, JSON.stringify(manifest, null, 2));
+if (args.get("skip-manifest") !== "true") {
+  let manifest = { version: 1, updatedAt: generatedAt, entries: {} };
+  if (existsSync(manifestFile)) manifest = JSON.parse(await readFile(manifestFile, "utf8"));
+  manifest.updatedAt = generatedAt;
+  manifest.entries[`${companyId}:${period}`] = { companyId, companyName: company.name, period, generatedAt, managerCount: payload.managerCount, productCount: payload.representativeProductCount, path: `/data/overview/${period}/${companyId}.json`, contentHash: payload.contentHash };
+  await mkdir(path.dirname(manifestFile), { recursive: true });
+  await writeFile(manifestFile, JSON.stringify(manifest, null, 2));
+}
 console.log(JSON.stringify({ outputFile, ...payload.quality, representativeProductCount: payload.representativeProductCount, bytes: (await readFile(outputFile)).byteLength }));

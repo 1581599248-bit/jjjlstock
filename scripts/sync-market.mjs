@@ -25,10 +25,31 @@ const managers = rows.map((row) => ({
   bestReturn: Number.isFinite(Number.parseFloat(row[7])) ? Number.parseFloat(row[7]) : null,
   bestFundCode: row[8] ?? "", bestFundName: row[9] ?? "",
 })).filter((item) => item.id && item.companyId);
+const uniqueManagers = new Map();
+for (const manager of managers) {
+  const key = `${manager.companyId}:${manager.id}`;
+  const existing = uniqueManagers.get(key);
+  if (!existing) {
+    uniqueManagers.set(key, manager);
+    continue;
+  }
+  const funds = new Map(existing.fundCodes.map((code, index) => [code, existing.fundNames[index] ?? ""]));
+  manager.fundCodes.forEach((code, index) => funds.set(code, manager.fundNames[index] ?? funds.get(code) ?? ""));
+  const preferManager = (manager.bestReturn ?? -Infinity) > (existing.bestReturn ?? -Infinity);
+  uniqueManagers.set(key, {
+    ...existing,
+    fundCodes: [...funds.keys()],
+    fundNames: [...funds.values()],
+    tenureDays: Math.max(existing.tenureDays, manager.tenureDays),
+    bestReturn: preferManager ? manager.bestReturn : existing.bestReturn,
+    bestFundCode: preferManager ? manager.bestFundCode : existing.bestFundCode,
+    bestFundName: preferManager ? manager.bestFundName : existing.bestFundName,
+  });
+}
+const normalizedManagers = [...uniqueManagers.values()];
 const grouped = new Map();
-for (const manager of managers) { const entry = grouped.get(manager.companyId) ?? { name: manager.companyName, managers: [] }; entry.managers.push(manager); grouped.set(manager.companyId, entry); }
+for (const manager of normalizedManagers) { const entry = grouped.get(manager.companyId) ?? { name: manager.companyName, managers: [] }; entry.managers.push(manager); grouped.set(manager.companyId, entry); }
 const companies = [...grouped.entries()].map(([id, entry]) => ({ id, name: entry.name, managerCount: entry.managers.length, managedFundCount: new Set(entry.managers.flatMap((manager) => manager.fundCodes)).size, managers: entry.managers.sort((a, b) => a.name.localeCompare(b.name, "zh-CN")) })).sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
-const output = { generatedAt: new Date().toISOString(), source: "东方财富基金公开数据", sourceUrl: base, companyCount: companies.length, managerCount: managers.length, managedFundCount: new Set(managers.flatMap((manager) => manager.fundCodes)).size, companies };
+const output = { generatedAt: new Date().toISOString(), source: "东方财富基金公开数据", sourceUrl: base, companyCount: companies.length, managerCount: normalizedManagers.length, managedFundCount: new Set(normalizedManagers.flatMap((manager) => manager.fundCodes)).size, companies };
 await fs.writeFile(path.resolve("app/data/market-index.json"), `${JSON.stringify(output)}\n`, "utf8");
 console.log(JSON.stringify({ companies: output.companyCount, managers: output.managerCount, funds: output.managedFundCount, generatedAt: output.generatedAt }));
-

@@ -9,7 +9,7 @@ type ManagerHolding = { rank: number; stockCode: string; stockName: string; indu
 type SectorHolding = { rank: number; industry: string; marketValue: number; navWeight: number; holdingShare: number; stockCount: number };
 type ManagerPayload = { period: string; requested: number; succeeded: number; failed: number; managedNav: number; holdings: ManagerHolding[]; sectors: SectorHolding[]; source: string };
 type StaticOverviewPayload = { companyId: string; period: string; managers: Record<string, ManagerPayload> };
-const FALLBACK_PERIODS = ["2026-03-31", "2025-12-31", "2025-09-30"];
+const AVAILABLE_PERIODS = ["2026-03-31"];
 const OVERVIEW_PAGE_SIZE = 12;
 
 const fmt = (value: number, digits = 1) => new Intl.NumberFormat("zh-CN", { maximumFractionDigits: digits }).format(value);
@@ -18,7 +18,12 @@ const periodLabel = (period: string) => `${period.slice(0, 4)} ${period.slice(5,
 const changeTone = (change: string) => change === "增持" || change === "新进" ? "up" : change === "减持" ? "down" : "flat";
 const isOtherIndustry = (industry: string) => /^(其他|未分类|未知|其他\/未分类)$/.test(industry.trim());
 const orderSectors = (rows: SectorHolding[]) => [...rows].sort((a, b) => Number(isOtherIndustry(a.industry)) - Number(isOtherIndustry(b.industry)) || b.marketValue - a.marketValue);
-const productKey = (name: string) => name.replace(/\((?:QDII|FOF)\)/gi, "").replace(/[A-EHIOY]$/, "").replace(/人民币.*$/, "").trim();
+const productKey = (name: string) => name
+  .replace(/[A-EHIOY](?:\d+)?$/i, "")
+  .replace(/(?:人民币|美元现汇|美元现钞|美汇|美钞|美元)$/i, "")
+  .replace(/[A-EHIOY](?:\d+)?$/i, "")
+  .replace(/\s+/g, "")
+  .trim();
 
 function representativeCodes(manager: ManagerIndex) {
   const result = new Map<string, string>();
@@ -101,9 +106,8 @@ function OverviewMatrix({ managers, data, loading }: { managers: ManagerIndex[];
 
 export default function Home() {
   const [market, setMarket] = useState<MarketIndex | null>(null);
-  const [marketMode, setMarketMode] = useState<"live" | "snapshot">("snapshot");
-  const [periods, setPeriods] = useState(FALLBACK_PERIODS);
-  const [period, setPeriod] = useState(FALLBACK_PERIODS[0]);
+  const [periods, setPeriods] = useState(AVAILABLE_PERIODS);
+  const [period, setPeriod] = useState(AVAILABLE_PERIODS[0]);
   const [companyId, setCompanyId] = useState("80000222");
   const [companyData, setCompanyData] = useState<CompanyPayload | null>(null);
   const [mode, setMode] = useState<"overview" | "manager" | "fund">("overview");
@@ -125,11 +129,10 @@ export default function Home() {
 
   useEffect(() => {
     Promise.all([fetch("/api/market").then((response) => response.json()), fetch("/api/periods").then((response) => response.json())]).then(([marketResult, periodResult]) => {
-      setMarket(marketResult); setMarketMode(marketResult.mode ?? "snapshot");
-      const nextPeriods = periodResult.periods?.length ? periodResult.periods : FALLBACK_PERIODS; setPeriods(nextPeriods); setPeriod(nextPeriods[0]);
+      setMarket(marketResult);
+      const nextPeriods = periodResult.periods?.length ? periodResult.periods : AVAILABLE_PERIODS; setPeriods(nextPeriods); setPeriod(nextPeriods[0]);
       if (!marketResult.companies.some((item: CompanyIndex) => item.id === companyId)) setCompanyId(marketResult.companies[0]?.id ?? "");
     }).catch(() => setError("全市场索引加载失败，请稍后重试"));
-    fetch("/api/market-live").then((response) => response.json()).then((result) => { if (result.mode === "live" && result.companyCount > 100) { setMarket(result); setMarketMode("live"); } }).catch(() => undefined);
   }, []);
 
   const company = useMemo(() => market?.companies.find((item) => item.id === companyId) ?? null, [market, companyId]);
@@ -234,8 +237,9 @@ export default function Home() {
 
   useEffect(() => {
     if (mode !== "manager" || !selectedManager?.id || !period) return;
-    setDetailLoading(true); setManagerHoldings(null); setError("");
-    fetch("/api/manager-holdings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ products: managerProducts(selectedManager, funds), period }) }).then(async (response) => { if (!response.ok) throw new Error("经理持仓汇总失败"); return response.json(); }).then(setManagerHoldings).catch((reason) => setError(reason.message)).finally(() => setDetailLoading(false));
+    const precomputed = overviewData[selectedManager.id];
+    setDetailLoading(!precomputed); setManagerHoldings(precomputed ?? null); setError("");
+    fetch("/api/manager-holdings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ products: managerProducts(selectedManager, funds), period }) }).then(async (response) => { if (!response.ok) throw new Error("经理持仓汇总失败"); return response.json(); }).then(setManagerHoldings).catch((reason) => { if (!precomputed) setError(reason.message); }).finally(() => setDetailLoading(false));
   }, [mode, selectedManager?.id, period, funds.length]);
 
   const exportCurrent = () => {
@@ -247,9 +251,9 @@ export default function Home() {
 
   const canExport = mode === "overview" ? overviewManagers.length > 0 && overviewManagers.every((manager) => overviewData[manager.id]) : mode === "fund" ? Boolean(fundHoldings) : Boolean(managerHoldings);
   return <main>
-    <header className="topbar"><div className="logo">仓</div><div><strong>全市场持仓雷达</strong><small>PUBLIC FUND HOLDINGS</small></div><span className={`health ${marketMode}`}><i />{marketMode === "live" ? "实时索引" : "快照已加载"}</span></header>
-    <section className="hero"><p className="kicker">QUARTERLY OWNERSHIP INTELLIGENCE</p><h1>全市场基金与基金经理<br />近三期重仓股</h1><p>覆盖全部基金公司，按公司穿透全部基金与基金经理；最新报告期自动发现，数据按需加载并可导出高密度 Excel。</p><div className="market-strip"><span><b>{market?.companyCount ?? "—"}</b> 管理机构</span><span><b>{fmt(market?.managerCount ?? 0, 0)}</b> 基金经理</span><span><b>{fmt(marketProductCount, 0)}</b> 在管基金产品<small>A/C 等份额已去重</small></span></div></section>
-    <section className="controls"><label><span>最新财报期 · 自动探测</span><select value={period} onChange={(event) => setPeriod(event.target.value)}>{periods.map((item) => <option key={item} value={item}>{periodLabel(item)} · {item}</option>)}</select></label><label><span>基金公司 · 全市场</span><select value={companyId} onChange={(event) => setCompanyId(event.target.value)} disabled={!market}>{market?.companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></section>
+    <header className="topbar"><div className="logo">仓</div><div><strong>全市场持仓雷达</strong><small>PUBLIC FUND HOLDINGS</small></div><span className="health snapshot"><i />{market ? "全市场库已加载" : "正在加载全市场库"}</span></header>
+    <section className="hero"><p className="kicker">QUARTERLY OWNERSHIP INTELLIGENCE</p><h1>全市场基金与基金经理<br />最新季度重仓股</h1><p>覆盖全部基金公司，按公司穿透全部基金与基金经理；当前提供 2026 年一季完整数据，并可导出高密度 Excel。</p><div className="market-strip"><span><b>{market?.companyCount ?? "—"}</b> 管理机构</span><span><b>{fmt(market?.managerCount ?? 0, 0)}</b> 基金经理</span><span><b>{fmt(marketProductCount, 0)}</b> 在管基金产品<small>A/C 等份额已去重</small></span></div></section>
+    <section className="controls"><label><span>当前已发布财报期</span><select value={period} onChange={(event) => setPeriod(event.target.value)}>{periods.map((item) => <option key={item} value={item}>{periodLabel(item)} · {item}</option>)}</select></label><label><span>基金公司 · 全市场</span><select value={companyId} onChange={(event) => setCompanyId(event.target.value)} disabled={!market}>{market?.companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></section>
     <section className="coverage"><div><small>该公司产品</small><strong>{companyProductCount || (companyLoading ? "…" : 0)}</strong></div><div><small>基金经理</small><strong>{managers.length || (companyLoading ? "…" : 0)}</strong></div><div><small>数据状态</small><strong className="status-text">{companyData?.mode === "live" ? "实时" : companyLoading ? "读取中" : "回退"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section>
     <section className="workspace">
       <div className="tabs"><button className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>基金总览</button><button className={mode === "manager" ? "active" : ""} onClick={() => setMode("manager")}>基金经理</button><button className={mode === "fund" ? "active" : ""} onClick={() => setMode("fund")}>基金产品</button></div>
@@ -268,7 +272,7 @@ export default function Home() {
         {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>基金规模</small><b>{fundScale(selectedFund.netAsset)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <FundTable rows={fundHoldings?.holdings ?? []} />}</>}
       </div>}
     </section>
-    <section className="method"><div><span>自动化数据链路</span><h2>实时索引 → 公司总览 → 经理 / 基金持仓 → 共享季度缓存</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、报告期末净资产和定期报告持仓。</li><li><b>基金总览</b> 页面打开即并行汇总，每页 12 位经理批量读取，联合管理的重复基金只读取一次。</li><li><b>团队加速</b> 服务器按公司、基金和财报期共享已验证结果，同事之间可以复用，不依赖某一台手机。</li><li><b>更新</b> 每 6 小时刷新基金经理、在管关系、基金产品并探测最新财报期。</li><li><b>口径</b> A/C 等份额持仓不重复计算，净资产规模合并；未披露数据不估算。</li></ol></section>
+    <section className="method"><div><span>自动化数据链路</span><h2>市场索引 → 公司总览 → 经理 / 基金持仓 → 共享季度静态库</h2></div><ol><li><b>当前主源</b> 东方财富基金公开数据：公司、经理、基金、报告期末净资产和定期报告持仓。</li><li><b>基金总览</b> 页面优先读取已验证的季度静态数据，联合管理基金分别计入对应经理，同一产品的 A/C 等份额不重复持仓。</li><li><b>团队加速</b> 全市场数据随网站部署，同事同时打开也直接读取同一份静态结果，不依赖某一台手机的本地缓存。</li><li><b>更新</b> 每个新季度集中刷新全市场公司、基金经理、产品、规模和持仓，并在校验通过后整体发布。</li><li><b>口径</b> 净值占比由定期报告披露市值与报告期末净资产计算；未披露数据不填充。</li></ol></section>
     <footer><strong>全市场持仓雷达</strong><span>索引更新 {market?.generatedAt ? new Date(market.generatedAt).toLocaleString("zh-CN") : "读取中"} · 数据仅供研究</span></footer>
   </main>;
 }
