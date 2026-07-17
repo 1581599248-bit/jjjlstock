@@ -23,4 +23,6 @@ assert.ok(manager.holdings.every((item) => ["新进", "增持", "减持", "不�
 assert.ok(manager.holdings.every((item) => typeof item.industry === "string" && item.industry.length > 0));
 assert.ok(manager.sectors.length > 0);
 assert.ok(Math.abs(manager.sectors.reduce((sum, item) => sum + item.holdingShare, 0) - 100) < 0.01);
+const firstOtherSector = manager.sectors.findIndex((item) => /^(其他|未分类|未知|其他\/未分类)$/.test(item.industry));
+if (firstOtherSector >= 0) assert.ok(manager.sectors.slice(firstOtherSector).every((item) => /^(其他|未分类|未知|其他\/未分类)$/.test(item.industry)), "其他/未分类行业必须固定置底");
 console.log(JSON.stringify({ fund: fund.holdings[0], manager: { managedNav: manager.managedNav, first: manager.holdings[0], sectors: manager.sectors } }));

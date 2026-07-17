@@ -59,7 +59,8 @@ export async function POST(request: Request) {
     sector.stockCount += 1;
     sectorMap.set(holding.industry, sector);
   }
-  const sectors = [...sectorMap.values()].sort((a, b) => b.marketValue - a.marketValue).map((sector, index) => ({
+  const isOtherIndustry = (industry: string) => /^(其他|未分类|未知|其他\/未分类)$/.test(industry.trim());
+  const sectors = [...sectorMap.values()].sort((a, b) => Number(isOtherIndustry(a.industry)) - Number(isOtherIndustry(b.industry)) || b.marketValue - a.marketValue).map((sector, index) => ({
     ...sector,
     rank: index + 1,
     holdingShare: topMarketValue > 0 ? sector.marketValue / topMarketValue * 100 : 0,

@@ -50,6 +50,8 @@ assert.ok(manager.holdings.every((item) => Math.abs(item.weight - item.marketVal
 assert.ok(manager.holdings.every((item) => item.industry && item.industry !== "其他/未分类"));
 assert.ok(Math.abs(manager.sectors.reduce((sum, item) => sum + item.holdingShare, 0) - 100) < 0.01);
 assert.ok(manager.sectors.every((item) => item.navWeight >= 0 && item.holdingShare >= 0));
+const firstOtherSector = manager.sectors.findIndex((item) => /^(其他|未分类|未知|其他\/未分类)$/.test(item.industry));
+if (firstOtherSector >= 0) assert.ok(manager.sectors.slice(firstOtherSector).every((item) => /^(其他|未分类|未知|其他\/未分类)$/.test(item.industry)), "其他/未分类行业必须固定置底");
 
 console.log(JSON.stringify({
   checkedAt: new Date().toISOString(),

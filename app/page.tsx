@@ -13,6 +13,8 @@ const FALLBACK_PERIODS = ["2026-03-31", "2025-12-31", "2025-09-30"];
 const fmt = (value: number, digits = 1) => new Intl.NumberFormat("zh-CN", { maximumFractionDigits: digits }).format(value);
 const periodLabel = (period: string) => `${period.slice(0, 4)} ${period.slice(5, 7) === "03" ? "一季报" : period.slice(5, 7) === "06" ? "中报" : period.slice(5, 7) === "09" ? "三季报" : "年报"}`;
 const changeTone = (change: string) => change === "增持" || change === "新进" ? "up" : change === "减持" ? "down" : "flat";
+const isOtherIndustry = (industry: string) => /^(其他|未分类|未知|其他\/未分类)$/.test(industry.trim());
+const orderSectors = (rows: SectorHolding[]) => [...rows].sort((a, b) => Number(isOtherIndustry(a.industry)) - Number(isOtherIndustry(b.industry)) || b.marketValue - a.marketValue);
 
 function representativeCodes(manager: ManagerIndex) {
   const result = new Map<string, string>();
@@ -38,7 +40,8 @@ function ManagerTable({ rows }: { rows: ManagerHolding[] }) {
 
 function SectorBreakdown({ rows }: { rows: SectorHolding[] }) {
   if (!rows.length) return null;
-  return <section className="sector-card" aria-label="基金经理重仓板块分布"><div className="sector-head"><div><span>SECTOR ALLOCATION</span><h3>重仓板块分布</h3></div><small>按前十大重仓股市值汇总</small></div><div className="sector-list">{rows.map((row) => <div className="sector-row" key={row.industry}><div className="sector-label"><b>{row.industry}</b><small>{row.stockCount} 只股票</small></div><div className="sector-track"><i style={{ width: `${Math.max(row.holdingShare, 2)}%` }} /></div><div className="sector-values"><b>{fmt(row.holdingShare, 1)}%</b><small>净值 {fmt(row.navWeight, 2)}%</small></div></div>)}</div><p>柱形为该板块占经理前十大重仓市值的比例；“净值”为该板块占全部在管产品净值的比例。</p></section>;
+  const orderedRows = orderSectors(rows);
+  return <section className="sector-card" aria-label="基金经理重仓行业分布"><div className="sector-head"><div><span>INDUSTRY ALLOCATION</span><h3>重仓行业分布</h3></div><small>行业：东方财富原始分类</small></div><div className="sector-list">{orderedRows.map((row) => <div className={`sector-row${isOtherIndustry(row.industry) ? " other" : ""}`} key={row.industry}><div className="sector-label"><b>{row.industry}</b><small>{row.stockCount} 只股票</small></div><div className="sector-track"><i style={{ width: `${Math.max(row.holdingShare, 2)}%` }} /></div><div className="sector-values"><b>{fmt(row.holdingShare, 1)}%</b><small>净值 {fmt(row.navWeight, 2)}%</small></div></div>)}</div><p>行业名称直接读取东方财富行业字段，不做模型推断；无法识别的证券归入“其他/未分类”并固定置底。柱形为该行业占经理前十大重仓市值的比例。</p></section>;
 }
 
 export default function Home() {
@@ -111,7 +114,7 @@ export default function Home() {
   const exportCurrent = () => {
     if (!company) return;
     if (mode === "fund" && selectedFund && fundHoldings) exportHoldingsWorkbook({ companyName: company.name, entityType: "基金", entityName: selectedFund.name, entityCode: selectedFund.code, period, holdings: fundHoldings.holdings, notes: [["基金经理", selectedFund.managers.join("、") || "未匹配"], ["数据源", fundHoldings.source]] });
-    if (mode === "manager" && selectedManager && managerHoldings) exportHoldingsWorkbook({ companyName: company.name, entityType: "基金经理", entityName: selectedManager.name, period, holdings: managerHoldings.holdings, sectors: managerHoldings.sectors, notes: [["在管基金", selectedManager.fundCodes.length], ["参与汇总基金", managerHoldings.succeeded], ["在管净值(亿元)", managerHoldings.managedNav / 10000], ["失败基金", managerHoldings.failed], ["数据源", managerHoldings.source]] });
+    if (mode === "manager" && selectedManager && managerHoldings) exportHoldingsWorkbook({ companyName: company.name, entityType: "基金经理", entityName: selectedManager.name, period, holdings: managerHoldings.holdings, sectors: orderSectors(managerHoldings.sectors), notes: [["在管基金", selectedManager.fundCodes.length], ["参与汇总基金", managerHoldings.succeeded], ["在管净值(亿元)", managerHoldings.managedNav / 10000], ["失败基金", managerHoldings.failed], ["行业口径", "东方财富原始行业字段；其他/未分类固定置底"], ["数据源", managerHoldings.source]] });
   };
 
   const canExport = mode === "fund" ? Boolean(fundHoldings) : Boolean(managerHoldings);
