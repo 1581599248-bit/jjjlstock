@@ -7,6 +7,28 @@ const QUOTE_API = "https://push2.eastmoney.com/api/qt/stock/get";
 const COMPANY_SURVEY_API = "https://emweb.securities.eastmoney.com/PC_HSF10/CompanySurvey/PageAjax";
 const COMPANY_FUND_SCALE_API = "https://fund.eastmoney.com/Company1/GMBD/QMore";
 const HEADERS = { "user-agent": "Mozilla/5.0 (compatible; FundHoldingsRadar/1.0)", referer: "https://fund.eastmoney.com/" };
+const holdingsInflight = new Map<string, Promise<FundHoldings>>();
+
+function sharedCache() {
+  return typeof caches === "undefined" ? null : (caches as CacheStorage & { default?: Cache }).default ?? null;
+}
+
+async function readSharedHolding(key: string) {
+  const cache = sharedCache();
+  if (!cache) return null;
+  try {
+    const response = await cache.match(new Request(`https://fund-holdings-cache.internal/fund/v2/${key}`));
+    return response ? await response.json() as FundHoldings : null;
+  } catch { return null; }
+}
+
+async function writeSharedHolding(key: string, value: FundHoldings) {
+  const cache = sharedCache();
+  if (!cache) return;
+  try {
+    await cache.put(new Request(`https://fund-holdings-cache.internal/fund/v2/${key}`), Response.json(value, { headers: { "cache-control": "public, max-age=86400" } }));
+  } catch { /* upstream data remains usable without the acceleration cache */ }
+}
 
 function unescapeHtml(value: string) {
   return value.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"');
@@ -148,7 +170,13 @@ function changeLabel(current: number, previous: number | undefined): Pick<Holdin
   return { change: delta > 0 ? "增持" : "减持", changeShares: delta };
 }
 
-export async function fetchFundHoldings(code: string, period: string): Promise<FundHoldings> {
+async function fetchFundHoldingsUncached(code: string, period: string): Promise<FundHoldings> {
+  const cacheKey = `${code}/${period}`;
+  const cached = await readSharedHolding(cacheKey);
+  if (cached) return cached;
+  const existing = holdingsInflight.get(cacheKey);
+  if (existing) return existing;
+  const pending = (async () => {
   if (!/^\d{6}$/.test(code) || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("invalid holdings query");
   const years = new Set([period.slice(0, 4), priorPeriod(period).slice(0, 4)]);
   const maps = await Promise.all([...years].map(async (year) => {
@@ -159,7 +187,17 @@ export async function fetchFundHoldings(code: string, period: string): Promise<F
   for (const map of maps) for (const [date, rows] of map) quarters.set(date, rows);
   const previous = new Map((quarters.get(priorPeriod(period)) ?? []).map((row) => [row.stockCode, row.shares]));
   const holdings = (quarters.get(period) ?? []).map((row) => ({ ...row, ...changeLabel(row.shares, previous.get(row.stockCode)) }));
-  return { code, period, source: "东方财富基金公开数据", fetchedAt: new Date().toISOString(), holdings };
+  const result = { code, period, source: "东方财富基金公开数据", fetchedAt: new Date().toISOString(), holdings };
+  await writeSharedHolding(cacheKey, result);
+  return result;
+  })().finally(() => holdingsInflight.delete(cacheKey));
+  holdingsInflight.set(cacheKey, pending);
+  return pending;
+}
+
+export async function fetchFundHoldings(code: string, period: string): Promise<FundHoldings> {
+  if (!/^\d{6}$/.test(code) || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("invalid holdings query");
+  return fetchFundHoldingsUncached(code, period);
 }
 
 export async function fetchFundNetAsset(code: string, period: string) {
