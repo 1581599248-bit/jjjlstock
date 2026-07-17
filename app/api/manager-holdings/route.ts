@@ -1,9 +1,7 @@
 import { fetchFundHoldings, fetchFundNetAsset, fetchStockIndustry } from "../../lib/eastmoney";
 
-export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({})) as { codes?: string[]; period?: string };
-  const codes = [...new Set((body.codes ?? []).filter((code) => /^\d{6}$/.test(code)))].slice(0, 80);
-  const period = body.period ?? "";
+async function buildManagerHoldings(codesInput: string[], period: string) {
+  const codes = [...new Set(codesInput.filter((code) => /^\d{6}$/.test(code)))].slice(0, 80);
   if (!codes.length || !/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) return Response.json({ error: "参数无效" }, { status: 400 });
   const results: Array<{ holdings: Awaited<ReturnType<typeof fetchFundHoldings>>; netAsset: number | null }> = [];
   let failed = 0;
@@ -13,7 +11,10 @@ export async function POST(request: Request) {
       const netAsset = await fetchFundNetAsset(code, period);
       return { holdings, netAsset };
     }));
-    for (const item of batch) item.status === "fulfilled" ? results.push(item.value) : failed += 1;
+    for (const item of batch) {
+      if (item.status === "fulfilled") results.push(item.value);
+      else failed += 1;
+    }
   }
 
   const stocks = new Map<string, { stockCode: string; stockName: string; marketValue: number; fundCount: number; shares: number; previousShares: number }>();
@@ -66,4 +67,14 @@ export async function POST(request: Request) {
     holdingShare: topMarketValue > 0 ? sector.marketValue / topMarketValue * 100 : 0,
   }));
   return Response.json({ period, requested: codes.length, succeeded, failed, managedNav, holdings, sectors, source: "东方财富基金公开数据（报告期期末净资产、在管基金持仓与股票行业）" }, { headers: { "cache-control": "public, max-age=1800, s-maxage=86400" } });
+}
+
+export async function GET(request: Request) {
+  const params = new URL(request.url).searchParams;
+  return buildManagerHoldings((params.get("codes") ?? "").split(","), params.get("period") ?? "");
+}
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({})) as { codes?: string[]; period?: string };
+  return buildManagerHoldings(body.codes ?? [], body.period ?? "");
 }

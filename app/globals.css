@@ -55,7 +55,7 @@ main{width:min(100%,760px);min-height:100vh;margin:0 auto;background:var(--paper
 
 .workspace,.method{margin:0 12px 15px;padding:11px;background:var(--card);border:1px solid var(--line);border-radius:16px}
 .workspace{box-shadow:0 8px 26px rgba(34,28,30,.04)}
-.tabs{padding:3px;display:grid;grid-template-columns:1fr 1fr;background:#f0eff0;border-radius:11px}
+.tabs{padding:3px;display:grid;grid-template-columns:repeat(3,1fr);background:#f0eff0;border-radius:11px}
 .tabs button{height:39px;border:0;border-radius:8px;background:transparent;color:#777278;font-size:12px;font-weight:800;cursor:pointer}
 .tabs button.active{color:var(--red-deep);background:#fff;box-shadow:0 3px 10px rgba(35,27,29,.08)}
 .entity-tools{margin:10px 0;display:grid;grid-template-columns:1fr auto;gap:7px}
@@ -131,6 +131,47 @@ main{width:min(100%,760px);min-height:100vh;margin:0 auto;background:var(--paper
 @keyframes spin{to{transform:rotate(360deg)}}
 .error-banner{margin:8px 0;padding:8px 9px;color:#9f2f27;background:#ffe7e2;border-left:3px solid var(--red);border-radius:7px;font-size:9px}
 
+.overview-title{padding:10px 1px 9px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.overview-title span{color:var(--red);font-size:7px;font-weight:850;letter-spacing:.16em}
+.overview-title h2{margin:3px 0 2px;font-family:Georgia,"Songti SC",serif;font-size:20px}
+.overview-title p{margin:0;color:#817c82;font-size:8px;line-height:1.5}
+.overview-title em{padding:5px 7px;color:#c83227;background:var(--soft);border-radius:999px;font-size:8px;font-style:normal;font-weight:800}
+.overview-company-metrics{display:grid;grid-template-columns:repeat(4,1fr);background:linear-gradient(135deg,#292326,#211c1d);border-radius:11px;overflow:hidden}
+.overview-company-metrics>div{min-width:0;padding:10px 8px;border-right:1px solid rgba(255,255,255,.1)}
+.overview-company-metrics>div:last-child{border:0}
+.overview-company-metrics small{display:block;color:#aaa4a6;font-size:7px;white-space:nowrap}
+.overview-company-metrics b{display:block;margin-top:3px;color:#fff;font-family:Georgia,"Songti SC",serif;font-size:13px;white-space:nowrap}
+.overview-toolbar{margin:13px 1px 8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.overview-toolbar>div:first-child{display:flex;flex-direction:column;gap:2px}
+.overview-toolbar strong{font-size:10px}
+.overview-toolbar span{color:#8b868c;font-size:7px}
+.pager{display:flex;align-items:center;gap:6px}
+.pager button{width:27px;height:27px;border:1px solid var(--line);border-radius:8px;color:#bf3127;background:#fff;font-size:18px;line-height:1;cursor:pointer}
+.pager button:disabled{opacity:.35}
+.pager b{min-width:45px;text-align:center;font-size:8px}
+.overview-progress{height:22px;margin-bottom:7px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#625b60;background:#f4f0ef;border-radius:7px;font-size:7px}
+.overview-progress i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#ffe1d8,#ffd5c6);transition:width .25s ease}
+.overview-progress span{position:relative;z-index:1;font-weight:750}
+.overview-matrix-wrap{max-width:100%;overflow:auto;border:1px solid #ddd9da;border-radius:10px;box-shadow:inset -16px 0 22px -24px rgba(29,22,24,.55);scrollbar-color:#d2a39b #f1eded}
+.overview-matrix{min-width:max-content;border-collapse:separate;border-spacing:0;color:#292427;font-size:8px;font-variant-numeric:tabular-nums}
+.overview-matrix th,.overview-matrix td{width:112px;min-width:112px;height:27px;padding:5px 6px;text-align:center;border-right:1px solid #ece9ea;border-bottom:1px solid #ece9ea;background:#fff;white-space:nowrap}
+.overview-matrix thead th{height:43px;position:sticky;top:0;z-index:3;color:#fff;background:#272123}
+.overview-matrix thead th strong{display:block;font-family:Georgia,"Songti SC",serif;font-size:11px}
+.overview-matrix thead th small{display:block;margin-top:3px;color:#bdb7b9;font-size:6px;font-weight:500}
+.overview-matrix .matrix-label{width:104px;min-width:104px;position:sticky;left:0;z-index:2;text-align:left;color:#615b60;background:#f7f5f5;font-weight:800;box-shadow:5px 0 10px rgba(31,25,27,.035)}
+.overview-matrix thead .matrix-label{z-index:5;color:#fff;background:#272123}
+.overview-matrix .manager-stat td{color:#bb3329;background:#fff8f5;font-weight:850}
+.overview-matrix .stat-end th,.overview-matrix .stat-end td{border-bottom:3px solid #f0d9d3}
+.overview-matrix .rank-stock th,.overview-matrix .rank-stock td{height:30px;padding-top:8px}
+.overview-matrix .rank-stock td strong{font-size:9px}
+.overview-matrix .matrix-weight{color:#242022;font-weight:850}
+.overview-matrix .rank-end th,.overview-matrix .rank-end td{padding-bottom:7px;border-bottom:3px solid #f1eeee}
+.matrix-change{font-weight:800}
+.matrix-change.up{color:#e33428}
+.matrix-change.down{color:#547b2e}
+.matrix-change.flat{color:#575158}
+.overview-note{margin:8px 1px 1px;color:#888287;font-size:7px;line-height:1.65}
+
 .method{padding:14px;background:linear-gradient(145deg,#fff4ef,#fff9f7);border-color:#f0ddd7}
 .method span{color:var(--red);font-size:8px;font-weight:850;letter-spacing:.15em}
 .method h2{margin:4px 0 10px;color:#3a292b;font-family:Georgia,"Songti SC",serif;font-size:16px}
@@ -161,5 +202,7 @@ footer span{text-align:right;font-size:7px;line-height:1.5}
   .market-strip b{font-size:16px}
   .sector-row{grid-template-columns:76px 1fr 64px}
   .sector-head>small{max-width:135px;overflow:hidden;text-overflow:ellipsis}
+  .overview-company-metrics{grid-template-columns:repeat(2,1fr)}
+  .overview-company-metrics>div:nth-child(-n+2){border-bottom:1px solid rgba(255,255,255,.1)}
 }
 @media(prefers-reduced-motion:reduce){.spinner{animation:none}}

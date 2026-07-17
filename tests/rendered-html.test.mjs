@@ -17,8 +17,9 @@ test("renders the mobile-first full-market holdings dashboard", async () => {
   assert.match(html, /全市场基金与基金经理/);
   assert.match(html, /基金经理/);
   assert.match(html, /基金产品/);
+  assert.match(html, /基金总览/);
   assert.match(html, /自动探测/);
-  assert.match(html, /导出当前 Excel/);
+  assert.match(html, /导出本页 Excel/);
   assert.match(html, /基金规模/);
   assert.doesNotMatch(html, /当前原型来自|仅完整提供|浙商基金.*长信基金/);
 });

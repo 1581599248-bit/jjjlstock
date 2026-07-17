@@ -12,6 +12,13 @@ type ExportInput = {
   sectors?: SectorRow[];
   notes: Array<[string, Cell]>;
 };
+type OverviewManager = {
+  name: string;
+  tenureYears: number;
+  fundCount: number;
+  managedNav: number;
+  holdings: Array<{ stockName: string; weight: number; change: string }>;
+};
 
 const encoder = new TextEncoder();
 const xml = (value: Cell) => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -42,6 +49,23 @@ function zip(files: Record<string, string>) {
   const directory = concat(central); return concat([...locals, directory, u32(0x06054b50), u16(0), u16(0), u16(central.length), u16(central.length), u32(directory.length), u32(offset), u16(0)]);
 }
 
+function workbook(sheetEntries: Array<{ name: string; xml: string }>) {
+  const files: Record<string, string> = {
+    "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheetEntries.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`,
+    "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+    "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetEntries.map((entry, index) => `<sheet name="${xml(entry.name.slice(0, 31))}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("")}</sheets></workbook>`,
+    "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetEntries.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("")}<Relationship Id="rId${sheetEntries.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
+    "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="10"/><name val="Microsoft YaHei"/></font><font><b/><sz val="16"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font><font><b/><sz val="10"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF63332E"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFB85C45"/></patternFill></fill></fills><borders count="2"><border/><border><bottom style="thin"><color rgb="FFE7D8CF"/></bottom></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="3" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/><xf numFmtId="10" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
+  };
+  sheetEntries.forEach((entry, index) => { files[`xl/worksheets/sheet${index + 1}.xml`] = entry.xml; });
+  return zip(files);
+}
+
+function download(bytes: Uint8Array, filename: string) {
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = filename; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+}
+
 export function exportHoldingsWorkbook(input: ExportInput) {
   const rows: Cell[][] = input.holdings.map((row) => {
     const industry = "industry" in row ? row.industry ?? "" : "";
@@ -56,14 +80,24 @@ export function exportHoldingsWorkbook(input: ExportInput) {
     sheet("重仓板块分布", ["排名", "行业板块", "涉及股票", "持仓市值(万元)", "重仓内部占比", "净值占比"], sectorRows.length ? sectorRows : [[null, "仅基金经理汇总提供板块分布", null, null, null, null]], [8, 20, 12, 18, 16, 14], [2, 3, 4, 5], [4, 5]),
     sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", "东方财富基金公开数据"], ["专业数据源", "iFind 尚未配置生产 API 授权，接入后可作为主源"], ["基金经理口径", "对去重后的在管基金前十大重仓股按披露持仓市值汇总。"], ["更新机制", "网站每 6 小时刷新基金经理、在管关系、基金产品并探测最新财报期。"], ["用途", "客户基金经理季度持仓研究，不构成投资建议。"]], [24, 90]),
   ];
-  const files: Record<string, string> = {
-    "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`,
-    "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
-    "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="概览" sheetId="1" r:id="rId1"/><sheet name="十大重仓" sheetId="2" r:id="rId2"/><sheet name="板块分布" sheetId="3" r:id="rId3"/><sheet name="数据口径" sheetId="4" r:id="rId4"/></sheets></workbook>`,
-    "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("")}<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
-    "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="10"/><name val="Microsoft YaHei"/></font><font><b/><sz val="16"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font><font><b/><sz val="10"/><name val="Microsoft YaHei"/><color rgb="FFFFFFFF"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF63332E"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFB85C45"/></patternFill></fill></fills><borders count="2"><border/><border><bottom style="thin"><color rgb="FFE7D8CF"/></bottom></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="3" borderId="0" applyFont="1" applyFill="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/><xf numFmtId="10" fontId="0" fillId="0" borderId="1" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
-  };
-  sheets.forEach((value, index) => { files[`xl/worksheets/sheet${index + 1}.xml`] = value; });
-  const bytes = zip(files); const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${input.companyName}_${input.entityName}_${input.period}_重仓股.xlsx`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+  download(workbook(sheets.map((value, index) => ({ name: ["概览", "十大重仓", "板块分布", "数据口径"][index], xml: value }))), `${input.companyName}_${input.entityName}_${input.period}_重仓股.xlsx`);
+}
+
+export function exportCompanyOverviewWorkbook(input: { companyName: string; period: string; page: number; managers: OverviewManager[] }) {
+  const headers = ["指标", ...input.managers.map((manager) => manager.name)];
+  const rows: Cell[][] = [
+    ["在管基金总规模", ...input.managers.map((manager) => `${(manager.managedNav / 10_000).toFixed(2)}亿`)],
+    ["投资经理年限", ...input.managers.map((manager) => `${manager.tenureYears.toFixed(1)}年`)],
+    ["在任管理基金数", ...input.managers.map((manager) => manager.fundCount)],
+  ];
+  for (let rank = 0; rank < 10; rank += 1) {
+    rows.push(
+      [`第${rank + 1}名`, ...input.managers.map((manager) => manager.holdings[rank]?.stockName ?? "—")],
+      ["净值占比", ...input.managers.map((manager) => manager.holdings[rank] ? `${manager.holdings[rank].weight.toFixed(2)}%` : "—")],
+      ["重仓股持仓变动", ...input.managers.map((manager) => manager.holdings[rank]?.change ?? "—")],
+    );
+  }
+  const overview = sheet(`${input.companyName}｜基金总览｜${input.period}`, headers, rows, [22, ...input.managers.map(() => 16)]);
+  const notes = sheet("数据源与口径", ["类别", "说明"], [["当前主数据源", "东方财富基金公开数据"], ["经理持仓口径", "对每位基金经理去重后的当期在管基金前十大持仓按市值汇总。联合管理基金分别计入对应经理。"], ["规模口径", "所选报告期末净资产；无法披露时不估算。"], ["导出范围", `第 ${input.page} 页，共 ${input.managers.length} 位基金经理。`]], [24, 100]);
+  download(workbook([{ name: "基金总览", xml: overview }, { name: "数据口径", xml: notes }]), `${input.companyName}_${input.period}_基金总览_第${input.page}页.xlsx`);
 }
