@@ -105,6 +105,7 @@ export function buildCompanyOverviewWorkbook(input: CompanyOverviewInput) {
     ["在管基金总规模", ...input.managers.map((manager) => `${(manager.managedNav / 10_000).toFixed(2)}亿`)],
     ["投资经理年限", ...input.managers.map((manager) => `${manager.tenureYears.toFixed(1)}年`)],
     ["在任管理基金数", ...input.managers.map((manager) => manager.fundCount)],
+    Array.from({ length: input.managers.length + 1 }, () => null),
   ];
   for (let rank = 0; rank < 10; rank += 1) {
     rows.push(
@@ -129,6 +130,7 @@ export function buildCompanyFundsWorkbook(input: CompanyFundsInput) {
     ["基金代码", ...input.funds.map((fund) => fund.code)],
     ["基金经理", ...input.funds.map((fund) => fund.managers.join("、") || "待匹配")],
     ["报告期末规模", ...input.funds.map((fund) => fund.netAsset === null ? "待披露" : `${fund.netAsset.toFixed(fund.netAsset >= 100 ? 1 : 2)}亿`)],
+    Array.from({ length: input.funds.length + 1 }, () => null),
   ];
   for (let rank = 0; rank < 10; rank += 1) {
     rows.push(
@@ -155,6 +157,7 @@ export function buildCompanyManagerSectorsWorkbook(input: CompanyManagerSectorsI
     ["在管基金总规模", ...managers.map((manager) => `${(manager.managedNav / 10_000).toFixed(2)}亿`)],
     ["投资经理年限", ...managers.map((manager) => `${manager.tenureYears.toFixed(1)}年`)],
     ["在任管理基金数", ...managers.map((manager) => manager.fundCount)],
+    Array.from({ length: managers.length + 1 }, () => null),
   ];
   const percentDataRows: number[] = [];
   for (let rank = 0; rank < 10; rank += 1) {

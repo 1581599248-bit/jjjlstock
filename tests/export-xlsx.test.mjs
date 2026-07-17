@@ -17,9 +17,10 @@ test("company overview export contains every manager, left-aligns fund counts, a
   assert.match(content, /当前基金公司旗下全部 25 位基金经理/);
   assert.match(content, /<c r="B5" s="5"><v>1<\/v><\/c>/);
   assert.match(content, /<alignment horizontal="left" vertical="center"\/>/);
-  assert.match(content, /<row r="9" ht="8" customHeight="1"\/><row r="10"><c r="A10" s="0" t="inlineStr"><is><t xml:space="preserve">第2名<\/t><\/is><\/c>/);
-  assert.match(content, /<row r="45" ht="8" customHeight="1"\/>/);
-  assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 10);
+  assert.match(content, /<row r="6" ht="8" customHeight="1"\/><row r="7"><c r="A7" s="0" t="inlineStr"><is><t xml:space="preserve">第1名<\/t><\/is><\/c>/);
+  assert.match(content, /<row r="10" ht="8" customHeight="1"\/><row r="11"><c r="A11" s="0" t="inlineStr"><is><t xml:space="preserve">第2名<\/t><\/is><\/c>/);
+  assert.match(content, /<row r="46" ht="8" customHeight="1"\/>/);
+  assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 11);
 });
 
 test("company fund export contains every product, preserves leading-zero codes, and separates ranks", () => {
@@ -36,8 +37,9 @@ test("company fund export contains every product, preserves leading-zero codes, 
   assert.match(content, /基金产品25/);
   assert.match(content, /<c r="B3" s="5" t="inlineStr"><is><t xml:space="preserve">000001<\/t><\/is><\/c>/);
   assert.match(content, /当前基金公司旗下全部 25 只基金产品/);
-  assert.match(content, /<row r="9" ht="8" customHeight="1"\/><row r="10"><c r="A10" s="0" t="inlineStr"><is><t xml:space="preserve">第2名<\/t><\/is><\/c>/);
-  assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 10);
+  assert.match(content, /<row r="6" ht="8" customHeight="1"\/><row r="7"><c r="A7" s="0" t="inlineStr"><is><t xml:space="preserve">第1名<\/t><\/is><\/c>/);
+  assert.match(content, /<row r="10" ht="8" customHeight="1"\/><row r="11"><c r="A11" s="0" t="inlineStr"><is><t xml:space="preserve">第2名<\/t><\/is><\/c>/);
+  assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 11);
 });
 
 test("company manager-sector export contains every manager, left-aligns every cell, formats percentages, and puts other last", () => {
@@ -57,11 +59,12 @@ test("company manager-sector export contains every manager, left-aligns every ce
   assert.match(content, /经理25/);
   assert.match(content, /<c r="A1" s="6" t="inlineStr">/);
   assert.match(content, /<c r="B2" s="7" t="inlineStr">/);
-  assert.match(content, /<c r="B6" s="5" t="inlineStr"><is><t xml:space="preserve">电子<\/t><\/is><\/c>/);
-  assert.match(content, /<c r="B7" s="9"><v>0.06<\/v><\/c>/);
-  assert.match(content, /<c r="B8" s="9"><v>0.6<\/v><\/c>/);
-  assert.match(content, /<c r="B12" s="5" t="inlineStr"><is><t xml:space="preserve">其他\/未分类<\/t><\/is><\/c>/);
+  assert.match(content, /<row r="6" ht="8" customHeight="1"\/><row r="7"><c r="A7" s="5" t="inlineStr"><is><t xml:space="preserve">第1行业<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="B7" s="5" t="inlineStr"><is><t xml:space="preserve">电子<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="B8" s="9"><v>0.06<\/v><\/c>/);
+  assert.match(content, /<c r="B9" s="9"><v>0.6<\/v><\/c>/);
+  assert.match(content, /<c r="B13" s="5" t="inlineStr"><is><t xml:space="preserve">其他\/未分类<\/t><\/is><\/c>/);
   assert.doesNotMatch(content, /<c r="[A-Z]+\d+" s="[0-4]"/);
   assert.match(content, /当前基金公司旗下全部 25 位基金经理/);
-  assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 10);
+  assert.equal(content.match(/ht="8" customHeight="1"\/>/g)?.length, 11);
 });
