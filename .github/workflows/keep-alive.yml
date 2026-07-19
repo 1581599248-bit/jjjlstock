@@ -1,0 +1,16 @@
+name: Keep Render Awake
+
+on:
+  schedule:
+    # 每10分钟ping一次，防止Render免费实例休眠（15分钟无访问即休眠）
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping fund-holdings-radar
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 120 https://fund-holdings-radar.onrender.com/ || echo "000")
+          echo "HTTP status: $code"
