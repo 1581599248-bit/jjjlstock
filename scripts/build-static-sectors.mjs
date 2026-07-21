@@ -157,11 +157,7 @@ for (const company of snapshot.companies) {
       if (rows.length) managerProductsWithIndustry += 1;
       for (const row of rows) {
         const productNavWan = Number(product.netAsset) * 10_000;
-        const marketValue = row.marketValue > 0
-          ? row.marketValue
-          : row.navWeight > 0
-            ? productNavWan * row.navWeight / 100
-            : 0;
+        const marketValue = row.navWeight > 0 ? productNavWan * row.navWeight / 100 : 0;
         if (!(marketValue > 0)) continue;
         const sector = sectorMap.get(row.industry) ?? { industry: row.industry, marketValue: 0, productCodes: new Set() };
         sector.marketValue += marketValue;
