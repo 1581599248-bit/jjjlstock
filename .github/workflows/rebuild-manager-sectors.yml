@@ -50,4 +50,4 @@ jobs:
           git commit -m "Rebuild manager industry allocation [skip ci]"
           git push
 
-# retry: use official NAV ratios to avoid market-value unit mismatch
+# retry: align manager product universe and normalize fund weights
