@@ -139,6 +139,7 @@ let managerCount = 0;
 let managersWithSectors = 0;
 let managerProducts = 0;
 let managerProductsWithIndustry = 0;
+let normalizedFundWeights = 0;
 
 for (const company of snapshot.companies) {
   const overview = overviewByCompany.get(company.id);
@@ -147,17 +148,24 @@ for (const company of snapshot.companies) {
   if (!fundPayload) throw new Error(`Missing fund payload ${company.id}`);
   const managers = {};
   for (const managerIndex of company.managers) {
-    const manager = overview.managers?.[managerIndex.id];
-    const managedNav = Number(manager?.managedNav ?? 0);
-    const products = (fundPayload.products ?? []).filter((product) => product.netAsset > 0 && product.managers?.includes(managerIndex.name));
+    const managerFundCodes = new Set(managerIndex.fundCodes ?? []);
+    const products = (fundPayload.products ?? []).filter((product) => (
+      product.netAsset > 0
+      && Array.isArray(product.shareCodes)
+      && product.shareCodes.some((code) => managerFundCodes.has(code))
+    ));
+    const managedNav = products.reduce((sum, product) => sum + Number(product.netAsset) * 10_000, 0);
     const sectorMap = new Map();
     for (const product of products) {
       managerProducts += 1;
-      const rows = industryByFund[product.code] ?? [];
+      const rows = (industryByFund[product.code] ?? []).filter((row) => row.navWeight > 0);
       if (rows.length) managerProductsWithIndustry += 1;
+      const reportedWeight = rows.reduce((sum, row) => sum + row.navWeight, 0);
+      const weightScale = reportedWeight > 100 ? 100 / reportedWeight : 1;
+      if (weightScale < 1) normalizedFundWeights += 1;
+      const productNavWan = Number(product.netAsset) * 10_000;
       for (const row of rows) {
-        const productNavWan = Number(product.netAsset) * 10_000;
-        const marketValue = row.navWeight > 0 ? productNavWan * row.navWeight / 100 : 0;
+        const marketValue = productNavWan * row.navWeight * weightScale / 100;
         if (!(marketValue > 0)) continue;
         const sector = sectorMap.get(row.industry) ?? { industry: row.industry, marketValue: 0, productCodes: new Set() };
         sector.marketValue += marketValue;
@@ -187,7 +195,7 @@ for (const company of snapshot.companies) {
     companyName: company.name,
     period,
     generatedAt,
-    source: "东方财富基金官方行业配置（按基金行业市值汇总至基金经理，并以经理管理净资产计算占比）",
+    source: "东方财富基金官方行业配置（按基金行业占净值比例与同口径管理规模汇总至基金经理）",
     managerCount: company.managers.length,
     managers,
   };
@@ -204,5 +212,6 @@ console.log(JSON.stringify({
   newlyFetchedFunds: pending.length,
   failedIndustryDownloads: failures.length,
   managerProductCoverage: managerProducts ? managerProductsWithIndustry / managerProducts : 1,
+  normalizedFundWeights,
   outputDir,
 }));
