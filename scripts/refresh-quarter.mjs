@@ -87,7 +87,7 @@ function run(script, scriptArgs = []) {
 await run("scripts/sync-market.mjs", [`--period=${period}`]);
 await run("scripts/sync-fund-types.mjs");
 await run("scripts/build-static-market.mjs", [`--period=${period}`, "--force=true", "--workers=3", "--fund-concurrency=2", "--attempts=5"]);
-await run("scripts/validate-static-market.mjs", [`--period=${period}`, `--baseline=${baseline}`]);
+await run("scripts/validate-static-market-release.mjs", [`--period=${period}`, `--baseline=${baseline}`]);
 
 published.periods = sortPeriodsDesc([...published.periods, period]);
 published.updatedAt = new Date().toISOString();
