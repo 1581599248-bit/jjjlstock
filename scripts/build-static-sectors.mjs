@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { fetchStockIndustry } from "../app/lib/eastmoney.ts";
 import { loadMarketSnapshot } from "./lib/market-snapshot.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
@@ -10,75 +9,177 @@ const args = new Map(process.argv.slice(2).map((item) => {
   return [key, rest.join("=") || "true"];
 }));
 const period = args.get("period") ?? "2026-03-31";
-const concurrency = Math.max(1, Math.min(32, Number(args.get("concurrency") ?? 20)));
+const concurrency = Math.max(1, Math.min(12, Number(args.get("concurrency") ?? 6)));
 if (!/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) throw new Error("Invalid period");
 
 const root = process.cwd();
 const overviewDir = path.join(root, "public/data/overview", period);
+const fundDir = path.join(root, "public/data/funds", period);
 const outputDir = path.join(root, "public/data/sectors", period);
 const cacheDir = path.join(root, "work/industry-cache");
-const cacheFile = path.join(cacheDir, "eastmoney-stock-industries.json");
+const cacheFile = path.join(cacheDir, `eastmoney-fund-industries-${period}.json`);
 const snapshot = await loadMarketSnapshot(root, period);
 await mkdir(outputDir, { recursive: true });
 await mkdir(cacheDir, { recursive: true });
 
-const overviewByCompany = new Map();
-const stockCodes = new Set();
-for (const file of await readdir(overviewDir)) {
-  if (!/^\d{8}\.json$/.test(file)) continue;
-  const payload = JSON.parse(await readFile(path.join(overviewDir, file), "utf8"));
-  overviewByCompany.set(payload.companyId, payload);
-  for (const manager of Object.values(payload.managers ?? {})) for (const holding of manager.holdings ?? []) stockCodes.add(holding.stockCode);
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const numberOrNull = (value) => {
+  const parsed = Number.parseFloat(String(value ?? "").replace(/[% ,]/g, ""));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+const normalizeDate = (value) => String(value ?? "").match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? "";
+
+function normalizeIndustryRow(row) {
+  const values = Object.values(row ?? {});
+  const reportDate = normalizeDate(
+    row?.FSRQ ?? row?.REPORTDATE ?? row?.ReportDate ?? row?.JZRQ ?? row?.ENDDATE ?? values[1],
+  );
+  const industry = String(
+    row?.HYMC ?? row?.INDUSTRYNAME ?? row?.IndustryName ?? row?.HYLB ?? row?.HY ?? values[3] ?? "",
+  ).trim();
+  const marketValue = numberOrNull(
+    row?.SZ ?? row?.MARKETVALUE ?? row?.MarketValue ?? row?.CCSZ ?? row?.HYSZ ?? values[4],
+  );
+  const navWeight = numberOrNull(
+    row?.ZJZBL ?? row?.NAVRATIO ?? row?.NAVRatio ?? row?.JZBL ?? row?.ZJZB ?? values[6],
+  );
+  if (reportDate !== period || !industry || /^(合计|总计)$/.test(industry)) return null;
+  if (marketValue === null && navWeight === null) return null;
+  return { industry, marketValue, navWeight };
 }
 
-let industryByCode = {};
-if (existsSync(cacheFile)) industryByCode = JSON.parse(await readFile(cacheFile, "utf8"));
-const pending = [...stockCodes].filter((code) => !industryByCode[code]);
+async function fetchFundIndustries(code) {
+  let lastError;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    try {
+      const callback = `jQuery${Date.now()}_${code}_${attempt}`;
+      const params = new URLSearchParams({ fundCode: code, year: period.slice(0, 4), callback, _: String(Date.now()) });
+      const response = await fetch(`https://api.fund.eastmoney.com/f10/HYPZ/?${params}`, {
+        headers: {
+          accept: "*/*",
+          referer: "https://fundf10.eastmoney.com/",
+          "user-agent": "Mozilla/5.0 (compatible; FundManagerIndustryBuilder/1.0)",
+        },
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`industry upstream ${response.status}`);
+      const text = await response.text();
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start < 0 || end <= start) throw new Error("invalid industry response");
+      const payload = JSON.parse(text.slice(start, end + 1));
+      const quarterInfos = payload?.Data?.QuarterInfos;
+      if (!Array.isArray(quarterInfos)) throw new Error("missing industry quarter data");
+      const rows = quarterInfos
+        .flatMap((quarter) => Array.isArray(quarter?.HYPZInfo) ? quarter.HYPZInfo : [])
+        .map(normalizeIndustryRow)
+        .filter(Boolean);
+      const merged = new Map();
+      for (const row of rows) {
+        const item = merged.get(row.industry) ?? { industry: row.industry, marketValue: 0, navWeight: 0 };
+        if (row.marketValue !== null) item.marketValue += row.marketValue;
+        if (row.navWeight !== null) item.navWeight += row.navWeight;
+        merged.set(row.industry, item);
+      }
+      return [...merged.values()];
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await sleep(600 * (attempt + 1));
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("industry request failed");
+}
+
+const overviewByCompany = new Map();
+const fundsByCompany = new Map();
+const fundCodes = new Set();
+for (const company of snapshot.companies) {
+  const overview = JSON.parse(await readFile(path.join(overviewDir, `${company.id}.json`), "utf8"));
+  const funds = JSON.parse(await readFile(path.join(fundDir, `${company.id}.json`), "utf8"));
+  overviewByCompany.set(company.id, overview);
+  fundsByCompany.set(company.id, funds);
+  for (const product of funds.products ?? []) {
+    if (product.netAsset > 0 && Array.isArray(product.managers) && product.managers.length) fundCodes.add(product.code);
+  }
+}
+
+let industryByFund = {};
+if (existsSync(cacheFile)) {
+  const cached = JSON.parse(await readFile(cacheFile, "utf8"));
+  if (cached?.period === period && cached?.funds && typeof cached.funds === "object") industryByFund = cached.funds;
+}
+const pending = [...fundCodes].filter((code) => !Object.hasOwn(industryByFund, code));
+const failures = [];
 let cursor = 0;
 let completed = 0;
 
 async function worker() {
   while (cursor < pending.length) {
     const code = pending[cursor++];
-    try { industryByCode[code] = await fetchStockIndustry(code); }
-    catch { industryByCode[code] = "其他/未分类"; }
+    try {
+      industryByFund[code] = await fetchFundIndustries(code);
+    } catch (error) {
+      failures.push({ code, error: error instanceof Error ? error.message : String(error) });
+    }
     completed += 1;
-    if (completed % 100 === 0 || completed === pending.length) process.stdout.write(`\r${completed}/${pending.length} industries`);
+    if (completed % 100 === 0 || completed === pending.length) process.stdout.write(`\r${completed}/${pending.length} fund industries`);
+    await sleep(80 + Math.floor(Math.random() * 120));
   }
 }
 
 await Promise.all(Array.from({ length: concurrency }, () => worker()));
 if (pending.length) process.stdout.write("\n");
-await writeFile(cacheFile, JSON.stringify(industryByCode, null, 2));
+await writeFile(cacheFile, JSON.stringify({ version: 1, period, funds: industryByFund }, null, 2));
 
-const isOtherIndustry = (industry) => /^(其他|未分类|未知|其他\/未分类)$/.test(industry.trim());
 let managerCount = 0;
 let managersWithSectors = 0;
-let classifiedHoldings = 0;
-let totalHoldings = 0;
+let managerProducts = 0;
+let managerProductsWithIndustry = 0;
 
 for (const company of snapshot.companies) {
   const overview = overviewByCompany.get(company.id);
+  const fundPayload = fundsByCompany.get(company.id);
   if (!overview) throw new Error(`Missing overview payload ${company.id}`);
+  if (!fundPayload) throw new Error(`Missing fund payload ${company.id}`);
   const managers = {};
   for (const managerIndex of company.managers) {
-    const manager = overview.managers[managerIndex.id];
-    const holdings = manager?.holdings ?? [];
-    const topMarketValue = holdings.reduce((sum, holding) => sum + holding.marketValue, 0);
+    const manager = overview.managers?.[managerIndex.id];
+    const managedNav = Number(manager?.managedNav ?? 0);
+    const products = (fundPayload.products ?? []).filter((product) => product.netAsset > 0 && product.managers?.includes(managerIndex.name));
     const sectorMap = new Map();
-    for (const holding of holdings) {
-      const industry = String(industryByCode[holding.stockCode] || "其他/未分类").trim() || "其他/未分类";
-      const sector = sectorMap.get(industry) ?? { industry, marketValue: 0, navWeight: 0, stockCount: 0 };
-      sector.marketValue += holding.marketValue;
-      sector.navWeight += holding.weight;
-      sector.stockCount += 1;
-      sectorMap.set(industry, sector);
-      totalHoldings += 1;
-      if (!isOtherIndustry(industry)) classifiedHoldings += 1;
+    for (const product of products) {
+      managerProducts += 1;
+      const rows = industryByFund[product.code] ?? [];
+      if (rows.length) managerProductsWithIndustry += 1;
+      for (const row of rows) {
+        const productNavWan = Number(product.netAsset) * 10_000;
+        const marketValue = row.marketValue > 0
+          ? row.marketValue
+          : row.navWeight > 0
+            ? productNavWan * row.navWeight / 100
+            : 0;
+        if (!(marketValue > 0)) continue;
+        const sector = sectorMap.get(row.industry) ?? { industry: row.industry, marketValue: 0, productCodes: new Set() };
+        sector.marketValue += marketValue;
+        sector.productCodes.add(product.code);
+        sectorMap.set(row.industry, sector);
+      }
     }
+    const totalIndustryMarketValue = [...sectorMap.values()].reduce((sum, sector) => sum + sector.marketValue, 0);
     const sectors = [...sectorMap.values()]
-      .sort((a, b) => Number(isOtherIndustry(a.industry)) - Number(isOtherIndustry(b.industry)) || b.marketValue - a.marketValue)
-      .map((sector, index) => ({ ...sector, rank: index + 1, holdingShare: topMarketValue > 0 ? sector.marketValue / topMarketValue * 100 : 0 }));
+      .sort((a, b) => b.marketValue - a.marketValue)
+      .map((sector, index) => ({
+        industry: sector.industry,
+        marketValue: sector.marketValue,
+        navWeight: managedNav > 0 ? sector.marketValue / managedNav * 100 : 0,
+        stockCount: Math.max(1, sector.productCodes.size),
+        rank: index + 1,
+        holdingShare: totalIndustryMarketValue > 0 ? sector.marketValue / totalIndustryMarketValue * 100 : 0,
+      }));
     managers[managerIndex.id] = { name: managerIndex.name, sectors };
     managerCount += 1;
     if (sectors.length) managersWithSectors += 1;
@@ -90,7 +191,7 @@ for (const company of snapshot.companies) {
     companyName: company.name,
     period,
     generatedAt,
-    source: "东方财富证券行情原始行业字段（基金经理前十大重仓股）",
+    source: "东方财富基金官方行业配置（按基金行业市值汇总至基金经理，并以经理管理净资产计算占比）",
     managerCount: company.managers.length,
     managers,
   };
@@ -98,4 +199,14 @@ for (const company of snapshot.companies) {
   await writeFile(path.join(outputDir, `${company.id}.json`), JSON.stringify(payload));
 }
 
-console.log(JSON.stringify({ period, companies: snapshot.companies.length, managers: managerCount, managersWithSectors, stockCodes: stockCodes.size, newlyFetchedIndustries: pending.length, classificationCoverage: totalHoldings ? classifiedHoldings / totalHoldings : 1, outputDir }));
+console.log(JSON.stringify({
+  period,
+  companies: snapshot.companies.length,
+  managers: managerCount,
+  managersWithSectors,
+  fundCodes: fundCodes.size,
+  newlyFetchedFunds: pending.length,
+  failedIndustryDownloads: failures.length,
+  managerProductCoverage: managerProducts ? managerProductsWithIndustry / managerProducts : 1,
+  outputDir,
+}));
