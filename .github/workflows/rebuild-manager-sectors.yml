@@ -49,3 +49,5 @@ jobs:
           git add public/data/sectors/2026-06-30
           git commit -m "Rebuild manager industry allocation [skip ci]"
           git push
+
+# retry: use official NAV ratios to avoid market-value unit mismatch
