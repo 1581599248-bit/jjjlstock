@@ -1,0 +1,51 @@
+name: Rebuild manager industry allocation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/rebuild-manager-sectors.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: manager-industry-rebuild
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Rebuild 2026 Q2 manager industry allocation only
+        run: node scripts/build-static-sectors.mjs --period=2026-06-30 --concurrency=6
+
+      - name: Validate generated data
+        run: |
+          node scripts/validate-static-market-release.mjs --period=2026-06-30 --baseline=2026-03-31
+          npm test
+
+      - name: Commit manager industry allocation
+        run: |
+          if [ -z "$(git status --porcelain public/data/sectors/2026-06-30)" ]; then
+            echo "No sector changes generated"
+            exit 0
+          fi
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add public/data/sectors/2026-06-30
+          git commit -m "Rebuild manager industry allocation [skip ci]"
+          git push
