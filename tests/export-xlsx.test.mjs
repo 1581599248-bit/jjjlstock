@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildCompanyFundsWorkbook, buildCompanyInstitutionWorkbook, buildCompanyManagerSectorsWorkbook, buildCompanyOverviewWorkbook } from "../app/lib/export-xlsx.ts";
+import { buildStockReverseLookupWorkbook } from "../app/lib/export-stock-reverse-xlsx.ts";
 
 test("company overview export contains every manager, left-aligns fund counts, and separates every rank", () => {
   const managers = Array.from({ length: 25 }, (_, index) => ({
@@ -111,4 +112,37 @@ test("institution export combines overview, manager industries, and products int
   assert.match(content, /测试产品/);
   assert.match(content, /浦发银行/);
   assert.doesNotMatch(content, /<sheet name="数据口径"/);
+});
+
+test("stock reverse lookup export includes all institutions and managers in a valid workbook", () => {
+  const bytes = buildStockReverseLookupWorkbook({
+    period: "2026-06-30",
+    source: "测试股票反查数据源",
+    detail: {
+      stockCode: "600000",
+      stockName: "浦发银行",
+      companyCount: 2,
+      managerCount: 3,
+      companies: [
+        { companyId: "1", companyName: "甲基金", managers: [
+          { managerId: "m1", managerName: "经理甲", rank: 1, navWeight: 12.34, marketValue: 1234.5, change: "增持", fundCount: 2 },
+          { managerId: "m2", managerName: "经理乙", rank: 3, navWeight: 5.67, marketValue: 567.8, change: "不变", fundCount: 1 },
+        ] },
+        { companyId: "2", companyName: "乙基金", managers: [
+          { managerId: "m3", managerName: "经理丙", rank: 2, navWeight: 8.9, marketValue: 890.1, change: "减持", fundCount: 3 },
+        ] },
+      ],
+    },
+  });
+  const content = new TextDecoder().decode(bytes);
+  assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+  assert.equal(content.match(/<sheet name=/g)?.length, 3);
+  assert.match(content, /<sheet name="股票概览"/);
+  assert.match(content, /<sheet name="机构经理明细"/);
+  assert.match(content, /甲基金/);
+  assert.match(content, /乙基金/);
+  assert.match(content, /经理甲/);
+  assert.match(content, /经理丙/);
+  assert.match(content, /<c r="G3" s="4"><v>0.1234<\/v><\/c>/);
+  assert.match(content, /测试股票反查数据源/);
 });
