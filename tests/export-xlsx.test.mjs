@@ -114,7 +114,7 @@ test("institution export combines overview, manager industries, and products int
   assert.doesNotMatch(content, /<sheet name="数据口径"/);
 });
 
-test("stock reverse lookup export groups managers by institution without size sorting", () => {
+test("stock reverse lookup export ranks by disclosed value without reordering rows", () => {
   const bytes = buildStockReverseLookupWorkbook({
     period: "2026-06-30",
     source: "测试股票反查数据源",
@@ -140,10 +140,13 @@ test("stock reverse lookup export groups managers by institution without size so
   assert.doesNotMatch(content, /<sheet name="股票概览"/);
   assert.match(content, /<sheet name="机构经理明细"/);
   assert.match(content, /浦发银行｜持仓机构与基金经理｜2026中报 · 2026-06-30/);
-  assert.match(content, /经理内重仓排名/);
+  assert.match(content, /披露市值排名/);
   assert.ok(content.indexOf("经理甲") < content.indexOf("经理乙"));
   assert.ok(content.indexOf("经理乙") < content.indexOf("经理丙"));
-  assert.match(content, /不按披露市值跨机构排序/);
+  assert.match(content, /<c r="F3" s="3"><v>1<\/v><\/c>/);
+  assert.match(content, /<c r="F4" s="3"><v>3<\/v><\/c>/);
+  assert.match(content, /<c r="F5" s="3"><v>2<\/v><\/c>/);
+  assert.match(content, /只改变排名数字，不调整机构与人员行顺序/);
   assert.match(content, /<c r="G3" s="4"><v>0.1234<\/v><\/c>/);
   assert.match(content, /测试股票反查数据源/);
 });
