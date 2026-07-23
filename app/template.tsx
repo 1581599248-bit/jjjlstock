@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import StockExportEnhancer from "./stock-export-enhancer";
 
 export default function Template({ children }: { children: ReactNode }) {
   return <>
     {children}
+    <StockExportEnhancer />
     <style>{`
       .hero h1::after {
         content: "🌟光大证券上海销售团队";
