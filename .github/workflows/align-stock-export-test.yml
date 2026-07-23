@@ -1,0 +1,84 @@
+name: Align stock reverse export test
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/align-stock-export-test.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Align stock reverse export test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/export-xlsx.test.mjs")
+          text = path.read_text(encoding="utf-8")
+          marker = 'test("stock reverse lookup export groups managers by institution without size sorting"'
+          start = text.index(marker)
+          replacement = '''test("stock reverse lookup export keeps institution order and sorts managers by market value within each institution", () => {
+            const bytes = buildStockReverseLookupWorkbook({
+              period: "2026-06-30",
+              source: "测试股票反查数据源",
+              detail: {
+                stockCode: "600000",
+                stockName: "浦发银行",
+                companyCount: 2,
+                managerCount: 3,
+                companies: [
+                  { companyId: "1", companyName: "甲基金", managers: [
+                    { managerId: "m1", managerName: "经理甲", rank: 1, navWeight: 12.34, marketValue: 567.8, change: "增持", fundCount: 2 },
+                    { managerId: "m2", managerName: "经理乙", rank: 3, navWeight: 5.67, marketValue: 1234.5, change: "不变", fundCount: 1 },
+                  ] },
+                  { companyId: "2", companyName: "乙基金", managers: [
+                    { managerId: "m3", managerName: "经理丙", rank: 2, navWeight: 8.9, marketValue: 890.1, change: "减持", fundCount: 3 },
+                  ] },
+                ],
+              },
+            });
+            const content = new TextDecoder().decode(bytes);
+            assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+            assert.equal(content.match(/<sheet name=/g)?.length, 2);
+            assert.doesNotMatch(content, /<sheet name="股票概览"/);
+            assert.match(content, /<sheet name="机构经理明细"/);
+            assert.match(content, /浦发银行｜持仓机构与基金经理｜2026中报 · 2026-06-30/);
+            assert.match(content, /经理内重仓排名/);
+            assert.ok(content.indexOf("经理乙") < content.indexOf("经理甲"));
+            assert.ok(content.indexOf("经理甲") < content.indexOf("经理丙"));
+            assert.match(content, /同一机构内按该股票披露持仓市值从高到低排列/);
+            assert.match(content, /<c r="G3" s="4"><v>0.0567<\\/v><\\/c>/);
+            assert.match(content, /测试股票反查数据源/);
+          });
+          '''
+          path.write_text(text[:start] + replacement, encoding="utf-8")
+          PY
+
+      - run: npm test
+
+      - name: Commit aligned test and remove one-off workflow
+        run: |
+          rm .github/workflows/align-stock-export-test.yml
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add tests/export-xlsx.test.mjs .github/workflows/align-stock-export-test.yml
+          git commit -m "Test stock reverse sorting within institutions"
+          git push
