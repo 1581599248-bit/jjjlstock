@@ -125,18 +125,22 @@ function periodDisplay(period: string) {
 }
 
 export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportInput) {
-  const detailRows: Cell[][] = input.detail.companies.flatMap((company) => company.managers.map((manager) => [
-    input.period,
-    input.detail.stockCode,
-    input.detail.stockName,
-    company.companyName,
-    manager.managerName,
-    manager.rank,
-    manager.navWeight / 100,
-    manager.marketValue,
-    manager.fundCount,
-    manager.change,
-  ]));
+  const detailRows: Cell[][] = input.detail.companies.flatMap((company) => [...company.managers]
+    .sort((a, b) => b.marketValue - a.marketValue
+      || b.navWeight - a.navWeight
+      || a.managerName.localeCompare(b.managerName, "zh-CN"))
+    .map((manager) => [
+      input.period,
+      input.detail.stockCode,
+      input.detail.stockName,
+      company.companyName,
+      manager.managerName,
+      manager.rank,
+      manager.navWeight / 100,
+      manager.marketValue,
+      manager.fundCount,
+      manager.change,
+    ]));
   const notesRows: Cell[][] = [
     ["数据源", input.source],
     ["反查口径", "基金经理在管产品合并后的前十大重仓；未进入经理前十不代表完全未持有。"],
@@ -144,7 +148,7 @@ export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportI
     ["经理内重仓排名", "该股票在对应基金经理合并后前十大重仓中的名次，不是跨经理持仓规模排名。"],
     ["净值占比", "该股票披露持仓市值占基金经理同口径管理净资产的比例。"],
     ["机构统计", "机构数量和经理数量表示覆盖范围，不将经理持仓市值再次汇总为机构市值。"],
-    ["排序规则", "按基金公司分组，同一机构内经理保持系统原顺序；不按披露市值跨机构排序。"],
+    ["排序规则", "按基金公司分组；同一机构内按该股票披露持仓市值从高到低排列，不跨机构混排。"],
     ["用途", "公募基金季度持仓研究，不构成投资建议。"],
   ];
   return workbook([
