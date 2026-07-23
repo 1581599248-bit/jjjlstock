@@ -43,6 +43,13 @@ const col = (index: number) => {
   return result;
 };
 
+const periodReportLabel = (period: string) => {
+  const year = period.slice(0, 4);
+  const month = period.slice(5, 7);
+  const report = month === "03" ? "一季报" : month === "06" ? "中报" : month === "09" ? "三季报" : "年报";
+  return `${year}${report}`;
+};
+
 function sheet(title: string, headers: string[], rows: Cell[][], widths: number[], numeric: number[] = [], percent: number[] = []) {
   const all = [[title], headers, ...rows];
   const max = Math.max(headers.length, ...rows.map((row) => row.length));
@@ -118,7 +125,15 @@ function download(bytes: Uint8Array, filename: string) {
 }
 
 export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportInput) {
-  const detailRows: Cell[][] = input.detail.companies.flatMap((company) => company.managers.map((manager) => [
+  const rankedManagers = input.detail.companies
+    .flatMap((company) => company.managers.map((manager) => ({ company, manager })))
+    .sort((a, b) => b.manager.marketValue - a.manager.marketValue
+      || b.manager.navWeight - a.manager.navWeight
+      || a.company.companyName.localeCompare(b.company.companyName, "zh-CN")
+      || a.manager.managerName.localeCompare(b.manager.managerName, "zh-CN"));
+
+  const detailRows: Cell[][] = rankedManagers.map(({ company, manager }, index) => [
+    index + 1,
     input.period,
     input.detail.stockCode,
     input.detail.stockName,
@@ -129,33 +144,25 @@ export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportI
     manager.marketValue,
     manager.fundCount,
     manager.change,
-  ]));
-  const overviewRows: Cell[][] = [
-    ["股票代码", input.detail.stockCode],
-    ["股票名称", input.detail.stockName],
-    ["财报期", input.period],
-    ["覆盖基金公司", input.detail.companyCount],
-    ["覆盖基金经理", input.detail.managerCount],
-    ["导出明细行数", detailRows.length],
-    ["导出时间", new Date().toLocaleString("zh-CN")],
-  ];
+  ]);
+  const reportLabel = periodReportLabel(input.period);
   const notesRows: Cell[][] = [
     ["数据源", input.source],
     ["反查口径", "基金经理在管产品合并后的前十大重仓；未进入经理前十不代表完全未持有。"],
+    ["持仓规模排名", "按该股票在各基金经理口径下的披露持仓市值从高到低统一排名。"],
+    ["经理重仓名次", "该股票在对应基金经理合并后前十大重仓股中的原始名次。"],
     ["联合管理", "联合管理基金分别计入对应基金经理。"],
     ["净值占比", "该股票披露持仓市值占基金经理同口径管理净资产的比例。"],
     ["机构统计", "机构数量和经理数量表示覆盖范围，不将经理持仓市值再次汇总为机构市值。"],
-    ["排序规则", "沿用页面顺序：机构按覆盖经理数排序，机构内经理按净值占比排序。"],
     ["用途", "公募基金季度持仓研究，不构成投资建议。"],
   ];
   return workbook([
-    { name: "股票概览", xml: sheet(`${input.detail.stockName}｜股票反查｜${input.period}`, ["项目", "值"], overviewRows, [24, 78], [1]) },
-    { name: "机构经理明细", xml: sheet(`${input.detail.stockName}｜持仓机构与基金经理`, ["财报期", "股票代码", "股票名称", "基金公司", "基金经理", "重仓排名", "净值占比", "披露市值(万元)", "涉及基金数", "持仓变化"], detailRows, [14, 13, 18, 24, 18, 12, 14, 18, 14, 13], [5, 7, 8], [6]) },
+    { name: "机构经理明细", xml: sheet(`${input.detail.stockName}｜持仓机构与基金经理｜${reportLabel} · ${input.period}`, ["持仓规模排名", "财报期", "股票代码", "股票名称", "基金公司", "基金经理", "经理重仓名次", "净值占比", "披露市值(万元)", "涉及基金数", "持仓变化"], detailRows, [14, 14, 13, 18, 24, 18, 15, 14, 18, 14, 13], [0, 6, 8, 9], [7]) },
     { name: "数据口径", xml: sheet("数据源与口径", ["类别", "说明"], notesRows, [24, 100]) },
   ]);
 }
 
 export function exportStockReverseLookupWorkbook(input: StockReverseLookupExportInput) {
   const safeName = input.detail.stockName.replace(/[\\/:*?"<>|]/g, "_");
-  download(buildStockReverseLookupWorkbook(input), `${safeName}_${input.detail.stockCode}_${input.period}_股票反查.xlsx`);
+  download(buildStockReverseLookupWorkbook(input), `${safeName}_${input.detail.stockCode}_${periodReportLabel(input.period)}_${input.period}_股票反查.xlsx`);
 }
