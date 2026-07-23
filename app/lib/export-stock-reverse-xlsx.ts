@@ -125,34 +125,37 @@ function periodDisplay(period: string) {
 }
 
 export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportInput) {
-  const detailRows: Cell[][] = input.detail.companies.flatMap((company) => [...company.managers]
-    .sort((a, b) => b.marketValue - a.marketValue
-      || b.navWeight - a.navWeight
-      || a.managerName.localeCompare(b.managerName, "zh-CN"))
-    .map((manager) => [
-      input.period,
-      input.detail.stockCode,
-      input.detail.stockName,
-      company.companyName,
-      manager.managerName,
-      manager.rank,
-      manager.navWeight / 100,
-      manager.marketValue,
-      manager.fundCount,
-      manager.change,
-    ]));
+  const managerRows = input.detail.companies.flatMap((company) => company.managers.map((manager) => ({ company, manager })));
+  const rankedRows = managerRows
+    .map((row, originalOrder) => ({ ...row, originalOrder }))
+    .sort((a, b) => b.manager.marketValue - a.manager.marketValue
+      || b.manager.navWeight - a.manager.navWeight
+      || a.originalOrder - b.originalOrder);
+  const valueRank = new Map(rankedRows.map((row, index) => [`${row.company.companyId}:${row.manager.managerId}`, index + 1]));
+
+  const detailRows: Cell[][] = managerRows.map(({ company, manager }) => [
+    input.period,
+    input.detail.stockCode,
+    input.detail.stockName,
+    company.companyName,
+    manager.managerName,
+    valueRank.get(`${company.companyId}:${manager.managerId}`) ?? null,
+    manager.navWeight / 100,
+    manager.marketValue,
+    manager.fundCount,
+    manager.change,
+  ]);
   const notesRows: Cell[][] = [
     ["数据源", input.source],
     ["反查口径", "基金经理在管产品合并后的前十大重仓；未进入经理前十不代表完全未持有。"],
     ["联合管理", "联合管理基金分别计入对应基金经理。"],
-    ["经理内重仓排名", "该股票在对应基金经理合并后前十大重仓中的名次，不是跨经理持仓规模排名。"],
+    ["披露市值排名", "按该股票在全部基金经理口径下的披露持仓市值从高到低生成唯一排名；只改变排名数字，不调整机构与人员行顺序。"],
     ["净值占比", "该股票披露持仓市值占基金经理同口径管理净资产的比例。"],
     ["机构统计", "机构数量和经理数量表示覆盖范围，不将经理持仓市值再次汇总为机构市值。"],
-    ["排序规则", "按基金公司分组；同一机构内按该股票披露持仓市值从高到低排列，不跨机构混排。"],
     ["用途", "公募基金季度持仓研究，不构成投资建议。"],
   ];
   return workbook([
-    { name: "机构经理明细", xml: sheet(`${input.detail.stockName}｜持仓机构与基金经理｜${periodDisplay(input.period)}`, ["财报期", "股票代码", "股票名称", "基金公司", "基金经理", "经理内重仓排名", "净值占比", "披露市值(万元)", "涉及基金数", "持仓变化"], detailRows, [14, 13, 18, 24, 18, 16, 14, 18, 14, 13], [5, 7, 8], [6]) },
+    { name: "机构经理明细", xml: sheet(`${input.detail.stockName}｜持仓机构与基金经理｜${periodDisplay(input.period)}`, ["财报期", "股票代码", "股票名称", "基金公司", "基金经理", "披露市值排名", "净值占比", "披露市值(万元)", "涉及基金数", "持仓变化"], detailRows, [14, 13, 18, 24, 18, 16, 14, 18, 14, 13], [5, 7, 8], [6]) },
     { name: "数据口径", xml: sheet("数据源与口径", ["类别", "说明"], notesRows, [24, 100]) },
   ]);
 }
