@@ -125,31 +125,27 @@ function download(bytes: Uint8Array, filename: string) {
 }
 
 export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportInput) {
-  const rankedManagers = input.detail.companies
-    .flatMap((company) => company.managers.map((manager) => ({ company, manager })))
-    .sort((a, b) => b.manager.marketValue - a.manager.marketValue
-      || b.manager.navWeight - a.manager.navWeight
-      || a.company.companyName.localeCompare(b.company.companyName, "zh-CN")
-      || a.manager.managerName.localeCompare(b.manager.managerName, "zh-CN"));
-
-  const detailRows: Cell[][] = rankedManagers.map(({ company, manager }, index) => [
-    index + 1,
-    input.period,
-    input.detail.stockCode,
-    input.detail.stockName,
-    company.companyName,
-    manager.managerName,
-    manager.rank,
-    manager.navWeight / 100,
-    manager.marketValue,
-    manager.fundCount,
-    manager.change,
-  ]);
+  const detailRows: Cell[][] = input.detail.companies.flatMap((company) => [...company.managers]
+    .sort((a, b) => b.marketValue - a.marketValue
+      || b.navWeight - a.navWeight
+      || a.managerName.localeCompare(b.managerName, "zh-CN"))
+    .map((manager) => [
+      input.period,
+      input.detail.stockCode,
+      input.detail.stockName,
+      company.companyName,
+      manager.managerName,
+      manager.rank,
+      manager.navWeight / 100,
+      manager.marketValue,
+      manager.fundCount,
+      manager.change,
+    ]));
   const reportLabel = periodReportLabel(input.period);
   const notesRows: Cell[][] = [
     ["数据源", input.source],
     ["反查口径", "基金经理在管产品合并后的前十大重仓；未进入经理前十不代表完全未持有。"],
-    ["持仓规模排名", "按该股票在各基金经理口径下的披露持仓市值从高到低统一排名。"],
+    ["排序规则", "机构顺序保持页面原始顺序；同一家机构内部按该股票披露持仓市值从高到低排列。"],
     ["经理重仓名次", "该股票在对应基金经理合并后前十大重仓股中的原始名次。"],
     ["联合管理", "联合管理基金分别计入对应基金经理。"],
     ["净值占比", "该股票披露持仓市值占基金经理同口径管理净资产的比例。"],
@@ -157,7 +153,7 @@ export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportI
     ["用途", "公募基金季度持仓研究，不构成投资建议。"],
   ];
   return workbook([
-    { name: "机构经理明细", xml: sheet(`${input.detail.stockName}｜持仓机构与基金经理｜${reportLabel} · ${input.period}`, ["持仓规模排名", "财报期", "股票代码", "股票名称", "基金公司", "基金经理", "经理重仓名次", "净值占比", "披露市值(万元)", "涉及基金数", "持仓变化"], detailRows, [14, 14, 13, 18, 24, 18, 15, 14, 18, 14, 13], [0, 6, 8, 9], [7]) },
+    { name: "机构经理明细", xml: sheet(`${input.detail.stockName}｜持仓机构与基金经理｜${reportLabel} · ${input.period}`, ["财报期", "股票代码", "股票名称", "基金公司", "基金经理", "经理重仓名次", "净值占比", "披露市值(万元)", "涉及基金数", "持仓变化"], detailRows, [14, 13, 18, 24, 18, 15, 14, 18, 14, 13], [5, 7, 8], [6]) },
     { name: "数据口径", xml: sheet("数据源与口径", ["类别", "说明"], notesRows, [24, 100]) },
   ]);
 }
