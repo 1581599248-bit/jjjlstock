@@ -35,10 +35,10 @@ type MarketIndustryPayload = {
 
 const fmt = (value: number, digits = 1) => new Intl.NumberFormat("zh-CN", { maximumFractionDigits: digits }).format(value);
 const periodLabel = (period: string) => `${period.slice(0, 4)} ${period.slice(5, 7) === "03" ? "一季报" : period.slice(5, 7) === "06" ? "中报" : period.slice(5, 7) === "09" ? "三季报" : "年报"}`;
-const changeText = (value: number | null, suffix = "pct") => {
+const changeText = (value: number | null) => {
   if (value === null || !Number.isFinite(value)) return "—";
   const sign = value > 0 ? "+" : "";
-  return suffix === "pp" ? `${sign}${fmt(value, 2)}pct` : `${sign}${fmt(value, 1)}%`;
+  return `${sign}${fmt(value, 2)}pct`;
 };
 
 export default function MarketIndustryAllocation({ period, query }: { period: string; query: string }) {
@@ -51,10 +51,11 @@ export default function MarketIndustryAllocation({ period, query }: { period: st
     setLoading(true);
     setData(null);
     setError("");
-    fetch(`/data/market-industries/${period}.json`, { signal: controller.signal, cache: "no-store" })
+    fetch(`/api/market-industries?period=${encodeURIComponent(period)}`, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error("该财报期的全市场行业配置尚未发布");
-        return response.json() as Promise<MarketIndustryPayload>;
+        const payload = await response.json() as MarketIndustryPayload & { error?: string };
+        if (!response.ok) throw new Error(payload.error || "该财报期的全市场行业配置尚未发布");
+        return payload;
       })
       .then((payload) => {
         if (payload.period !== period || !Array.isArray(payload.industries)) throw new Error("全市场行业配置数据范围不匹配");
@@ -80,7 +81,7 @@ export default function MarketIndustryAllocation({ period, query }: { period: st
       <em>{periodLabel(period)}</em>
     </div>
 
-    {loading ? <div className="loading-state"><span className="spinner" />正在读取全市场行业配置…</div> : error ? <div className="error-banner">{error}</div> : data ? <>
+    {loading ? <div className="loading-state"><span className="spinner" />正在读取全市场行业配置，首次汇总可能需要一些时间…</div> : error ? <div className="error-banner">{error}</div> : data ? <>
       <div className="market-industry-metrics">
         <div><small>覆盖基金公司</small><b>{data.coveredCompanyCount}<i> / {data.totalCompanyCount}</i></b></div>
         <div><small>覆盖基金产品</small><b>{fmt(data.coveredProductCount, 0)}</b></div>
@@ -104,7 +105,7 @@ export default function MarketIndustryAllocation({ period, query }: { period: st
             <td className="num">{fmt(row.stockShare, 2)}%</td>
             <td className="num optional-col">{fmt(row.fundCount, 0)}</td>
             <td className="num optional-col">{fmt(row.companyCount, 0)}</td>
-            <td className={`num optional-col ${row.changePp !== null && row.changePp > 0 ? "industry-up" : row.changePp !== null && row.changePp < 0 ? "industry-down" : ""}`}>{changeText(row.changePp, "pp")}</td>
+            <td className={`num optional-col ${row.changePp !== null && row.changePp > 0 ? "industry-up" : row.changePp !== null && row.changePp < 0 ? "industry-down" : ""}`}>{changeText(row.changePp)}</td>
           </tr>)}</tbody>
         </table>
       </div> : <div className="empty-state">没有找到匹配的行业</div>}
