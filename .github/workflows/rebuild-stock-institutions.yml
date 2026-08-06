@@ -69,3 +69,5 @@ jobs:
           git add public/data/stocks/2026-03-31 public/data/stocks/2026-06-30
           git commit -m "Publish stock institution rankings [skip ci]"
           git push
+
+# trigger: rebuild product-level institution rankings
