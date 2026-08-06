@@ -1,0 +1,125 @@
+name: Complete all-market industry module
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/complete-market-industry-module.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: complete-market-industry-module
+  cancel-in-progress: true
+
+jobs:
+  complete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Mount the dedicated module in source
+        run: node scripts/apply-fund-product-search-patch.mjs
+
+      - name: Wire quarterly refresh pipeline
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          market = Path('scripts/build-static-market.mjs')
+          text = market.read_text()
+          anchor = '''await new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, [path.join(root, "scripts/build-static-stock-search.mjs"), `--period=${period}`], { cwd: root, windowsHide: true, stdio: "inherit" });
+  child.on("error", reject);
+  child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`stock search build exit ${code}`)));
+});'''
+          addition = '''await new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, [path.join(root, "scripts/build-static-market-industries.mjs"), `--period=${period}`, "--minimum-coverage=0.7"], { cwd: root, windowsHide: true, stdio: "inherit" });
+  child.on("error", reject);
+  child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`market industry build exit ${code}`)));
+});
+
+''' + anchor
+          if 'market industry build exit' not in text:
+            if text.count(anchor) != 1:
+              raise SystemExit('stock search build anchor not found exactly once')
+            market.write_text(text.replace(anchor, addition))
+
+          workflow = Path('.github/workflows/quarterly-refresh.yml')
+          text = workflow.read_text()
+          old = 'public/data/overview public/data/funds public/data/sectors public/data/stocks'
+          new = 'public/data/overview public/data/funds public/data/sectors public/data/market-industries public/data/stocks'
+          if new not in text:
+            if text.count(old) != 1:
+              raise SystemExit('quarterly git-add anchor not found exactly once')
+            workflow.write_text(text.replace(old, new))
+          PY
+
+      - name: Build all published market-industry snapshots
+        run: |
+          node - <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const { spawnSync } = require('node:child_process');
+          const published = JSON.parse(readFileSync('app/data/published-periods.json', 'utf8'));
+          for (const period of published.periods) {
+            const result = spawnSync(process.execPath, ['scripts/build-static-market-industries.mjs', `--period=${period}`, '--minimum-coverage=0.7'], { stdio: 'inherit' });
+            if (result.status !== 0) process.exit(result.status || 1);
+          }
+          NODE
+
+      - name: Validate application and module
+        run: npm test
+
+      - name: Commit completed module
+        run: |
+          printf '%s\n' 'market-industry-module-20260807-0108' > public/market-industry-module-version.txt
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add app/page.tsx app/globals.css app/market-industry-allocation.tsx app/api/market-industries/route.ts scripts/apply-fund-product-search-patch.mjs scripts/build-static-market-industries.mjs scripts/build-static-market.mjs scripts/lib/market-industry-parser.mjs tests/market-industry-allocation.test.mjs package.json .github/workflows/quarterly-refresh.yml public/data/market-industries public/market-industry-module-version.txt
+          git commit -m "Complete all-market public fund industry allocation module"
+          git push
+
+      - name: Wait for Render deployment
+        env:
+          BASE_URL: https://fund-holdings-radar.onrender.com
+          EXPECTED_MARKER: market-industry-module-20260807-0108
+        run: |
+          ready=false
+          for attempt in $(seq 1 120); do
+            marker=$(curl -fsS --max-time 30 "$BASE_URL/market-industry-module-version.txt?attempt=$attempt" 2>/dev/null || true)
+            if [ "$marker" = "$EXPECTED_MARKER" ]; then
+              page=$(curl -fsS --max-time 30 "$BASE_URL/?attempt=$attempt" 2>/dev/null || true)
+              api=$(curl -fsS --max-time 60 "$BASE_URL/api/market-industries?period=2026-06-30&attempt=$attempt" 2>/dev/null || true)
+              if printf '%s' "$page" | grep -q '行业配置' && node -e 'const p=JSON.parse(process.argv[1]); if(!Array.isArray(p.industries)||p.industries.length===0) process.exit(1)' "$api"; then
+                echo "Market industry module is live with data"
+                ready=true
+                break
+              fi
+            fi
+            echo "Waiting for Render deployment ($attempt/120)"
+            sleep 10
+          done
+          if [ "$ready" != "true" ]; then
+            echo "Render did not publish the module in time"
+            exit 1
+          fi
+
+      - name: Remove one-off workflow
+        run: |
+          git pull --rebase
+          git rm .github/workflows/complete-market-industry-module.yml
+          git commit -m "Complete market industry module deployment [skip ci]"
+          git push
