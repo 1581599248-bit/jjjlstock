@@ -227,22 +227,22 @@ export default function StockInstitutionRanking() {
       .institution-ranking-state.error { color:#a33a33; }
       .institution-ranking-source { display:block; margin-top:7px; color:#9a8982; font-family:inherit; font-size:9px; line-height:1.4; }
       @media (max-width: 640px) {
-        .stock-institution-ranking-slot { margin:11px 12px; }
+        .stock-institution-ranking-slot { margin:11px 14px; }
         .institution-ranking-card { padding:10px; border-radius:13px; }
         .institution-ranking-card h3 { font-size:16px; }
         .institution-ranking-card header>b { font-size:11px; padding:4px 7px; }
         .institution-ranking-method { font-size:10px; }
-        .institution-ranking-table table { width:456px; min-width:456px; font-size:8.5px; }
-        .institution-ranking-table col.col-rank { width:34px; }
-        .institution-ranking-table col.col-company { width:78px; }
-        .institution-ranking-table col.col-fund-count { width:50px; }
-        .institution-ranking-table col.col-shares { width:64px; }
-        .institution-ranking-table col.col-market-value { width:72px; }
-        .institution-ranking-table col.col-change-shares { width:82px; }
-        .institution-ranking-table col.col-change { width:76px; }
-        .institution-ranking-table th,.institution-ranking-table td { padding:6px 3px; }
-        .institution-ranking-table th:nth-child(2),.institution-ranking-table td:nth-child(2) { padding-right:2px; }
-        .institution-ranking-table th:nth-child(3),.institution-ranking-table td:nth-child(3) { padding-left:2px; }
+        .institution-ranking-table table { width:440px; min-width:440px; font-size:8.5px; }
+        .institution-ranking-table col.col-rank { width:32px; }
+        .institution-ranking-table col.col-company { width:74px; }
+        .institution-ranking-table col.col-fund-count { width:48px; }
+        .institution-ranking-table col.col-shares { width:62px; }
+        .institution-ranking-table col.col-market-value { width:70px; }
+        .institution-ranking-table col.col-change-shares { width:80px; }
+        .institution-ranking-table col.col-change { width:74px; }
+        .institution-ranking-table th,.institution-ranking-table td { padding:6px 2px; }
+        .institution-ranking-table th:nth-child(2),.institution-ranking-table td:nth-child(2) { padding-right:1px; }
+        .institution-ranking-table th:nth-child(3),.institution-ranking-table td:nth-child(3) { padding-left:1px; }
         .institution-ranking-table th.fund-count { white-space:normal; line-height:1.1; }
       }
     `}</style>
