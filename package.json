@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vinext dev",
-    "build": "node scripts/apply-fund-product-search-patch.mjs && node scripts/apply-stock-reverse-label-style.mjs && (node scripts/build-static-market-industries.mjs --period=2026-03-31 --minimum-classification-coverage=0.90 && node scripts/build-static-market-industries.mjs --period=2026-06-30 --minimum-classification-coverage=0.90 || echo 'market-industry static generation skipped; runtime fallback enabled') && vinext build",
+    "build": "node scripts/apply-stock-reverse-label-style.mjs --normalize && node scripts/apply-fund-product-search-patch.mjs && node scripts/apply-stock-reverse-label-style.mjs && (node scripts/build-static-market-industries.mjs --period=2026-03-31 --minimum-classification-coverage=0.90 && node scripts/build-static-market-industries.mjs --period=2026-06-30 --minimum-classification-coverage=0.90 || echo 'market-industry static generation skipped; runtime fallback enabled') && vinext build",
     "start": "vinext start",
     "data:sync:fund-types": "node scripts/sync-fund-types.mjs",
     "data:build:q1": "node scripts/build-static-market.mjs --period=2026-03-31",
