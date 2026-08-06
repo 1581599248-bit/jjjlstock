@@ -75,6 +75,14 @@ function runCompany(company) {
   });
 }
 
+function runScript(script, scriptArgs = [], label = script) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [path.join(root, script), ...scriptArgs], { cwd: root, windowsHide: true, stdio: "inherit" });
+    child.on("error", reject);
+    child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`${label} exit ${code}`)));
+  });
+}
+
 let queueCursor = 0;
 async function worker(workerId) {
   while (queueCursor < queue.length) {
@@ -101,17 +109,9 @@ if (failures.length) {
   throw new Error(`Market build incomplete: ${JSON.stringify(failures.slice(0, 10))}`);
 }
 
-await new Promise((resolve, reject) => {
-  const child = spawn(process.execPath, [path.join(root, "scripts/build-static-sectors.mjs"), `--period=${period}`], { cwd: root, windowsHide: true, stdio: "inherit" });
-  child.on("error", reject);
-  child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`sector build exit ${code}`)));
-});
-
-await new Promise((resolve, reject) => {
-  const child = spawn(process.execPath, [path.join(root, "scripts/build-static-stock-search.mjs"), `--period=${period}`], { cwd: root, windowsHide: true, stdio: "inherit" });
-  child.on("error", reject);
-  child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`stock search build exit ${code}`)));
-});
+await runScript("scripts/build-static-sectors.mjs", [`--period=${period}`], "sector build");
+await runScript("scripts/build-static-stock-search.mjs", [`--period=${period}`], "stock search build");
+await runScript("scripts/build-static-market-industries.mjs", [`--period=${period}`, "--minimum-classification-coverage=0.9"], "active equity full-industry build");
 
 const overviewRoot = path.join(root, "public/data/overview");
 const manifest = { version: 1, updatedAt: new Date().toISOString(), entries: {} };
