@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vinext dev",
-    "build": "node scripts/apply-stock-reverse-label-style.mjs --normalize && node scripts/apply-fund-product-search-patch.mjs && node scripts/apply-stock-reverse-label-style.mjs && (node scripts/build-static-market-industries.mjs --period=2026-03-31 --minimum-classification-coverage=0.90 && node scripts/build-static-market-industries.mjs --period=2026-06-30 --minimum-classification-coverage=0.90 || echo 'market-industry static generation skipped; runtime fallback enabled') && vinext build",
+    "build": "node scripts/apply-fund-product-search-patch.mjs && node scripts/apply-stock-reverse-label-style.mjs && vinext build",
     "start": "vinext start",
     "data:sync:fund-types": "node scripts/sync-fund-types.mjs",
     "data:build:q1": "node scripts/build-static-market.mjs --period=2026-03-31",
@@ -31,13 +31,6 @@
     "react-dom": "19.2.6"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.37.1",
-    "@tailwindcss/postcss": "4.2.1",
-    "@types/node": "22.19.19",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.2",
-    "@vitejs/plugin-rsc": "0.5.26",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
@@ -46,7 +39,14 @@
     "typescript": "5.9.3",
     "vinext": "0.0.50",
     "vite": "8.0.13",
-    "wrangler": "4.92.0"
+    "wrangler": "4.92.0",
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26"
   },
   "type": "module"
 }
