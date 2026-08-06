@@ -1,0 +1,72 @@
+name: Verify compact mobile institution spacing
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/verify-mobile-institution-spacing.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-mobile-institution-spacing
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build website
+        run: npm run build
+
+      - name: Verify mobile spacing values
+        run: |
+          grep -q 'width:456px' app/stock-institution-ranking.tsx
+          grep -q 'col-company.*78px' app/stock-institution-ranking.tsx
+          grep -q 'col-fund-count.*50px' app/stock-institution-ranking.tsx
+          grep -q 'padding:6px 3px' app/stock-institution-ranking.tsx
+          grep -q 'margin:11px 12px' app/stock-institution-ranking.tsx
+
+      - name: Wait for Render deployment
+        env:
+          BASE_URL: https://fund-holdings-radar.onrender.com
+          EXPECTED_MARKER: stock-institution-mobile-tight-20260806-2237
+        run: |
+          ready=false
+          for attempt in $(seq 1 72); do
+            value=$(curl -fsS --max-time 30 "$BASE_URL/stock-institution-version.txt?attempt=$attempt" 2>/dev/null || true)
+            if [ "$value" = "$EXPECTED_MARKER" ]; then
+              echo "Render marker is live on attempt $attempt"
+              ready=true
+              break
+            fi
+            echo "Waiting for Render deployment ($attempt/72)"
+            sleep 10
+          done
+          if [ "$ready" != "true" ]; then
+            echo "Render did not publish the compact mobile table in time"
+            exit 1
+          fi
+
+      - name: Remove one-off verification workflow
+        run: |
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git rm .github/workflows/verify-mobile-institution-spacing.yml
+          git commit -m "Complete mobile institution spacing verification [skip ci]"
+          git push
