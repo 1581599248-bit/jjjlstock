@@ -1,0 +1,91 @@
+name: Verify compact institution ranking table
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/verify-institution-table-refine.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-compact-institution-ranking-table
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build website
+        run: npm run build
+
+      - name: Verify requested table behavior
+        run: |
+          grep -q '持仓基金数' app/stock-institution-ranking.tsx
+          grep -q 'function overallChange' app/stock-institution-ranking.tsx
+          grep -q 'label: "新进", tone: "red"' app/stock-institution-ranking.tsx
+          grep -q 'label: "增持", tone: "red"' app/stock-institution-ranking.tsx
+          grep -q 'label: "减持", tone: "green"' app/stock-institution-ranking.tsx
+          grep -q 'label: "不变", tone: "gray"' app/stock-institution-ranking.tsx
+          grep -q 'width:620px' app/stock-institution-ranking.tsx
+          grep -q 'col-company.*128px' app/stock-institution-ranking.tsx
+
+      - name: Wait for Render deployment
+        env:
+          BASE_URL: https://fund-holdings-radar.onrender.com
+          EXPECTED_MARKER: stock-institution-compact-overall-change-20260806-2148
+        run: |
+          ready=false
+          for attempt in $(seq 1 72); do
+            value=$(curl -fsS --max-time 30 "$BASE_URL/stock-institution-version.txt?attempt=$attempt" 2>/dev/null || true)
+            if [ "$value" = "$EXPECTED_MARKER" ]; then
+              echo "Render marker is live on attempt $attempt"
+              ready=true
+              break
+            fi
+            echo "Waiting for Render deployment ($attempt/72)"
+            sleep 10
+          done
+          if [ "$ready" != "true" ]; then
+            echo "Render did not publish the compact institution table in time"
+            exit 1
+          fi
+
+      - name: Confirm live institution data remains correct
+        run: |
+          node --input-type=module <<'NODE'
+          const base = "https://fund-holdings-radar.onrender.com";
+          const period = "2026-06-30";
+          const stockCode = "301345";
+          const nonce = Date.now();
+          const index = await (await fetch(`${base}/data/stocks/${period}/index.json?verify=${nonce}`, { cache: "no-store" })).json();
+          const item = index.stocks.find((row) => row.stockCode === stockCode);
+          const bucket = await (await fetch(`${base}/data/stocks/${period}/buckets/${item.bucket}.json?verify=${nonce}`, { cache: "no-store" })).json();
+          const detail = bucket.stocks[stockCode];
+          const huitianfu = detail.institutions.find((row) => row.companyName.includes("汇添富"));
+          if (!huitianfu || huitianfu.rank !== 3 || huitianfu.fundCount !== 3) throw new Error("Live Tao Motor institution data changed unexpectedly");
+          console.log(JSON.stringify({ institutionCount: detail.institutionCount, huitianfu }, null, 2));
+          NODE
+
+      - name: Remove one-off verification workflow
+        run: |
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git rm .github/workflows/verify-institution-table-refine.yml
+          git commit -m "Complete compact institution table verification [skip ci]"
+          git push
