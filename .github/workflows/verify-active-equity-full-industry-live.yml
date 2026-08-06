@@ -1,0 +1,54 @@
+name: Verify active equity full-industry live
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "verify-active-equity-full-industry-live.run"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Verify deployed page and Q2 API
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://fund-holdings-radar.onrender.com"
+          ready=false
+          for attempt in $(seq 1 90); do
+            marker=$(curl -fsS --max-time 30 "$base/active-equity-full-industry-version.txt?attempt=$attempt" 2>/dev/null || true)
+            page=$(curl -fsS --max-time 30 "$base/?attempt=$attempt" 2>/dev/null || true)
+            api=$(curl -fsS --max-time 120 "$base/api/market-industries?period=2026-06-30&attempt=$attempt" 2>/dev/null || true)
+            if [ "$marker" = "active-equity-full-industry-20260807-0205" ] \
+              && printf '%s' "$page" | grep -q '股票配置' \
+              && printf '%s' "$page" | grep -q '全行业' \
+              && API_PAYLOAD="$api" node --input-type=module - <<'NODE'
+          const p = JSON.parse(process.env.API_PAYLOAD || "{}");
+          const expected = ["普通股票型", "偏股混合型", "灵活配置型", "平衡混合型"];
+          const valid = p.version === 2
+            && p.period === "2026-06-30"
+            && p.quarter === "Q2"
+            && p.scope?.fundUniverse === "主动偏股公募基金"
+            && p.scope?.classification === "申万一级行业（2021）"
+            && JSON.stringify(p.scope?.fundTypes) === JSON.stringify(expected)
+            && Array.isArray(p.industries)
+            && p.industries.length >= 30
+            && p.industries.every((row) => Number.isInteger(row.rank) && row.industry && Number.isFinite(row.marketValue) && Number.isFinite(row.allocationShare) && (row.qoqChange === null || Number.isFinite(row.qoqChange)));
+          if (!valid) process.exit(1);
+          const shareSum = p.industries.reduce((sum, row) => sum + row.allocationShare, 0);
+          if (Math.abs(shareSum - 100) > 0.1) process.exit(1);
+          console.log(JSON.stringify({period:p.period,quarter:p.quarter,activeFundCount:p.activeFundCount,industries:p.industries.length,shareSum}));
+          NODE
+            then
+              ready=true
+              break
+            fi
+            echo "Waiting for deployed module ($attempt/90)"
+            sleep 10
+          done
+          [ "$ready" = "true" ]
