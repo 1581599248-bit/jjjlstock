@@ -31,10 +31,13 @@ test("full-industry module uses the active equity and SW level-one scope", async
   assert.match(builder, /qoqChange/);
   assert.match(builder, /申万一级行业（2021）/);
 
-  assert.match(route, /version !== 2/);
+  assert.match(route, /ACTIVE_TYPES/);
+  assert.match(route, /buildPayload/);
+  assert.match(route, /component_stocks/);
   assert.match(route, /主动偏股公募基金/);
   assert.match(route, /申万一级行业（2021）/);
-  assert.doesNotMatch(route, /buildLive/);
+  assert.match(route, /allocationShare/);
+  assert.match(route, /qoqChange/);
 });
 
 test("quarterly pipeline publishes the full-industry snapshot", async () => {
