@@ -30,12 +30,16 @@ type StockDetail = {
 };
 
 type StockSearchIndex = {
+  version?: number;
   period: string;
+  generatedAt?: string;
   stocks: Array<{ stockCode: string; bucket: string }>;
 };
 
 type StockBucketPayload = {
+  version?: number;
   period: string;
+  generatedAt?: string;
   source: string;
   stocks: Record<string, StockDetail>;
 };
@@ -96,23 +100,41 @@ export default function StockInstitutionRanking() {
   useEffect(() => {
     if (!selection) {
       setDetail(null);
+      setSource("");
       setError("");
       return;
     }
     const controller = new AbortController();
+    const refreshKey = Date.now().toString(36);
     setLoading(true);
+    setDetail(null);
+    setSource("");
     setError("");
     (async () => {
-      const indexResponse = await fetch(`/data/stocks/${selection.period}/index.json`, { signal: controller.signal });
+      const indexResponse = await fetch(`/data/stocks/${selection.period}/index.json?refresh=${refreshKey}`, {
+        signal: controller.signal,
+        cache: "no-store",
+        headers: { "cache-control": "no-cache" },
+      });
       if (!indexResponse.ok) throw new Error("机构持仓索引读取失败");
       const index = await indexResponse.json() as StockSearchIndex;
+      if (index.period !== selection.period) throw new Error("机构持仓索引财报期不匹配");
       const item = index.stocks.find((stock) => stock.stockCode === selection.stockCode);
       if (!item) throw new Error("未找到该股票的机构持仓数据");
-      const bucketResponse = await fetch(`/data/stocks/${selection.period}/buckets/${item.bucket}.json`, { signal: controller.signal });
+      const dataVersion = encodeURIComponent(index.generatedAt ?? `${index.version ?? 2}-${refreshKey}`);
+      const bucketResponse = await fetch(`/data/stocks/${selection.period}/buckets/${item.bucket}.json?version=${dataVersion}`, {
+        signal: controller.signal,
+        cache: "no-store",
+        headers: { "cache-control": "no-cache" },
+      });
       if (!bucketResponse.ok) throw new Error("机构持仓明细读取失败");
       const bucket = await bucketResponse.json() as StockBucketPayload;
+      if (bucket.period !== selection.period) throw new Error("机构持仓明细财报期不匹配");
       const nextDetail = bucket.stocks[selection.stockCode];
       if (!nextDetail) throw new Error("未找到该股票的机构持仓明细");
+      if ((bucket.version ?? 1) < 2 || !Array.isArray(nextDetail.institutions)) {
+        throw new Error("机构持仓数据仍为旧版本，请稍后刷新");
+      }
       setDetail(nextDetail);
       setSource(bucket.source ?? "");
     })().catch((reason) => {
@@ -135,7 +157,7 @@ export default function StockInstitutionRanking() {
         <div><span>INSTITUTION HOLDINGS</span><h3>持仓该股票规模前十机构</h3></div>
         <b>{detail?.institutionCount ?? institutions.length} 家</b>
       </header>
-      <p className="institution-ranking-method">基金产品定期报告前十大重仓按基金公司汇总，按披露持仓市值排序；A/C等份额合并后仅计算一次。</p>
+      <p className="institution-ranking-method">基金产品前十大重仓按基金公司汇总，按披露持仓市值排序；A/C等份额合并后仅计算一次。</p>
       {loading ? <div className="institution-ranking-state">正在读取机构持仓排名…</div>
         : error ? <div className="institution-ranking-state error">{error}</div>
         : institutions.length ? <div className="institution-ranking-table" role="region" aria-label="机构持仓前十，可横向滚动" tabIndex={0}>
@@ -153,31 +175,39 @@ export default function StockInstitutionRanking() {
       {source && <small className="institution-ranking-source">数据源：{source}</small>}
     </section>
     <style>{`
-      .stock-institution-ranking-slot { margin: 18px 0; }
-      .institution-ranking-card { padding: 18px; border: 1px solid rgba(116,70,55,.16); border-radius: 18px; background: linear-gradient(145deg,#fffaf6,#fff); box-shadow: 0 10px 30px rgba(72,38,27,.05); }
-      .institution-ranking-card header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
-      .institution-ranking-card header span { display:block; color:#a76550; font-size:11px; font-weight:800; letter-spacing:.12em; }
-      .institution-ranking-card h3 { margin:4px 0 0; font-size:20px; }
-      .institution-ranking-card header>b { color:#8f4c3a; background:#f8e7df; padding:7px 11px; border-radius:999px; white-space:nowrap; }
-      .institution-ranking-method { margin:10px 0 14px; color:#745f57; font-size:13px; line-height:1.7; }
-      .institution-ranking-table { overflow-x:auto; border:1px solid rgba(116,70,55,.12); border-radius:14px; background:#fff; }
-      .institution-ranking-table table { width:100%; min-width:850px; border-collapse:collapse; }
-      .institution-ranking-table th,.institution-ranking-table td { padding:12px 13px; border-bottom:1px solid #f0e5df; text-align:left; white-space:nowrap; }
-      .institution-ranking-table th { background:#9a5141; color:#fff; font-size:12px; }
+      .stock-institution-ranking-slot { margin: 14px 0; font-family: inherit; }
+      .institution-ranking-card { padding: 14px; border: 1px solid rgba(116,70,55,.14); border-radius: 15px; background: #fffaf7; box-shadow: 0 7px 22px rgba(72,38,27,.04); font-family: inherit; color: inherit; }
+      .institution-ranking-card header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+      .institution-ranking-card header span { display:block; color:#a76550; font-size:9px; line-height:1.3; font-weight:800; letter-spacing:.11em; }
+      .institution-ranking-card h3 { margin:3px 0 0; font-family:inherit; font-size:17px; line-height:1.35; font-weight:700; }
+      .institution-ranking-card header>b { color:#8f4c3a; background:#f8e7df; padding:5px 8px; border-radius:999px; white-space:nowrap; font-family:inherit; font-size:12px; line-height:1.2; }
+      .institution-ranking-method { margin:8px 0 11px; color:#806e67; font-family:inherit; font-size:11px; line-height:1.6; }
+      .institution-ranking-table { overflow-x:auto; border:1px solid rgba(116,70,55,.1); border-radius:11px; background:#fff; -webkit-overflow-scrolling:touch; }
+      .institution-ranking-table table { width:100%; min-width:760px; border-collapse:collapse; font-family:inherit; font-size:11px; }
+      .institution-ranking-table th,.institution-ranking-table td { padding:9px 10px; border-bottom:1px solid #f0e5df; text-align:left; white-space:nowrap; font-family:inherit; }
+      .institution-ranking-table th { background:#9a5141; color:#fff; font-size:10px; font-weight:700; }
       .institution-ranking-table tbody tr:last-child td { border-bottom:0; }
       .institution-ranking-table tbody tr:hover { background:#fff8f4; }
       .institution-ranking-table .num { text-align:right; }
       .institution-ranking-table .mono { font-variant-numeric:tabular-nums; }
-      .institution-ranking-table .accent { color:#9a5141; font-weight:800; }
+      .institution-ranking-table .accent { color:#9a5141; font-weight:700; }
       .institution-ranking-table .up { color:#bd3e32; }
       .institution-ranking-table .down { color:#258060; }
-      .institution-rank { display:inline-grid; place-items:center; width:27px; height:27px; border-radius:9px; background:#f3e8e3; color:#7b4a3d; }
+      .institution-rank { display:inline-grid; place-items:center; width:22px; height:22px; border-radius:7px; background:#f3e8e3; color:#7b4a3d; font-size:10px; }
       .institution-rank.r1,.institution-rank.r2,.institution-rank.r3 { background:#9a5141; color:white; }
-      .change-summary { color:#715d56; font-size:12px; }
-      .institution-ranking-state { padding:24px; text-align:center; color:#806b63; background:#fff; border-radius:12px; }
+      .change-summary { color:#715d56; font-size:10px; }
+      .institution-ranking-state { padding:18px 12px; text-align:center; color:#806b63; background:#fff; border-radius:10px; font-family:inherit; font-size:12px; line-height:1.55; }
       .institution-ranking-state.error { color:#a33a33; }
-      .institution-ranking-source { display:block; margin-top:10px; color:#9a8982; line-height:1.5; }
-      @media (max-width: 640px) { .institution-ranking-card { padding:14px; border-radius:15px; } .institution-ranking-card h3 { font-size:18px; } }
+      .institution-ranking-source { display:block; margin-top:8px; color:#9a8982; font-family:inherit; font-size:9px; line-height:1.45; }
+      @media (max-width: 640px) {
+        .stock-institution-ranking-slot { margin:12px 0; }
+        .institution-ranking-card { padding:12px; border-radius:13px; }
+        .institution-ranking-card h3 { font-size:16px; }
+        .institution-ranking-card header>b { font-size:11px; padding:4px 7px; }
+        .institution-ranking-method { font-size:10px; }
+        .institution-ranking-table table { min-width:700px; font-size:10px; }
+        .institution-ranking-table th,.institution-ranking-table td { padding:8px 9px; }
+      }
     `}</style>
   </>, target);
 }
