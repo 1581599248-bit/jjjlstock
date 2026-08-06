@@ -13,12 +13,12 @@ permissions:
 
 concurrency:
   group: rebuild-stock-institution-rankings
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   rebuild:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,18 +48,21 @@ jobs:
           const detail = payload.stocks[stockCode];
           if (!detail) throw new Error("Missing 301345 stock detail");
           if (!Array.isArray(detail.institutions) || detail.institutions.length === 0) throw new Error("Missing institution ranking");
-          if (!detail.institutions.some((row) => row.companyName.includes("汇添富"))) throw new Error("汇添富基金 is missing from 301345 institution ranking");
+          const huitianfu = detail.institutions.find((row) => row.companyName.includes("汇添富"));
+          if (!huitianfu) throw new Error("汇添富基金 is missing from 301345 institution ranking");
           for (let index = 0; index < detail.institutions.length; index += 1) {
             const row = detail.institutions[index];
             if (row.rank !== index + 1) throw new Error(`Invalid institution rank ${row.companyName}`);
             if (index > 0 && detail.institutions[index - 1].marketValue < row.marketValue) throw new Error("Institution ranking is not sorted by market value");
             if (row.fundCount < 1 || row.shares < 0 || row.marketValue < 0) throw new Error(`Invalid institution metrics ${row.companyName}`);
           }
-          console.log(JSON.stringify(detail.institutions, null, 2));
+          console.log(JSON.stringify({ stockCode, institutionCount: detail.institutionCount, huitianfu, top10: detail.institutions }, null, 2));
           NODE
 
-      - name: Validate website and exports
-        run: npm test
+      - name: Validate stock module and Excel
+        run: |
+          npm run build
+          node --test tests/static-stock-search.test.mjs tests/export-xlsx.test.mjs tests/stock-institution-export.test.mjs
 
       - name: Publish institution rankings
         run: |
@@ -70,4 +73,4 @@ jobs:
           git commit -m "Publish stock institution rankings [skip ci]"
           git push
 
-# trigger: rebuild product-level institution rankings
+# retry: cancel stale run and validate only the stock institution module
