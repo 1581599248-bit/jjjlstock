@@ -1,0 +1,167 @@
+name: Add fund product stock search
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/add-fund-product-stock-search.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: add-fund-product-stock-search
+  cancel-in-progress: true
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Add stock matching to existing fund product search
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/page.tsx')
+          text = path.read_text()
+
+          replacements = [
+            (
+              '  const [fundHoldings, setFundHoldings] = useState<FundHoldings | null>(null);',
+              '  const [fundHoldings, setFundHoldings] = useState<FundHoldings | null>(null);\n  const [fundProducts, setFundProducts] = useState<StaticFundProduct[]>([]);'
+            ),
+            (
+              '    setCompanyData(null);',
+              '    setCompanyData(null); setFundProducts([]);'
+            ),
+            (
+              '      setCompanyData({ company, funds, mode: "static" });',
+              '      setFundProducts(payload.products);\n      setCompanyData({ company, funds, mode: "static" });'
+            ),
+            (
+              '    }).catch(async () => {\n      const response = await fetch(`/api/company?id=${encodeURIComponent(companyId)}&period=${encodeURIComponent(period)}&metadata=3`);',
+              '    }).catch(async () => {\n      setFundProducts([]);\n      const response = await fetch(`/api/company?id=${encodeURIComponent(companyId)}&period=${encodeURIComponent(period)}&metadata=3`);'
+            ),
+            (
+              '  const filteredFunds = useMemo(() => { const key = query.trim().toLowerCase(); return key ? funds.filter((item) => `${item.code} ${item.name} ${item.pinyin} ${item.managers.join(" ")}`.toLowerCase().includes(key)) : funds; }, [funds, query]);',
+              '''  const fundQueryKey = query.trim().replace(/\\s+/g, "").toLowerCase();
+  const fundStockMatches = useMemo(() => {
+    const matches = new Map<string, Holding>();
+    if (!fundQueryKey) return matches;
+    for (const product of fundProducts) {
+      const holding = product.holdings.find((item) => `${item.stockCode}${item.stockName}`.replace(/\\s+/g, "").toLowerCase().includes(fundQueryKey));
+      if (holding) matches.set(product.code, holding);
+    }
+    return matches;
+  }, [fundProducts, fundQueryKey]);
+  const filteredFunds = useMemo(() => {
+    const key = query.trim().toLowerCase();
+    if (!key) return funds;
+    return funds.filter((item) => `${item.code} ${item.name} ${item.pinyin} ${item.managers.join(" ")}`.toLowerCase().includes(key) || fundStockMatches.has(item.code));
+  }, [funds, query, fundStockMatches]);'''
+            ),
+            (
+              '  const selectedFund = funds.find((item) => item.code === selectedFundCode) ?? funds[0];',
+              '''  const selectedFund = filteredFunds.find((item) => item.code === selectedFundCode) ?? filteredFunds[0] ?? funds.find((item) => item.code === selectedFundCode) ?? funds[0];
+
+  useEffect(() => {
+    if (mode !== "fund" || !filteredFunds.length) return;
+    if (!filteredFunds.some((item) => item.code === selectedFundCode)) setSelectedFundCode(filteredFunds[0].code);
+  }, [mode, filteredFunds, selectedFundCode]);'''
+            ),
+            (
+              'mode === "fund" ? "搜索基金代码、名称、经理"',
+              'mode === "fund" ? "搜索基金代码、名称、经理或重仓股票"'
+            ),
+            (
+              '<div className="result-head"><strong>全部基金</strong><span>{filteredFunds.length} 条 · 横向滑动</span></div>',
+              '<div className="result-head"><strong>{query.trim() && fundStockMatches.size ? "重仓股票匹配基金" : "全部基金"}</strong><span>{filteredFunds.length} 条 · 横向滑动</span></div>'
+            ),
+            (
+              '<small className="fund-scale">{item.netAsset !== null ? "净资产规模" : "期末份额规模"} {fundScale(item)}</small></button>',
+              '<small className="fund-scale">{item.netAsset !== null ? "净资产规模" : "期末份额规模"} {fundScale(item)}</small>{fundStockMatches.get(item.code) ? <small className="fund-stock-hit">重仓 {fundStockMatches.get(item.code)!.stockName} · 第 {fundStockMatches.get(item.code)!.rank} 名 · 净值 {fmt(fundStockMatches.get(item.code)!.weight, 2)}%</small> : null}</button>'
+            ),
+          ]
+
+          for old, new in replacements:
+            count = text.count(old)
+            if count != 1:
+              raise SystemExit(f'Expected exactly one match, found {count}: {old[:120]!r}')
+            text = text.replace(old, new)
+
+          path.write_text(text)
+
+          css = Path('app/globals.css')
+          css_text = css.read_text()
+          old_css = '.entity-rail>button.active .fund-scale{color:#fff}'
+          new_css = '''.entity-rail>button.active .fund-scale{color:#fff}
+.entity-rail>button .fund-stock-hit{margin-top:4px;padding-top:4px;color:#a33a30;border-top:1px dashed #ead7d2;font-weight:800}
+.entity-rail>button.active .fund-stock-hit{color:#fff2ed;border-top-color:rgba(255,255,255,.3)}'''
+          if css_text.count(old_css) != 1:
+            raise SystemExit('Expected fund-scale CSS anchor exactly once')
+          css.write_text(css_text.replace(old_css, new_css))
+
+          test = Path('tests/fund-product-stock-search.test.mjs')
+          test.write_text('''import test from "node:test";\nimport assert from "node:assert/strict";\nimport { readFile } from "node:fs/promises";\n\ntest("fund product search also matches top-held stocks", async () => {\n  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");\n  assert.match(source, /搜索基金代码、名称、经理或重仓股票/);\n  assert.match(source, /product\\.holdings\\.find/);\n  assert.match(source, /fundStockMatches\\.has\\(item\\.code\\)/);\n  assert.match(source, /重仓股票匹配基金/);\n  assert.match(source, /fund-stock-hit/);\n});\n''')
+
+          Path('public/fund-product-stock-search-version.txt').write_text('fund-product-stock-search-20260806-2359\n')
+          PY
+
+      - run: npm ci
+
+      - name: Run feature test
+        run: node --test tests/fund-product-stock-search.test.mjs
+
+      - name: Run full test suite
+        run: npm test
+
+      - name: Commit fund product stock search
+        run: |
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add app/page.tsx app/globals.css tests/fund-product-stock-search.test.mjs public/fund-product-stock-search-version.txt
+          git commit -m "Enable fund product search by stock holding"
+          git push
+
+      - name: Wait for Render deployment
+        env:
+          BASE_URL: https://fund-holdings-radar.onrender.com
+          EXPECTED_MARKER: fund-product-stock-search-20260806-2359
+        run: |
+          ready=false
+          for attempt in $(seq 1 90); do
+            value=$(curl -fsS --max-time 30 "$BASE_URL/fund-product-stock-search-version.txt?attempt=$attempt" 2>/dev/null || true)
+            if [ "$value" = "$EXPECTED_MARKER" ]; then
+              page=$(curl -fsS --max-time 30 "$BASE_URL/?attempt=$attempt" 2>/dev/null || true)
+              if printf '%s' "$page" | grep -q '搜索基金代码、名称、经理或重仓股票'; then
+                echo "Render deployment and fund stock search UI are live"
+                ready=true
+                break
+              fi
+            fi
+            echo "Waiting for Render deployment ($attempt/90)"
+            sleep 10
+          done
+          if [ "$ready" != "true" ]; then
+            echo "Render did not publish the fund product stock search in time"
+            exit 1
+          fi
+
+      - name: Remove one-off workflow
+        run: |
+          git pull --rebase
+          git rm .github/workflows/add-fund-product-stock-search.yml
+          git commit -m "Complete fund product stock search deployment [skip ci]"
+          git push
