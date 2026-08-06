@@ -5,13 +5,17 @@ import { createPortal } from "react-dom";
 import { exportStockReverseLookupWorkbook, type StockReverseExportDetail } from "./lib/export-stock-reverse-xlsx";
 
 type StockSearchIndex = {
+  version?: number;
   period: string;
+  generatedAt?: string;
   source: string;
   stocks: Array<{ stockCode: string; stockName: string; bucket: string }>;
 };
 
 type StockBucketPayload = {
+  version?: number;
   period: string;
+  generatedAt?: string;
   source: string;
   stocks: Record<string, StockReverseExportDetail>;
 };
@@ -56,19 +60,28 @@ export default function StockExportEnhancer() {
     setLoading(true);
     setFailed(false);
     try {
-      const indexResponse = await fetch(`/data/stocks/${selection.period}/index.json`);
+      const refreshKey = Date.now().toString(36);
+      const indexResponse = await fetch(`/data/stocks/${selection.period}/index.json?refresh=${refreshKey}`, {
+        cache: "no-store",
+        headers: { "cache-control": "no-cache" },
+      });
       if (!indexResponse.ok) throw new Error("股票反查索引读取失败");
       const index = await indexResponse.json() as StockSearchIndex;
       if (index.period !== selection.period) throw new Error("股票反查财报期不匹配");
       const item = index.stocks.find((stock) => stock.stockCode === selection.stockCode);
       if (!item) throw new Error("未找到该股票的反查索引");
 
-      const bucketResponse = await fetch(`/data/stocks/${selection.period}/buckets/${item.bucket}.json`);
+      const dataVersion = encodeURIComponent(index.generatedAt ?? `${index.version ?? 2}-${refreshKey}`);
+      const bucketResponse = await fetch(`/data/stocks/${selection.period}/buckets/${item.bucket}.json?version=${dataVersion}`, {
+        cache: "no-store",
+        headers: { "cache-control": "no-cache" },
+      });
       if (!bucketResponse.ok) throw new Error("股票机构明细读取失败");
       const bucket = await bucketResponse.json() as StockBucketPayload;
       if (bucket.period !== selection.period) throw new Error("股票机构明细财报期不匹配");
       const detail = bucket.stocks[selection.stockCode];
       if (!detail) throw new Error("未找到该股票的机构明细");
+      if ((bucket.version ?? 1) < 2 || !Array.isArray(detail.institutions)) throw new Error("股票机构数据仍为旧版本");
 
       exportStockReverseLookupWorkbook({ period: selection.period, source: bucket.source || index.source, detail });
     } catch (error) {
