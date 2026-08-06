@@ -1,8 +1,11 @@
 {
   "success": true,
-  "stage": "source-published",
-  "recordedAt": "2026-08-07T02:05:00+08:00",
+  "stage": "deployment-triggered",
+  "recordedAt": "2026-08-07T02:18:39+08:00",
   "scope": "普通股票型+偏股混合型+灵活配置型+平衡混合型；申万一级行业（2021）",
   "period": "2026-06-30",
-  "columns": ["排名", "行业", "总市值", "Q2占比", "环比变动"]
+  "placement": "股票配置之后",
+  "moduleName": "全行业",
+  "columns": ["排名", "行业", "总市值", "Q2占比", "环比变动"],
+  "dataMode": "Q1/Q2静态生成，静态缺失时使用同口径实时聚合"
 }
