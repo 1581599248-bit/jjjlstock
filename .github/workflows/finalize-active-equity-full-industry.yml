@@ -63,7 +63,7 @@ jobs:
 
       - name: Commit validated module and data
         run: |
-          printf '%s\n' 'active-equity-full-industry-20260807-0155' > public/active-equity-full-industry-version.txt
+          printf '%s\n' 'active-equity-full-industry-20260807-0205' > public/active-equity-full-industry-version.txt
           node --input-type=module <<'NODE'
           import { writeFile } from 'node:fs/promises';
           await writeFile('public/active-equity-full-industry-status.json', JSON.stringify({
@@ -78,7 +78,8 @@ jobs:
           git config user.email "fund-holdings-bot@users.noreply.github.com"
           git add app/page.tsx app/globals.css public/data/market-industries public/active-equity-full-industry-version.txt public/active-equity-full-industry-status.json
           git commit -m "Publish active equity SW level-one full-industry module"
-          git push
+          git pull --rebase origin main
+          git push origin HEAD:main
 
       - name: Wait for Render deployment
         run: |
@@ -87,7 +88,7 @@ jobs:
             marker=$(curl -fsS --max-time 30 "https://fund-holdings-radar.onrender.com/active-equity-full-industry-version.txt?attempt=$attempt" 2>/dev/null || true)
             page=$(curl -fsS --max-time 30 "https://fund-holdings-radar.onrender.com/?attempt=$attempt" 2>/dev/null || true)
             api=$(curl -fsS --max-time 60 "https://fund-holdings-radar.onrender.com/api/market-industries?period=2026-06-30&attempt=$attempt" 2>/dev/null || true)
-            if [ "$marker" = "active-equity-full-industry-20260807-0155" ] \
+            if [ "$marker" = "active-equity-full-industry-20260807-0205" ] \
               && printf '%s' "$page" | grep -q '股票配置' \
               && printf '%s' "$page" | grep -q '全行业' \
               && API_PAYLOAD="$api" node --input-type=module -e '
