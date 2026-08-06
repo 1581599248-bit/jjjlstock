@@ -191,24 +191,24 @@ export default function StockInstitutionRanking() {
       {source && <small className="institution-ranking-source">数据源：{source}</small>}
     </section>
     <style>{`
-      .stock-institution-ranking-slot { margin: 14px 0; font-family: inherit; }
-      .institution-ranking-card { padding: 14px; border: 1px solid rgba(116,70,55,.14); border-radius: 15px; background: #fffaf7; box-shadow: 0 7px 22px rgba(72,38,27,.04); font-family: inherit; color: inherit; }
-      .institution-ranking-card header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+      .stock-institution-ranking-slot { margin: 13px 6px; font-family: inherit; }
+      .institution-ranking-card { padding: 13px; border: 1px solid rgba(116,70,55,.14); border-radius: 15px; background: #fffaf7; box-shadow: 0 7px 22px rgba(72,38,27,.04); font-family: inherit; color: inherit; }
+      .institution-ranking-card header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
       .institution-ranking-card header span { display:block; color:#a76550; font-size:9px; line-height:1.3; font-weight:800; letter-spacing:.11em; }
       .institution-ranking-card h3 { margin:3px 0 0; font-family:inherit; font-size:17px; line-height:1.35; font-weight:700; }
       .institution-ranking-card header>b { color:#8f4c3a; background:#f8e7df; padding:5px 8px; border-radius:999px; white-space:nowrap; font-family:inherit; font-size:12px; line-height:1.2; }
-      .institution-ranking-method { margin:8px 0 11px; color:#806e67; font-family:inherit; font-size:11px; line-height:1.6; }
+      .institution-ranking-method { margin:7px 0 10px; color:#806e67; font-family:inherit; font-size:11px; line-height:1.55; }
       .institution-ranking-table { overflow-x:auto; border:1px solid rgba(116,70,55,.1); border-radius:11px; background:#fff; -webkit-overflow-scrolling:touch; }
-      .institution-ranking-table table { width:650px; min-width:650px; table-layout:fixed; border-collapse:collapse; font-family:inherit; font-size:11px; }
-      .institution-ranking-table col.col-rank { width:54px; }
-      .institution-ranking-table col.col-company { width:138px; }
-      .institution-ranking-table col.col-fund-count { width:88px; }
-      .institution-ranking-table col.col-shares { width:91px; }
-      .institution-ranking-table col.col-market-value { width:104px; }
-      .institution-ranking-table col.col-change-shares { width:105px; }
-      .institution-ranking-table col.col-change { width:70px; }
-      .institution-ranking-table th,.institution-ranking-table td { padding:9px 8px; border-bottom:1px solid #f0e5df; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:inherit; }
-      .institution-ranking-table th { background:#9a5141; color:#fff; font-size:10px; font-weight:700; }
+      .institution-ranking-table table { width:566px; min-width:566px; table-layout:fixed; border-collapse:collapse; font-family:inherit; font-size:10px; }
+      .institution-ranking-table col.col-rank { width:44px; }
+      .institution-ranking-table col.col-company { width:112px; }
+      .institution-ranking-table col.col-fund-count { width:72px; }
+      .institution-ranking-table col.col-shares { width:76px; }
+      .institution-ranking-table col.col-market-value { width:88px; }
+      .institution-ranking-table col.col-change-shares { width:94px; }
+      .institution-ranking-table col.col-change { width:60px; }
+      .institution-ranking-table th,.institution-ranking-table td { padding:8px 6px; border-bottom:1px solid #f0e5df; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:inherit; }
+      .institution-ranking-table th { background:#9a5141; color:#fff; font-size:9px; font-weight:700; }
       .institution-ranking-table tbody tr:last-child td { border-bottom:0; }
       .institution-ranking-table tbody tr:hover { background:#fff8f4; }
       .institution-ranking-table .fund-count { text-align:center; }
@@ -217,30 +217,30 @@ export default function StockInstitutionRanking() {
       .institution-ranking-table .accent { color:#9a5141; font-weight:700; }
       .institution-ranking-table .up { color:#bd3e32; }
       .institution-ranking-table .down { color:#258060; }
-      .institution-rank { display:inline-grid; place-items:center; width:22px; height:22px; border-radius:7px; background:#f3e8e3; color:#7b4a3d; font-size:10px; }
+      .institution-rank { display:inline-grid; place-items:center; width:21px; height:21px; border-radius:7px; background:#f3e8e3; color:#7b4a3d; font-size:10px; }
       .institution-rank.r1,.institution-rank.r2,.institution-rank.r3 { background:#9a5141; color:white; }
-      .overall-change { display:inline-flex; align-items:center; justify-content:center; min-width:36px; padding:3px 6px; border-radius:999px; font-size:10px; font-weight:700; line-height:1.2; }
+      .overall-change { display:inline-flex; align-items:center; justify-content:center; min-width:34px; padding:3px 5px; border-radius:999px; font-size:9px; font-weight:700; line-height:1.2; }
       .overall-change.red { color:#c43f34; background:#fff0ed; }
       .overall-change.green { color:#27805f; background:#edf8f3; }
       .overall-change.gray { color:#77706d; background:#f1efee; }
       .institution-ranking-state { padding:18px 12px; text-align:center; color:#806b63; background:#fff; border-radius:10px; font-family:inherit; font-size:12px; line-height:1.55; }
       .institution-ranking-state.error { color:#a33a33; }
-      .institution-ranking-source { display:block; margin-top:8px; color:#9a8982; font-family:inherit; font-size:9px; line-height:1.45; }
+      .institution-ranking-source { display:block; margin-top:7px; color:#9a8982; font-family:inherit; font-size:9px; line-height:1.4; }
       @media (max-width: 640px) {
-        .stock-institution-ranking-slot { margin:12px 0; }
-        .institution-ranking-card { padding:12px; border-radius:13px; }
+        .stock-institution-ranking-slot { margin:11px 7px; }
+        .institution-ranking-card { padding:11px; border-radius:13px; }
         .institution-ranking-card h3 { font-size:16px; }
         .institution-ranking-card header>b { font-size:11px; padding:4px 7px; }
         .institution-ranking-method { font-size:10px; }
-        .institution-ranking-table table { width:620px; min-width:620px; font-size:10px; }
-        .institution-ranking-table col.col-rank { width:50px; }
-        .institution-ranking-table col.col-company { width:128px; }
-        .institution-ranking-table col.col-fund-count { width:84px; }
-        .institution-ranking-table col.col-shares { width:84px; }
-        .institution-ranking-table col.col-market-value { width:98px; }
-        .institution-ranking-table col.col-change-shares { width:102px; }
-        .institution-ranking-table col.col-change { width:74px; }
-        .institution-ranking-table th,.institution-ranking-table td { padding:8px 7px; }
+        .institution-ranking-table table { width:540px; min-width:540px; font-size:9px; }
+        .institution-ranking-table col.col-rank { width:42px; }
+        .institution-ranking-table col.col-company { width:106px; }
+        .institution-ranking-table col.col-fund-count { width:68px; }
+        .institution-ranking-table col.col-shares { width:72px; }
+        .institution-ranking-table col.col-market-value { width:84px; }
+        .institution-ranking-table col.col-change-shares { width:92px; }
+        .institution-ranking-table col.col-change { width:76px; }
+        .institution-ranking-table th,.institution-ranking-table td { padding:7px 5px; }
       }
     `}</style>
   </>, target);
