@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildStockReverseLookupWorkbook } from "../app/lib/export-stock-reverse-xlsx.ts";
 
-test("stock reverse lookup export includes the top institution ranking sheet", () => {
+test("stock reverse lookup export mirrors the website institution table", () => {
   const bytes = buildStockReverseLookupWorkbook({
     period: "2026-06-30",
     source: "东方财富基金定期报告测试数据",
@@ -46,16 +46,21 @@ test("stock reverse lookup export includes the top institution ranking sheet", (
   assert.equal(content.match(/<sheet name=/g)?.length, 3);
   assert.match(content, /<sheet name="机构持仓排名"/);
   assert.match(content, /涛涛车业｜持仓该股票规模前十机构｜2026中报 · 2026-06-30/);
-  assert.match(content, /汇添富基金/);
+  assert.match(content, /机构排名/);
+  assert.match(content, /基金公司/);
+  assert.match(content, /持仓基金数/);
   assert.match(content, /持股数量\(万股\)/);
   assert.match(content, /持仓市值\(万元\)/);
   assert.match(content, /净增减持股数\(万股\)/);
-  assert.match(content, /新进基金数/);
-  assert.match(content, /增持基金数/);
-  assert.match(content, /减持基金数/);
-  assert.match(content, /不变基金数/);
-  assert.match(content, /<c r="B3" s="3"><v>1<\/v><\/c>/);
-  assert.match(content, /<c r="E3" s="3"><v>48.25<\/v><\/c>/);
-  assert.match(content, /<c r="F3" s="3"><v>10860.5<\/v><\/c>/);
+  assert.match(content, /持仓变化/);
+  assert.doesNotMatch(content, /新进基金数|增持基金数|减持基金数|不变基金数|其他基金数/);
+  assert.match(content, /<c r="A3" s="3"><v>1<\/v><\/c>/);
+  assert.match(content, /<c r="B3" s="0" t="inlineStr"><is><t xml:space="preserve">汇添富基金<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="C3" s="3"><v>4<\/v><\/c>/);
+  assert.match(content, /<c r="D3" s="3"><v>48.25<\/v><\/c>/);
+  assert.match(content, /<c r="E3" s="3"><v>10860.5<\/v><\/c>/);
+  assert.match(content, /<c r="F3" s="3"><v>12.5<\/v><\/c>/);
+  assert.match(content, /<c r="G3" s="0" t="inlineStr"><is><t xml:space="preserve">增持<\/t><\/is><\/c>/);
+  assert.match(content, /<c r="G4" s="0" t="inlineStr"><is><t xml:space="preserve">减持<\/t><\/is><\/c>/);
   assert.doesNotMatch(content, /<sheet name="股票概览"/);
 });
