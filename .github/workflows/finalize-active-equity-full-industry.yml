@@ -1,0 +1,184 @@
+name: Finalize active equity full-industry module
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/finalize-active-equity-full-industry.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-active-equity-full-industry
+  cancel-in-progress: true
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate source, Q1/Q2 snapshots, and validate
+        id: generate
+        shell: bash
+        run: |
+          set +e
+          set -o pipefail
+          {
+            node scripts/apply-fund-product-search-patch.mjs
+            node scripts/build-static-market-industries.mjs --period=2026-03-31 --minimum-classification-coverage=0.90
+            node scripts/build-static-market-industries.mjs --period=2026-06-30 --minimum-classification-coverage=0.90
+            node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const q1 = JSON.parse(await readFile('public/data/market-industries/2026-03-31.json', 'utf8'));
+          const q2 = JSON.parse(await readFile('public/data/market-industries/2026-06-30.json', 'utf8'));
+          for (const payload of [q1, q2]) {
+            if (payload.version !== 2) throw new Error(`${payload.period}: version mismatch`);
+            if (payload.scope?.fundUniverse !== '主动偏股公募基金') throw new Error(`${payload.period}: fund universe mismatch`);
+            if (payload.scope?.classification !== '申万一级行业（2021）') throw new Error(`${payload.period}: classification mismatch`);
+            if (!Array.isArray(payload.industries) || payload.industries.length < 30) throw new Error(`${payload.period}: incomplete industries`);
+            const shareSum = payload.industries.reduce((sum, row) => sum + Number(row.allocationShare || 0), 0);
+            if (Math.abs(shareSum - 100) > 0.05) throw new Error(`${payload.period}: shares sum to ${shareSum}`);
+            if (payload.classificationCoverage < 0.90) throw new Error(`${payload.period}: classification coverage below 90%`);
+          }
+          if (q2.period !== '2026-06-30' || q2.quarter !== 'Q2') throw new Error('Q2 identity mismatch');
+          const expectedTypes = ['普通股票型', '偏股混合型', '灵活配置型', '平衡混合型'];
+          if (JSON.stringify(q2.scope.fundTypes) !== JSON.stringify(expectedTypes)) throw new Error('Q2 fund types mismatch');
+          if (q2.industries.filter((row) => row.qoqChange !== null).length < 25) throw new Error('Q2 quarter-over-quarter comparison incomplete');
+          console.log(JSON.stringify({ q1Funds: q1.activeFundCount, q2Funds: q2.activeFundCount, q2Industries: q2.industries.length, q2Coverage: q2.classificationCoverage }));
+          NODE
+            npm test
+          } 2>&1 | tee /tmp/active-equity-full-industry.log
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Record generation failure
+        if: steps.generate.outputs.status != '0'
+        shell: bash
+        run: |
+          tail -c 20000 /tmp/active-equity-full-industry.log > /tmp/log-tail.txt || true
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          const log = await readFile('/tmp/log-tail.txt', 'utf8').catch(() => 'log unavailable');
+          await writeFile('public/active-equity-full-industry-status.json', JSON.stringify({
+            success: false,
+            stage: 'generation',
+            recordedAt: new Date().toISOString(),
+            log,
+          }, null, 2));
+          NODE
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add public/active-equity-full-industry-status.json
+          git commit -m "Record active equity full-industry generation failure [skip ci]"
+          git push
+          exit 1
+
+      - name: Commit validated module and snapshots
+        if: steps.generate.outputs.status == '0'
+        shell: bash
+        run: |
+          printf '%s\n' 'active-equity-full-industry-20260807-0128' > public/active-equity-full-industry-version.txt
+          node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          await writeFile('public/active-equity-full-industry-status.json', JSON.stringify({
+            success: true,
+            stage: 'generated-and-tested',
+            recordedAt: new Date().toISOString(),
+            scope: '普通股票型+偏股混合型+灵活配置型+平衡混合型；申万一级行业（2021）',
+            periods: ['2026-03-31', '2026-06-30'],
+          }, null, 2));
+          NODE
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add app/page.tsx app/globals.css public/data/market-industries public/active-equity-full-industry-version.txt public/active-equity-full-industry-status.json
+          git commit -m "Publish active equity SW level-one full-industry module"
+          git push
+
+      - name: Verify Render deployment
+        if: steps.generate.outputs.status == '0'
+        id: deploy
+        shell: bash
+        run: |
+          set +e
+          ready=false
+          for attempt in $(seq 1 120); do
+            marker=$(curl -fsS --max-time 30 "https://fund-holdings-radar.onrender.com/active-equity-full-industry-version.txt?attempt=$attempt" 2>/dev/null || true)
+            page=$(curl -fsS --max-time 30 "https://fund-holdings-radar.onrender.com/?attempt=$attempt" 2>/dev/null || true)
+            api=$(curl -fsS --max-time 60 "https://fund-holdings-radar.onrender.com/api/market-industries?period=2026-06-30&attempt=$attempt" 2>/dev/null || true)
+            if [ "$marker" = "active-equity-full-industry-20260807-0128" ] \
+              && printf '%s' "$page" | grep -q '股票配置' \
+              && printf '%s' "$page" | grep -q '全行业' \
+              && API_PAYLOAD="$api" node --input-type=module -e '
+                const p = JSON.parse(process.env.API_PAYLOAD || "{}");
+                const ok = p.version === 2 && p.period === "2026-06-30" && p.quarter === "Q2"
+                  && p.scope?.fundUniverse === "主动偏股公募基金"
+                  && p.scope?.classification === "申万一级行业（2021）"
+                  && Array.isArray(p.industries) && p.industries.length >= 30
+                  && p.industries.every((r) => Number.isInteger(r.rank) && r.industry && Number.isFinite(r.marketValue) && Number.isFinite(r.allocationShare));
+                if (!ok) process.exit(1);
+              '; then
+              ready=true
+              break
+            fi
+            echo "Waiting for Render deployment ($attempt/120)"
+            sleep 10
+          done
+          if [ "$ready" = "true" ]; then
+            echo "status=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=1" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+
+      - name: Record deployment failure
+        if: steps.generate.outputs.status == '0' && steps.deploy.outputs.status != '0'
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          await writeFile('public/active-equity-full-industry-status.json', JSON.stringify({
+            success: false,
+            stage: 'deployment-verification',
+            recordedAt: new Date().toISOString(),
+          }, null, 2));
+          NODE
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add public/active-equity-full-industry-status.json
+          git commit -m "Record active equity full-industry deployment failure [skip ci]"
+          git push
+          exit 1
+
+      - name: Complete deployment and remove one-off workflow
+        if: steps.generate.outputs.status == '0' && steps.deploy.outputs.status == '0'
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          await writeFile('public/active-equity-full-industry-status.json', JSON.stringify({
+            success: true,
+            stage: 'live',
+            recordedAt: new Date().toISOString(),
+            scope: '普通股票型+偏股混合型+灵活配置型+平衡混合型；申万一级行业（2021）',
+            period: '2026-06-30',
+          }, null, 2));
+          NODE
+          git pull --rebase
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add public/active-equity-full-industry-status.json
+          git rm .github/workflows/finalize-active-equity-full-industry.yml
+          git commit -m "Complete active equity full-industry deployment [skip ci]"
+          git push
