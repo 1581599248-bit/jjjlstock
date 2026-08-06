@@ -1,39 +1,47 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { parseCompanyIndustryAllocation } from "../scripts/lib/market-industry-parser.mjs";
 
-test("parses a company industry allocation table for an exact report period", () => {
-  const html = `
-    <h3>测试基金 2026年2季度股票投资明细(全部)</h3>
-    <p>截止至：<font>2026-06-30</font></p>
-    <table><thead><tr><th>序号</th><th>行业类别</th><th>相关链接</th><th>本公司持有基金数</th><th>占净值比例</th><th>市值（万元）</th></tr></thead>
-    <tbody>
-      <tr><td>1</td><td>制造业</td><td>详情</td><td>82</td><td>18.48%</td><td>632,096.13</td></tr>
-      <tr><td>2</td><td>金融业</td><td>详情</td><td>28</td><td>4.50%</td><td>153,948.24</td></tr>
-    </tbody></table>`;
-  assert.deepEqual(parseCompanyIndustryAllocation(html, "2026-06-30"), [
-    { rank: 1, industry: "制造业", fundCount: 82, navWeight: 18.48, marketValue: 632096.13 },
-    { rank: 2, industry: "金融业", fundCount: 28, navWeight: 4.5, marketValue: 153948.24 },
-  ]);
-  assert.deepEqual(parseCompanyIndustryAllocation(html, "2026-03-31"), []);
-});
-
-test("market industry module is mounted as a dedicated full-market tab", async () => {
+test("full-industry module uses the active equity and SW level-one scope", async () => {
   const [component, patch, builder, route] = await Promise.all([
     readFile(new URL("../app/market-industry-allocation.tsx", import.meta.url), "utf8"),
     readFile(new URL("../scripts/apply-fund-product-search-patch.mjs", import.meta.url), "utf8"),
     readFile(new URL("../scripts/build-static-market-industries.mjs", import.meta.url), "utf8"),
     readFile(new URL("../app/api/market-industries/route.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(component, /全市场行业配置/);
-  assert.match(component, /占公募净值/);
-  assert.match(component, /股票仓位占比/);
-  assert.match(component, /\/api\/market-industries\?period=/);
-  assert.match(patch, /行业配置/);
+
+  assert.match(component, /<h2>全行业<\/h2>/);
+  assert.match(component, /普通股票型 \+ 偏股混合型 \+ 灵活配置型 \+ 平衡混合型/);
+  assert.match(component, /申万一级行业/);
+  assert.match(component, /<th>排名<\/th><th>行业<\/th><th className="num">总市值<\/th>/);
+  assert.match(component, /\{quarterLabel\(period\)\}占比/);
+  assert.match(component, /环比变动/);
+  assert.doesNotMatch(component, /占公募净值/);
+  assert.doesNotMatch(component, /股票仓位占比/);
+
+  const stockTab = patch.indexOf(">股票配置</button>");
+  const industryTab = patch.indexOf(">全行业</button>");
+  assert.ok(stockTab >= 0 && industryTab > stockTab, "全行业 must be placed after 股票配置");
   assert.match(patch, /MarketIndustryAllocation/);
-  assert.match(builder, /Company\/f10\/hypz_/);
-  assert.match(builder, /coveredCompanyCount/);
-  assert.match(route, /\/data\/market-industries\/\$\{period\}\.json/);
-  assert.match(route, /buildLive/);
+
+  for (const fundType of ["股票型", "混合型-偏股", "混合型-灵活", "混合型-平衡"]) assert.match(builder, new RegExp(fundType));
+  assert.match(builder, /indextype: "一级行业"/);
+  assert.match(builder, /component_stocks/);
+  assert.match(builder, /allocationShare/);
+  assert.match(builder, /qoqChange/);
+  assert.match(builder, /申万一级行业（2021）/);
+
+  assert.match(route, /version !== 2/);
+  assert.match(route, /主动偏股公募基金/);
+  assert.match(route, /申万一级行业（2021）/);
+  assert.doesNotMatch(route, /buildLive/);
+});
+
+test("quarterly pipeline publishes the full-industry snapshot", async () => {
+  const [marketBuilder, refreshWorkflow] = await Promise.all([
+    readFile(new URL("../scripts/build-static-market.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../.github/workflows/quarterly-refresh.yml", import.meta.url), "utf8"),
+  ]);
+  assert.match(marketBuilder, /build-static-market-industries\.mjs/);
+  assert.match(refreshWorkflow, /public\/data\/market-industries/);
 });
