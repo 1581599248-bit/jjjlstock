@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import StockExportEnhancer from "./stock-export-enhancer";
+import StockInstitutionRanking from "./stock-institution-ranking";
 
 export default function Template({ children }: { children: ReactNode }) {
   return <>
     {children}
+    <StockInstitutionRanking />
     <StockExportEnhancer />
     <style>{`
       .hero h1::after {
