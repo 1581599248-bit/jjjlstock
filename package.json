@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vinext dev",
-    "build": "vinext build",
+    "build": "node scripts/apply-fund-product-search-patch.mjs && vinext build",
     "start": "vinext start",
     "data:sync:fund-types": "node scripts/sync-fund-types.mjs",
     "data:build:q1": "node scripts/build-static-market.mjs --period=2026-03-31",
@@ -19,7 +19,7 @@
     "data:snapshot:q1": "node scripts/snapshot-current-market.mjs --period=2026-03-31",
     "data:refresh": "node scripts/refresh-quarter.mjs",
     "data:check": "node scripts/refresh-quarter.mjs --check-only=true",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/static-overview.test.mjs tests/static-stock-search.test.mjs tests/export-xlsx.test.mjs tests/stock-institution-export.test.mjs tests/quarterly-refresh.test.mjs",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/static-overview.test.mjs tests/static-stock-search.test.mjs tests/export-xlsx.test.mjs tests/stock-institution-export.test.mjs tests/fund-product-stock-search.test.mjs tests/quarterly-refresh.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
