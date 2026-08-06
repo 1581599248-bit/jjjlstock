@@ -18,7 +18,8 @@ test("renders the mobile-first full-market holdings dashboard", async () => {
   assert.match(html, /全市场基金与基金经理/);
   assert.match(html, /基金经理/);
   assert.match(html, /基金产品/);
-  assert.match(html, /股票配置/);
+  assert.match(html, /股票反查/);
+  assert.doesNotMatch(html, /股票配置/);
   assert.match(html, /全行业/);
   assert.match(html, /基金总览/);
   assert.match(html, /当前已发布财报期/);
@@ -31,15 +32,22 @@ test("renders the mobile-first full-market holdings dashboard", async () => {
   assert.doesNotMatch(html, /当前原型来自|仅完整提供|浙商基金.*长信基金/);
 });
 
-test("offers a full-market stock reverse lookup backed by static buckets", async () => {
-  const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+test("offers an orange full-market stock reverse lookup backed by static buckets", async () => {
+  const [pageSource, cssSource] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
   assert.match(pageSource, /输入股票代码或名称/);
-  assert.match(pageSource, />股票配置<\/button>/);
+  assert.match(pageSource, />股票反查<\/button>/);
+  assert.doesNotMatch(pageSource, />股票配置<\/button>/);
+  assert.match(pageSource, /className="stock-accent">全市场/);
   assert.match(pageSource, /\/data\/stocks\/\$\{period\}\/index\.json/);
   assert.match(pageSource, /\/data\/stocks\/\$\{period\}\/buckets\/\$\{bucket\}\.json/);
   assert.match(pageSource, /哪些基金公司与基金经理将其列入前十大重仓/);
   assert.match(pageSource, /净值占比/);
   assert.match(pageSource, /涉及 \{manager\.fundCount\} 只基金/);
+  assert.match(cssSource, /\.tabs \.stock-tab\{color:var\(--orange\)!important\}/);
+  assert.match(cssSource, /\.stock-accent\{color:var\(--orange\)/);
 });
 
 test("offers the all-fund-products export action", async () => {
