@@ -1,0 +1,44 @@
+name: Apply fund product stock search
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "public/fund-product-stock-search-version.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-fund-product-stock-search
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Patch source
+        run: node scripts/apply-fund-product-search-patch.mjs
+      - name: Verify feature source
+        run: node --test tests/fund-product-stock-search.test.mjs
+      - name: Commit direct source patch and remove workflow
+        run: |
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add app/page.tsx app/globals.css
+          git rm .github/workflows/apply-fund-product-stock-search.yml
+          if git diff --cached --quiet; then
+            echo "No source changes to commit"
+          else
+            git commit -m "Enable fund product search by stock holding"
+            git push
+          fi
