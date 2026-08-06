@@ -3,7 +3,7 @@ type MarketPayload = { companies?: MarketCompany[] };
 type FundHolding = { stockCode?: string; stockName?: string; marketValue?: number };
 type FundProduct = { code?: string; type?: string; holdings?: FundHolding[] };
 type FundPayload = { products?: FundProduct[] };
-type IndustryAggregate = { industry: string; marketValue: number };
+type IndustryAggregate = { industry: string; marketValue: number; fundCount: number };
 
 type BuiltPeriod = {
   period: string;
@@ -32,6 +32,8 @@ const SW_LEVEL_ONE = [
   ["801790", "非银金融"], ["801880", "汽车"], ["801890", "机械设备"], ["801950", "煤炭"],
   ["801960", "石油石化"], ["801970", "环保"], ["801980", "美容护理"],
 ] as const;
+
+const SW_CODE_BY_NAME = new Map<string, string>(SW_LEVEL_ONE.map(([code, name]) => [name, code]));
 
 const payloadCache = new Map<string, Promise<Record<string, unknown>>>();
 let swClassificationPromise: Promise<Map<string, string>> | null = null;
@@ -112,6 +114,7 @@ async function buildPeriod(request: Request, period: string, swClassification: M
   if (!companies.length) throw new Error(`${period} 全市场基金公司索引为空`);
 
   const industryMap = new Map<string, number>();
+  const industryFunds = new Map<string, Set<string>>();
   const fundTypeCounts: Record<string, number> = Object.fromEntries([...ACTIVE_TYPES.values()].map((name) => [name, 0]));
   let activeFundCount = 0;
   let coveredCompanyCount = 0;
@@ -136,6 +139,9 @@ async function buildPeriod(request: Request, period: string, swClassification: M
           if (!industry) continue;
           classifiedMarketValue += marketValue;
           industryMap.set(industry, (industryMap.get(industry) ?? 0) + marketValue);
+          let funds = industryFunds.get(industry);
+          if (!funds) { funds = new Set(); industryFunds.set(industry, funds); }
+          if (product.code) funds.add(String(product.code));
         }
       }
     } catch {
@@ -157,7 +163,7 @@ async function buildPeriod(request: Request, period: string, swClassification: M
     totalHoldingMarketValue,
     classifiedMarketValue,
     fundTypeCounts,
-    industries: [...industryMap.entries()].map(([industry, marketValue]) => ({ industry, marketValue })),
+    industries: [...industryMap.entries()].map(([industry, marketValue]) => ({ industry, marketValue, fundCount: industryFunds.get(industry)?.size ?? 0 })),
   };
 }
 
@@ -181,9 +187,11 @@ async function buildPayload(request: Request, period: string) {
       return {
         rank: index + 1,
         industry: item.industry,
+        industryCode: SW_CODE_BY_NAME.get(item.industry),
         marketValue: item.marketValue,
         allocationShare,
         qoqChange: priorShare === undefined ? null : allocationShare - priorShare,
+        fundCount: item.fundCount,
       };
     });
 
