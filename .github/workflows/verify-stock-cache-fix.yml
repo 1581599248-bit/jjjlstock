@@ -1,0 +1,67 @@
+name: Verify stock institution cache fix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/verify-stock-cache-fix.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-stock-institution-cache-fix
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build website
+        run: npm run build
+
+      - name: Verify fresh-data fetch and Tao Motor ranking
+        run: |
+          grep -q 'cache: "no-store"' app/stock-institution-ranking.tsx
+          grep -q 'version=${dataVersion}' app/stock-institution-ranking.tsx
+          grep -q 'cache: "no-store"' app/stock-export-enhancer.tsx
+          node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
+          import { readFile } from "node:fs/promises";
+          const period = "2026-06-30";
+          const stockCode = "301345";
+          const bucket = createHash("sha1").update(stockCode).digest("hex").slice(0, 2);
+          const payload = JSON.parse(await readFile(`public/data/stocks/${period}/buckets/${bucket}.json`, "utf8"));
+          const detail = payload.stocks[stockCode];
+          if (payload.version !== 2) throw new Error(`Unexpected bucket version ${payload.version}`);
+          if (!Array.isArray(detail?.institutions) || detail.institutions.length !== 10) throw new Error("Tao Motor top-10 institutions missing");
+          const huitianfu = detail.institutions.find((row) => row.companyName.includes("汇添富"));
+          if (!huitianfu || huitianfu.rank !== 3) throw new Error("Tao Motor Huitianfu ranking is incorrect");
+          if (huitianfu.shares !== 53.42 || huitianfu.marketValue !== 12340.02) throw new Error("Tao Motor Huitianfu metrics are incorrect");
+          console.log(JSON.stringify({ version: payload.version, huitianfu }, null, 2));
+          NODE
+
+      - name: Run stock export tests
+        run: node --test tests/export-xlsx.test.mjs tests/stock-institution-export.test.mjs
+
+      - name: Remove one-off verification workflow
+        run: |
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git rm .github/workflows/verify-stock-cache-fix.yml
+          git commit -m "Complete stock institution cache verification [skip ci]"
+          git push
