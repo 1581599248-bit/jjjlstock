@@ -16,11 +16,32 @@ export type StockReverseExportCompany = {
   managers: StockReverseExportManager[];
 };
 
+export type StockInstitutionChangeCounts = {
+  new: number;
+  increased: number;
+  decreased: number;
+  unchanged: number;
+  unknown: number;
+};
+
+export type StockInstitutionRanking = {
+  rank: number;
+  companyId: string;
+  companyName: string;
+  fundCount: number;
+  shares: number;
+  marketValue: number;
+  netChangeShares: number | null;
+  changeCounts: StockInstitutionChangeCounts;
+};
+
 export type StockReverseExportDetail = {
   stockCode: string;
   stockName: string;
   companyCount: number;
   managerCount: number;
+  institutionCount?: number;
+  institutions?: StockInstitutionRanking[];
   companies: StockReverseExportCompany[];
 };
 
@@ -125,6 +146,21 @@ function periodDisplay(period: string) {
 }
 
 export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportInput) {
+  const institutionRows: Cell[][] = (input.detail.institutions ?? []).map((institution) => [
+    input.period,
+    institution.rank,
+    institution.companyName,
+    institution.fundCount,
+    institution.shares,
+    institution.marketValue,
+    institution.netChangeShares,
+    institution.changeCounts.new,
+    institution.changeCounts.increased,
+    institution.changeCounts.decreased,
+    institution.changeCounts.unchanged,
+    institution.changeCounts.unknown,
+  ]);
+
   const managerRows = input.detail.companies.flatMap((company) => company.managers.map((manager) => ({ company, manager })));
   const rankedRows = managerRows
     .map((row, originalOrder) => ({ ...row, originalOrder }))
@@ -147,17 +183,27 @@ export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportI
   ]);
   const notesRows: Cell[][] = [
     ["数据源", input.source],
-    ["反查口径", "基金经理在管产品合并后的前十大重仓；未进入经理前十不代表完全未持有。"],
+    ["机构排名口径", "读取基金产品定期报告前十大重仓，A/C等份额合并后按基金公司汇总，并以披露持仓市值从高到低展示前十机构。"],
+    ["持股数量与市值", "分别加总该基金公司旗下持有该股票的基金产品披露持股数量与披露持仓市值。"],
+    ["持仓变化", "新进、增持、减持、不变按基金产品逐只统计；净增减持股数仅汇总已披露变化股数的产品。"],
+    ["经理反查口径", "基金经理在管产品合并后的前十大重仓；未进入经理前十不代表完全未持有。"],
     ["联合管理", "联合管理基金分别计入对应基金经理。"],
     ["披露市值排名", "按该股票在全部基金经理口径下的披露持仓市值从高到低生成唯一排名；只改变排名数字，不调整机构与人员行顺序。"],
     ["净值占比", "该股票披露持仓市值占基金经理同口径管理净资产的比例。"],
-    ["机构统计", "机构数量和经理数量表示覆盖范围，不将经理持仓市值再次汇总为机构市值。"],
     ["用途", "公募基金季度持仓研究，不构成投资建议。"],
   ];
-  return workbook([
+  const sheets: Array<{ name: string; xml: string }> = [];
+  if (institutionRows.length) {
+    sheets.push({
+      name: "机构持仓排名",
+      xml: sheet(`${input.detail.stockName}｜持仓该股票规模前十机构｜${periodDisplay(input.period)}`, ["财报期", "机构排名", "基金公司", "持仓基金数", "持股数量(万股)", "持仓市值(万元)", "净增减持股数(万股)", "新进基金数", "增持基金数", "减持基金数", "不变基金数", "其他基金数"], institutionRows, [14, 12, 26, 14, 18, 18, 21, 14, 14, 14, 14, 14], [1, 3, 4, 5, 6, 7, 8, 9, 10, 11]),
+    });
+  }
+  sheets.push(
     { name: "机构经理明细", xml: sheet(`${input.detail.stockName}｜持仓机构与基金经理｜${periodDisplay(input.period)}`, ["财报期", "股票代码", "股票名称", "基金公司", "基金经理", "披露市值排名", "净值占比", "披露市值(万元)", "涉及基金数", "持仓变化"], detailRows, [14, 13, 18, 24, 18, 16, 14, 18, 14, 13], [5, 7, 8], [6]) },
     { name: "数据口径", xml: sheet("数据源与口径", ["类别", "说明"], notesRows, [24, 100]) },
-  ]);
+  );
+  return workbook(sheets);
 }
 
 export function exportStockReverseLookupWorkbook(input: StockReverseLookupExportInput) {
