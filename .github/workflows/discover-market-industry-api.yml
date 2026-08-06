@@ -1,0 +1,57 @@
+name: Discover market industry API
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Eastmoney industry page and endpoints
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const headers = { 'user-agent': 'Mozilla/5.0', referer: 'https://fund.eastmoney.com/' };
+          const pageUrl = 'https://fund.eastmoney.com/data/hypzlist.html';
+          const page = await fetch(pageUrl, { headers }).then(async r => { console.log('PAGE', r.status, r.url); return r.text(); });
+          const srcs = [...page.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)].map(m => new URL(m[1], pageUrl).href);
+          console.log('SCRIPTS', JSON.stringify(srcs, null, 2));
+          const findings = [];
+          for (const url of srcs) {
+            try {
+              const res = await fetch(url, { headers });
+              const text = await res.text();
+              console.log('SCRIPT', res.status, url, text.length);
+              for (const re of [/hypz/ig, /FundDataPortfolio_Interface/ig, /ajax/ig, /Data\//ig, /行业配置/g]) {
+                let count = 0;
+                for (const m of text.matchAll(re)) {
+                  const i = m.index || 0;
+                  findings.push({ url, keyword: m[0], snippet: text.slice(Math.max(0, i - 400), Math.min(text.length, i + 1000)) });
+                  if (++count >= 12) break;
+                }
+              }
+            } catch (e) { findings.push({ url, error: String(e) }); }
+          }
+          const probes = [];
+          for (let dt = 1; dt <= 30; dt++) {
+            const url = `https://fund.eastmoney.com/Data/FundDataPortfolio_Interface.aspx?dt=${dt}&mc=returnjson&ft=all&pn=100&pi=1&sc=abbname&st=asc`;
+            try {
+              const res = await fetch(url, { headers });
+              const text = await res.text();
+              probes.push({ dt, status: res.status, length: text.length, head: text.slice(0, 500) });
+              console.log('PROBE', dt, res.status, text.length, text.slice(0, 180).replace(/\s+/g, ' '));
+            } catch (e) { probes.push({ dt, error: String(e) }); }
+          }
+          fs.writeFileSync('industry-discovery.json', JSON.stringify({ srcs, findings, probes }, null, 2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: industry-discovery
+          path: industry-discovery.json
