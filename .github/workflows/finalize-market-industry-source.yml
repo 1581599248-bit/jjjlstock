@@ -1,0 +1,44 @@
+name: Finalize market industry source
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: market-industry-finalize
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Mount module in source
+        run: node scripts/apply-fund-product-search-patch.mjs
+
+      - name: Run module and application tests
+        run: npm test
+
+      - name: Commit mounted source
+        run: |
+          printf 'market-industry-module-20260807-0116\n' > public/market-industry-module-version.txt
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add app/page.tsx app/globals.css public/market-industry-module-version.txt
+          if git diff --cached --quiet; then
+            echo "Source already finalized"
+          else
+            git commit -m "Finalize all-market industry module source"
+            git push origin HEAD:market-industry-finalize
+          fi
