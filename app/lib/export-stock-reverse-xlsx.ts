@@ -145,20 +145,27 @@ function periodDisplay(period: string) {
   return `${year}${report} · ${period}`;
 }
 
+function institutionOverallChange(institution: StockInstitutionRanking) {
+  if (institution.fundCount > 0 && institution.changeCounts.new === institution.fundCount) return "新进";
+  if (institution.netChangeShares !== null) {
+    if (institution.netChangeShares > 0.000001) return "增持";
+    if (institution.netChangeShares < -0.000001) return "减持";
+    return "不变";
+  }
+  if (institution.changeCounts.increased + institution.changeCounts.new > institution.changeCounts.decreased) return "增持";
+  if (institution.changeCounts.decreased > institution.changeCounts.increased + institution.changeCounts.new) return "减持";
+  return "不变";
+}
+
 export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportInput) {
   const institutionRows: Cell[][] = (input.detail.institutions ?? []).map((institution) => [
-    input.period,
     institution.rank,
     institution.companyName,
     institution.fundCount,
     institution.shares,
     institution.marketValue,
     institution.netChangeShares,
-    institution.changeCounts.new,
-    institution.changeCounts.increased,
-    institution.changeCounts.decreased,
-    institution.changeCounts.unchanged,
-    institution.changeCounts.unknown,
+    institutionOverallChange(institution),
   ]);
 
   const managerRows = input.detail.companies.flatMap((company) => company.managers.map((manager) => ({ company, manager })));
@@ -185,7 +192,7 @@ export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportI
     ["数据源", input.source],
     ["机构排名口径", "读取基金产品定期报告前十大重仓，A/C等份额合并后按基金公司汇总，并以披露持仓市值从高到低展示前十机构。"],
     ["持股数量与市值", "分别加总该基金公司旗下持有该股票的基金产品披露持股数量与披露持仓市值。"],
-    ["持仓变化", "新进、增持、减持、不变按基金产品逐只统计；净增减持股数仅汇总已披露变化股数的产品。"],
+    ["机构持仓变化", "与网页口径一致：全部产品新进显示新进；净增减持股数为正显示增持、为负显示减持、为零显示不变；缺少净变化股数时按产品变化方向判断。"],
     ["经理反查口径", "基金经理在管产品合并后的前十大重仓；未进入经理前十不代表完全未持有。"],
     ["联合管理", "联合管理基金分别计入对应基金经理。"],
     ["披露市值排名", "按该股票在全部基金经理口径下的披露持仓市值从高到低生成唯一排名；只改变排名数字，不调整机构与人员行顺序。"],
@@ -196,7 +203,7 @@ export function buildStockReverseLookupWorkbook(input: StockReverseLookupExportI
   if (institutionRows.length) {
     sheets.push({
       name: "机构持仓排名",
-      xml: sheet(`${input.detail.stockName}｜持仓该股票规模前十机构｜${periodDisplay(input.period)}`, ["财报期", "机构排名", "基金公司", "持仓基金数", "持股数量(万股)", "持仓市值(万元)", "净增减持股数(万股)", "新进基金数", "增持基金数", "减持基金数", "不变基金数", "其他基金数"], institutionRows, [14, 12, 26, 14, 18, 18, 21, 14, 14, 14, 14, 14], [1, 3, 4, 5, 6, 7, 8, 9, 10, 11]),
+      xml: sheet(`${input.detail.stockName}｜持仓该股票规模前十机构｜${periodDisplay(input.period)}`, ["机构排名", "基金公司", "持仓基金数", "持股数量(万股)", "持仓市值(万元)", "净增减持股数(万股)", "持仓变化"], institutionRows, [12, 26, 14, 18, 18, 21, 14], [0, 2, 3, 4, 5]),
     });
   }
   sheets.push(
