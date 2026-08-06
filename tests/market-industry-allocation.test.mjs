@@ -20,17 +20,20 @@ test("parses a company industry allocation table for an exact report period", ()
 });
 
 test("market industry module is mounted as a dedicated full-market tab", async () => {
-  const [component, patch, builder] = await Promise.all([
+  const [component, patch, builder, route] = await Promise.all([
     readFile(new URL("../app/market-industry-allocation.tsx", import.meta.url), "utf8"),
     readFile(new URL("../scripts/apply-fund-product-search-patch.mjs", import.meta.url), "utf8"),
     readFile(new URL("../scripts/build-static-market-industries.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/market-industries/route.ts", import.meta.url), "utf8"),
   ]);
   assert.match(component, /全市场行业配置/);
   assert.match(component, /占公募净值/);
   assert.match(component, /股票仓位占比/);
-  assert.match(component, /\/data\/market-industries\/\$\{period\}\.json/);
+  assert.match(component, /\/api\/market-industries\?period=/);
   assert.match(patch, /行业配置/);
   assert.match(patch, /MarketIndustryAllocation/);
   assert.match(builder, /Company\/f10\/hypz_/);
   assert.match(builder, /coveredCompanyCount/);
+  assert.match(route, /\/data\/market-industries\/\$\{period\}\.json/);
+  assert.match(route, /buildLive/);
 });
