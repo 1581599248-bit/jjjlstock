@@ -45,6 +45,7 @@ type StockBucketPayload = {
 };
 
 type Selection = { period: string; stockCode: string };
+type OverallChange = { label: "新进" | "增持" | "减持" | "不变"; tone: "red" | "green" | "gray" };
 
 const number = (value: number, digits = 2) => new Intl.NumberFormat("zh-CN", { maximumFractionDigits: digits }).format(value);
 const signed = (value: number | null) => value === null ? "—" : `${value > 0 ? "+" : ""}${number(value, 2)}`;
@@ -58,15 +59,16 @@ function currentSelection(): Selection | null {
   return period && stockCode ? { period, stockCode } : null;
 }
 
-function changeSummary(counts: ChangeCounts) {
-  const items = [
-    ["新进", counts.new],
-    ["增持", counts.increased],
-    ["减持", counts.decreased],
-    ["不变", counts.unchanged],
-    ["其他", counts.unknown],
-  ].filter(([, count]) => Number(count) > 0);
-  return items.length ? items.map(([label, count]) => `${label}${count}`).join(" · ") : "—";
+function overallChange(row: InstitutionHolding): OverallChange {
+  if (row.fundCount > 0 && row.changeCounts.new === row.fundCount) return { label: "新进", tone: "red" };
+  if (row.netChangeShares !== null) {
+    if (row.netChangeShares > 0.000001) return { label: "增持", tone: "red" };
+    if (row.netChangeShares < -0.000001) return { label: "减持", tone: "green" };
+    return { label: "不变", tone: "gray" };
+  }
+  if (row.changeCounts.increased + row.changeCounts.new > row.changeCounts.decreased) return { label: "增持", tone: "red" };
+  if (row.changeCounts.decreased > row.changeCounts.increased + row.changeCounts.new) return { label: "减持", tone: "green" };
+  return { label: "不变", tone: "gray" };
 }
 
 export default function StockInstitutionRanking() {
@@ -161,16 +163,30 @@ export default function StockInstitutionRanking() {
       {loading ? <div className="institution-ranking-state">正在读取机构持仓排名…</div>
         : error ? <div className="institution-ranking-state error">{error}</div>
         : institutions.length ? <div className="institution-ranking-table" role="region" aria-label="机构持仓前十，可横向滚动" tabIndex={0}>
-          <table><thead><tr><th>排名</th><th>基金公司</th><th className="num">基金数</th><th className="num">持股/万股</th><th className="num">持仓市值/万</th><th className="num">净增减/万股</th><th>持仓变化</th></tr></thead>
-            <tbody>{institutions.map((row) => <tr key={row.companyId}>
-              <td><b className={`institution-rank r${row.rank}`}>{row.rank}</b></td>
-              <td><strong>{row.companyName}</strong></td>
-              <td className="num">{row.fundCount}</td>
-              <td className="num mono">{number(row.shares)}</td>
-              <td className="num mono accent">{number(row.marketValue, 0)}</td>
-              <td className={`num mono ${row.netChangeShares !== null && row.netChangeShares > 0 ? "up" : row.netChangeShares !== null && row.netChangeShares < 0 ? "down" : ""}`}>{signed(row.netChangeShares)}</td>
-              <td><span className="change-summary">{changeSummary(row.changeCounts)}</span></td>
-            </tr>)}</tbody></table>
+          <table>
+            <colgroup>
+              <col className="col-rank" />
+              <col className="col-company" />
+              <col className="col-fund-count" />
+              <col className="col-shares" />
+              <col className="col-market-value" />
+              <col className="col-change-shares" />
+              <col className="col-change" />
+            </colgroup>
+            <thead><tr><th>排名</th><th>基金公司</th><th className="fund-count">持仓基金数</th><th className="num">持股/万股</th><th className="num">持仓市值/万</th><th className="num">净增减/万股</th><th>持仓变化</th></tr></thead>
+            <tbody>{institutions.map((row) => {
+              const change = overallChange(row);
+              return <tr key={row.companyId}>
+                <td><b className={`institution-rank r${row.rank}`}>{row.rank}</b></td>
+                <td><strong>{row.companyName}</strong></td>
+                <td className="fund-count">{row.fundCount}</td>
+                <td className="num mono">{number(row.shares)}</td>
+                <td className="num mono accent">{number(row.marketValue, 0)}</td>
+                <td className={`num mono ${row.netChangeShares !== null && row.netChangeShares > 0 ? "up" : row.netChangeShares !== null && row.netChangeShares < 0 ? "down" : ""}`}>{signed(row.netChangeShares)}</td>
+                <td><span className={`overall-change ${change.tone}`}>{change.label}</span></td>
+              </tr>;
+            })}</tbody>
+          </table>
         </div> : <div className="institution-ranking-state">该股票暂无基金产品前十大持仓机构数据</div>}
       {source && <small className="institution-ranking-source">数据源：{source}</small>}
     </section>
@@ -183,11 +199,19 @@ export default function StockInstitutionRanking() {
       .institution-ranking-card header>b { color:#8f4c3a; background:#f8e7df; padding:5px 8px; border-radius:999px; white-space:nowrap; font-family:inherit; font-size:12px; line-height:1.2; }
       .institution-ranking-method { margin:8px 0 11px; color:#806e67; font-family:inherit; font-size:11px; line-height:1.6; }
       .institution-ranking-table { overflow-x:auto; border:1px solid rgba(116,70,55,.1); border-radius:11px; background:#fff; -webkit-overflow-scrolling:touch; }
-      .institution-ranking-table table { width:100%; min-width:760px; border-collapse:collapse; font-family:inherit; font-size:11px; }
-      .institution-ranking-table th,.institution-ranking-table td { padding:9px 10px; border-bottom:1px solid #f0e5df; text-align:left; white-space:nowrap; font-family:inherit; }
+      .institution-ranking-table table { width:650px; min-width:650px; table-layout:fixed; border-collapse:collapse; font-family:inherit; font-size:11px; }
+      .institution-ranking-table col.col-rank { width:54px; }
+      .institution-ranking-table col.col-company { width:138px; }
+      .institution-ranking-table col.col-fund-count { width:88px; }
+      .institution-ranking-table col.col-shares { width:91px; }
+      .institution-ranking-table col.col-market-value { width:104px; }
+      .institution-ranking-table col.col-change-shares { width:105px; }
+      .institution-ranking-table col.col-change { width:70px; }
+      .institution-ranking-table th,.institution-ranking-table td { padding:9px 8px; border-bottom:1px solid #f0e5df; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:inherit; }
       .institution-ranking-table th { background:#9a5141; color:#fff; font-size:10px; font-weight:700; }
       .institution-ranking-table tbody tr:last-child td { border-bottom:0; }
       .institution-ranking-table tbody tr:hover { background:#fff8f4; }
+      .institution-ranking-table .fund-count { text-align:center; }
       .institution-ranking-table .num { text-align:right; }
       .institution-ranking-table .mono { font-variant-numeric:tabular-nums; }
       .institution-ranking-table .accent { color:#9a5141; font-weight:700; }
@@ -195,7 +219,10 @@ export default function StockInstitutionRanking() {
       .institution-ranking-table .down { color:#258060; }
       .institution-rank { display:inline-grid; place-items:center; width:22px; height:22px; border-radius:7px; background:#f3e8e3; color:#7b4a3d; font-size:10px; }
       .institution-rank.r1,.institution-rank.r2,.institution-rank.r3 { background:#9a5141; color:white; }
-      .change-summary { color:#715d56; font-size:10px; }
+      .overall-change { display:inline-flex; align-items:center; justify-content:center; min-width:36px; padding:3px 6px; border-radius:999px; font-size:10px; font-weight:700; line-height:1.2; }
+      .overall-change.red { color:#c43f34; background:#fff0ed; }
+      .overall-change.green { color:#27805f; background:#edf8f3; }
+      .overall-change.gray { color:#77706d; background:#f1efee; }
       .institution-ranking-state { padding:18px 12px; text-align:center; color:#806b63; background:#fff; border-radius:10px; font-family:inherit; font-size:12px; line-height:1.55; }
       .institution-ranking-state.error { color:#a33a33; }
       .institution-ranking-source { display:block; margin-top:8px; color:#9a8982; font-family:inherit; font-size:9px; line-height:1.45; }
@@ -205,8 +232,15 @@ export default function StockInstitutionRanking() {
         .institution-ranking-card h3 { font-size:16px; }
         .institution-ranking-card header>b { font-size:11px; padding:4px 7px; }
         .institution-ranking-method { font-size:10px; }
-        .institution-ranking-table table { min-width:700px; font-size:10px; }
-        .institution-ranking-table th,.institution-ranking-table td { padding:8px 9px; }
+        .institution-ranking-table table { width:620px; min-width:620px; font-size:10px; }
+        .institution-ranking-table col.col-rank { width:50px; }
+        .institution-ranking-table col.col-company { width:128px; }
+        .institution-ranking-table col.col-fund-count { width:84px; }
+        .institution-ranking-table col.col-shares { width:84px; }
+        .institution-ranking-table col.col-market-value { width:98px; }
+        .institution-ranking-table col.col-change-shares { width:102px; }
+        .institution-ranking-table col.col-change { width:74px; }
+        .institution-ranking-table th,.institution-ranking-table td { padding:8px 7px; }
       }
     `}</style>
   </>, target);
