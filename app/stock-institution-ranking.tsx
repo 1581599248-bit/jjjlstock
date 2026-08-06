@@ -227,15 +227,15 @@ export default function StockInstitutionRanking() {
       .institution-ranking-state.error { color:#a33a33; }
       .institution-ranking-source { display:block; margin-top:7px; color:#9a8982; font-family:inherit; font-size:9px; line-height:1.4; }
       @media (max-width: 640px) {
-        .stock-institution-ranking-slot { margin:11px 14px; }
+        .stock-institution-ranking-slot { margin:11px 7px; }
         .institution-ranking-card { padding:10px; border-radius:13px; }
         .institution-ranking-card h3 { font-size:16px; }
         .institution-ranking-card header>b { font-size:11px; padding:4px 7px; }
         .institution-ranking-method { font-size:10px; }
-        .institution-ranking-table table { width:440px; min-width:440px; font-size:8.5px; }
+        .institution-ranking-table table { width:436px; min-width:436px; font-size:8.5px; }
         .institution-ranking-table col.col-rank { width:32px; }
-        .institution-ranking-table col.col-company { width:74px; }
-        .institution-ranking-table col.col-fund-count { width:48px; }
+        .institution-ranking-table col.col-company { width:72px; }
+        .institution-ranking-table col.col-fund-count { width:46px; }
         .institution-ranking-table col.col-shares { width:62px; }
         .institution-ranking-table col.col-market-value { width:70px; }
         .institution-ranking-table col.col-change-shares { width:80px; }
