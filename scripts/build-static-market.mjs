@@ -111,7 +111,22 @@ if (failures.length) {
 
 await runScript("scripts/build-static-sectors.mjs", [`--period=${period}`], "sector build");
 await runScript("scripts/build-static-stock-search.mjs", [`--period=${period}`], "stock search build");
-await runScript("scripts/build-static-market-industries.mjs", [`--period=${period}`, "--minimum-classification-coverage=0.9"], "active equity full-industry build");
+
+const swWorkCache = path.join(root, "work/sw-industry-cache/sw-level-one-2021.json");
+const swSharedCache = path.join(root, "public/data/market-industries/sw-industry-cache.json");
+if (!existsSync(swWorkCache) && existsSync(swSharedCache)) {
+  await mkdir(path.dirname(swWorkCache), { recursive: true });
+  await writeFile(swWorkCache, await readFile(swSharedCache));
+}
+try {
+  await runScript("scripts/build-static-market-industries.mjs", [`--period=${period}`, "--minimum-classification-coverage=0.9"], "active equity full-industry build");
+  if (existsSync(swWorkCache)) {
+    await mkdir(path.dirname(swSharedCache), { recursive: true });
+    await writeFile(swSharedCache, await readFile(swWorkCache));
+  }
+} catch (error) {
+  console.warn(`active equity full-industry build skipped: ${error instanceof Error ? error.message : String(error)}`);
+}
 
 const overviewRoot = path.join(root, "public/data/overview");
 const manifest = { version: 1, updatedAt: new Date().toISOString(), entries: {} };
