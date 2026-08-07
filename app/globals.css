@@ -262,3 +262,28 @@ footer span{text-align:right;font-size:7px;line-height:1.5}
   .stock-owner-toolbar span{max-width:175px}
 }
 @media(prefers-reduced-motion:reduce){.spinner{animation:none}}
+
+/* 移动端：基金经理/基金产品详情紧凑排布，六列持仓信息一屏直读，不再横向滚动 */
+@media(max-width:520px){
+  .detail-card{padding-top:8px}
+  .detail-title h2{margin:2px 0;font-size:17px}
+  .detail-title em{padding:4px 6px}
+  .mini-metrics{margin:7px 0}
+  .mini-metrics>div{padding:6px}
+  .mini-metrics b{margin-top:1px}
+  .sector-card{margin:0 0 8px;padding:8px}
+  .sector-head{margin-bottom:6px}
+  .sector-list{gap:5px}
+  .sector-row{grid-template-columns:72px 1fr 62px;gap:5px}
+  .sector-card>p{margin:6px 0 0;padding-top:6px}
+  .table-wrap table{min-width:0;font-size:8px}
+  .table-wrap th{padding:6px 4px;font-size:7px;letter-spacing:0}
+  .table-wrap td{height:30px;padding:4px}
+  .table-wrap .change{padding:2px 5px}
+  .rank{width:17px;height:17px;font-size:8px}
+  .value-note{margin:5px 1px 0}
+}
+@media(max-width:360px){
+  .table-wrap table{font-size:7.5px}
+  .table-wrap th,.table-wrap td{padding-left:3px;padding-right:3px}
+}
