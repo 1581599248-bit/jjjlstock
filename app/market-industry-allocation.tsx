@@ -46,13 +46,29 @@ export default function MarketIndustryAllocation({ period, query }: { period: st
   }, [data, query]);
 
   return <section className="market-industry-module" aria-label="主动偏股公募基金申万一级行业配置">
+    <style>{`
+      .market-industry-table.compact-five{min-width:0}
+      .market-industry-table th{padding:8px 5px}
+      .market-industry-table td{padding:6px 5px}
+      .market-industry-name{min-width:0}
+      @media(max-width:520px){
+        .market-industry-table.compact-five{min-width:0}
+        .market-industry-name{min-width:0}
+        .market-industry-table th{padding:7px 4px}
+        .market-industry-table td{padding:6px 4px}
+      }
+      @media(max-width:400px){
+        .market-industry-table{font-size:7px}
+        .market-industry-table td{height:34px}
+      }
+    `}</style>
     <div className="market-industry-title"><div><span>ACTIVE EQUITY · SW LEVEL 1</span><h2>全行业</h2><p>普通股票型 + 偏股混合型 + 灵活配置型 + 平衡混合型 · 申万一级行业</p></div><em>{periodLabel(period)}</em></div>
     {loading ? <div className="loading-state"><span className="spinner" />正在读取主动偏股公募行业配置…</div> : error ? <div className="error-banner">{error}</div> : data ? <>
       <div className="market-industry-scope"><span><b>{fmt(data.activeFundCount, 0)}</b> 只主动偏股基金</span><span><b>{data.industryCount ?? data.industries.length}</b> 个申万一级行业</span><span>行业识别覆盖 <b>{fmt(data.classificationCoverage * 100, 1)}%</b></span></div>
       <div className="market-industry-toolbar"><div><strong>{query.trim() ? "匹配行业" : `${quarterLabel(period)}行业配置排名`}</strong><span>{rows.length} 条 · 按总市值降序</span></div></div>
       {rows.length ? <div className="market-industry-table-wrap" tabIndex={0} role="region" aria-label="主动偏股公募基金申万一级行业配置表">
         <table className="market-industry-table compact-five"><thead><tr><th>排名</th><th>行业</th><th className="num">总市值</th><th className="num">{quarterLabel(period)}占比</th><th className="num">环比变动</th><th className="num">配置基金数</th></tr></thead>
-          <tbody>{rows.map((row) => <tr key={row.industryCode || row.industry}><td><b className={`rank r${row.rank}`}>{row.rank}</b></td><td><div className="market-industry-name"><strong>{row.industry}</strong>{row.industryCode ? <small>{row.industryCode}</small> : null}</div></td><td className="num"><strong>{fmt(row.marketValue / 10_000, 1)}亿</strong></td><td className="num accent">{fmt(row.allocationShare, 2)}%</td><td className={`num ${row.qoqChange !== null && row.qoqChange > 0 ? "industry-up" : row.qoqChange !== null && row.qoqChange < 0 ? "industry-down" : ""}`}>{changeText(row.qoqChange)}</td><td className="num">{row.fundCount !== undefined && Number.isFinite(row.fundCount) ? fmt(row.fundCount, 0) : "—"}</td></tr>)}</tbody>
+          <tbody>{rows.map((row) => <tr key={row.industryCode || row.industry}><td><b className={`rank r${row.rank}`}>{row.rank}</b></td><td><div className="market-industry-name"><strong>{row.industry}</strong></div></td><td className="num"><strong>{fmt(row.marketValue / 10_000, 1)}亿</strong></td><td className="num accent">{fmt(row.allocationShare, 2)}%</td><td className={`num ${row.qoqChange !== null && row.qoqChange > 0 ? "industry-up" : row.qoqChange !== null && row.qoqChange < 0 ? "industry-down" : ""}`}>{changeText(row.qoqChange)}</td><td className="num">{row.fundCount !== undefined && Number.isFinite(row.fundCount) ? fmt(row.fundCount, 0) : "—"}</td></tr>)}</tbody>
         </table>
       </div> : <div className="empty-state">没有找到匹配的行业</div>}
       <p className="market-industry-note">口径：{data.scope.fundTypes.join("、")}；按基金季度前十大重仓股中的A股持仓汇总，A/C等份额按基金产品去重；行业采用申万一级行业（2021）。“{quarterLabel(period)}占比”以纳入统计并完成申万一级分类的A股重仓总市值为分母，“环比变动”为较上一财报期的占比变化，“配置基金数”为当期前十大重仓覆盖该行业的主动偏股基金产品数（份额去重）。数据源：{data.source}。</p>
