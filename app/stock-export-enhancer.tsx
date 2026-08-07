@@ -42,7 +42,8 @@ export default function StockExportEnhancer() {
 
   useEffect(() => {
     const sync = () => {
-      const nextTarget = document.querySelector(".entity-tools.stock-tools");
+      const industryMode = Boolean(document.querySelector(".tabs .industry-tab.active"));
+      const nextTarget = industryMode ? null : document.querySelector(".entity-tools.stock-tools");
       const nextSelection = currentSelection();
       setTarget((current) => current === nextTarget ? current : nextTarget);
       setSelection((current) => current?.period === nextSelection?.period && current?.stockCode === nextSelection?.stockCode && current?.stockName === nextSelection?.stockName ? current : nextSelection);
