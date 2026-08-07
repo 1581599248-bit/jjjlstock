@@ -18,6 +18,11 @@ export default function Template({ children }: { children: ReactNode }) {
         font-weight: 600;
         letter-spacing: 0;
       }
+      @media (max-width: 520px) {
+        .tabs button {
+          font-size: 11px;
+        }
+      }
     `}</style>
   </>;
 }
