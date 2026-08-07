@@ -48,9 +48,11 @@ export default function MarketIndustryAllocation({ period, query }: { period: st
   return <section className="market-industry-module" aria-label="主动偏股公募基金申万一级行业配置">
     <style>{`
       .market-industry-table.compact-five{min-width:0}
-      .market-industry-table th{padding:8px 5px}
+      .market-industry-table{font-size:9.5px}
+      .market-industry-table th{padding:8px 5px;font-size:8.5px}
       .market-industry-table td{padding:6px 5px}
       .market-industry-name{min-width:0}
+      .market-industry-name>strong{font-size:9.5px}
       @media(max-width:520px){
         .market-industry-table.compact-five{min-width:0}
         .market-industry-name{min-width:0}
@@ -58,7 +60,9 @@ export default function MarketIndustryAllocation({ period, query }: { period: st
         .market-industry-table td{padding:6px 4px}
       }
       @media(max-width:400px){
-        .market-industry-table{font-size:7px}
+        .market-industry-table{font-size:8.5px}
+        .market-industry-table th{font-size:7.5px}
+        .market-industry-name>strong{font-size:8.5px}
         .market-industry-table td{height:34px}
       }
     `}</style>
