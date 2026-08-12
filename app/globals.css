@@ -57,7 +57,7 @@ main{width:min(100%,760px);min-height:100vh;margin:0 auto;background:var(--paper
 
 .workspace,.method{margin:0 12px 15px;padding:11px;background:var(--card);border:1px solid var(--line);border-radius:16px}
 .workspace{box-shadow:0 8px 26px rgba(34,28,30,.04)}
-.tabs{padding:3px;display:grid;grid-template-columns:repeat(4,1fr);background:#f0eff0;border-radius:11px}
+.tabs{padding:3px;display:grid;grid-template-columns:repeat(5,1fr);background:#f0eff0;border-radius:11px}
 .tabs button{height:39px;border:0;border-radius:8px;background:transparent;color:#777278;font-size:12px;font-weight:800;cursor:pointer}
 .tabs button.active{color:var(--red-deep);background:#fff;box-shadow:0 3px 10px rgba(35,27,29,.08)}
 .entity-tools{margin:10px 0;display:grid;grid-template-columns:1fr auto;gap:7px}
@@ -84,6 +84,8 @@ main{width:min(100%,760px);min-height:100vh;margin:0 auto;background:var(--paper
 .entity-rail>button.fund-card{min-height:74px}
 .entity-rail>button .fund-scale{margin-top:3px;color:#c6362b;font-weight:800}
 .entity-rail>button.active .fund-scale{color:#fff}
+.entity-rail>button .fund-stock-hit{margin-top:4px;padding-top:4px;color:#a33a30;border-top:1px dashed #ead7d2;font-weight:800}
+.entity-rail>button.active .fund-stock-hit{color:#fff2ed;border-top-color:rgba(255,255,255,.3)}
 
 .detail-card{margin-top:3px;padding-top:14px;border-top:1px solid var(--line)}
 .detail-title{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
@@ -287,3 +289,77 @@ footer span{text-align:right;font-size:7px;line-height:1.5}
   .table-wrap table{font-size:7.5px}
   .table-wrap th,.table-wrap td{padding-left:3px;padding-right:3px}
 }
+
+
+/* Active-equity public-fund allocation by SW 2021 level-one industry. */
+.market-industry-module{padding:3px 1px 1px}
+.market-industry-title{padding:8px 1px 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.market-industry-title span{color:var(--red);font-size:7px;font-weight:850;letter-spacing:.16em}
+.market-industry-title h2{margin:3px 0 2px;font-family:Georgia,"Songti SC",serif;font-size:21px}
+.market-industry-title p{margin:0;color:#817c82;font-size:8px;line-height:1.5}
+.market-industry-title em{padding:5px 8px;color:#c83227;background:var(--soft);border-radius:999px;font-size:8px;font-style:normal;font-weight:800;white-space:nowrap}
+.market-industry-scope{display:flex;flex-wrap:wrap;gap:6px;padding:8px 9px;background:linear-gradient(135deg,#292326,#211c1d);border-radius:10px;color:#c8c2c4;font-size:7px}
+.market-industry-scope span{padding-right:8px;border-right:1px solid rgba(255,255,255,.12)}
+.market-industry-scope span:last-child{border:0}
+.market-industry-scope b{color:#fff;font-size:9px}
+.market-industry-toolbar{margin:11px 1px 7px;display:flex;justify-content:space-between;align-items:end;gap:10px}
+.market-industry-toolbar>div{display:flex;flex-direction:column;gap:2px}
+.market-industry-toolbar strong{font-size:10px}
+.market-industry-toolbar span{color:#918c92;font-size:7px}
+.market-industry-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;scrollbar-color:#d2a39b #f1eded}
+.market-industry-table{width:100%;border-collapse:collapse;font-size:8px;font-variant-numeric:tabular-nums}
+.market-industry-table.compact-five{min-width:470px}
+.market-industry-table th{padding:8px;color:#f7f4f4;background:var(--dark);text-align:left;font-size:7px;white-space:nowrap}
+.market-industry-table td{height:40px;padding:6px 8px;border-bottom:1px solid #eceaec;white-space:nowrap}
+.market-industry-table tr:nth-child(even) td{background:#faf9fa}
+.market-industry-table tr:last-child td{border-bottom:0}
+.market-industry-table .num{text-align:right}
+.market-industry-name{min-width:145px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.market-industry-name>strong{overflow:hidden;text-overflow:ellipsis;font-size:8px}
+.market-industry-name>small{color:#aaa4a8;font-size:6px}
+.industry-up{color:#c52d24;font-weight:800}
+.industry-down{color:#25735d;font-weight:800}
+.market-industry-note{margin:8px 2px 0;color:#898388;font-size:7px;line-height:1.65}
+@media(max-width:520px){
+  .tabs button{font-size:9px}
+  .market-industry-table.compact-five{min-width:430px}
+  .market-industry-name{min-width:120px}
+}
+
+
+
+/* Desktop horizontal scrolling: wheel, visible scrollbar, and mouse drag. */
+@media (hover:hover) and (pointer:fine){
+  .entity-rail,.stock-result-rail,.table-wrap,.overview-matrix-wrap,.market-industry-table-wrap{
+    cursor:grab;
+    overscroll-behavior-x:contain;
+    scrollbar-width:thin;
+    scrollbar-color:#d2a39b #f1eded;
+  }
+  .entity-rail::-webkit-scrollbar,.stock-result-rail::-webkit-scrollbar,.table-wrap::-webkit-scrollbar,.overview-matrix-wrap::-webkit-scrollbar,.market-industry-table-wrap::-webkit-scrollbar{
+    display:block;
+    height:8px;
+  }
+  .entity-rail::-webkit-scrollbar-thumb,.stock-result-rail::-webkit-scrollbar-thumb,.table-wrap::-webkit-scrollbar-thumb,.overview-matrix-wrap::-webkit-scrollbar-thumb,.market-industry-table-wrap::-webkit-scrollbar-thumb{
+    background:#d2a39b;
+    border-radius:999px;
+  }
+  .entity-rail::-webkit-scrollbar-track,.stock-result-rail::-webkit-scrollbar-track,.table-wrap::-webkit-scrollbar-track,.overview-matrix-wrap::-webkit-scrollbar-track,.market-industry-table-wrap::-webkit-scrollbar-track{
+    background:#f1eded;
+    border-radius:999px;
+  }
+  [data-desktop-horizontal-scroll="true"].is-dragging{
+    cursor:grabbing;
+    user-select:none;
+    scroll-snap-type:none!important;
+  }
+  [data-desktop-horizontal-scroll="true"].is-dragging *{
+    cursor:grabbing!important;
+    user-select:none;
+  }
+}
+
+
+/* Keep the fourth and fifth navigation labels orange; scope text remains unchanged. */
+.tabs .stock-tab,.tabs .industry-tab,.tabs>button:nth-child(4),.tabs>button:nth-child(5){color:#ff7138!important}
+.tabs .stock-tab.active,.tabs .industry-tab.active,.tabs>button:nth-child(4).active,.tabs>button:nth-child(5).active{color:#ff7138!important}

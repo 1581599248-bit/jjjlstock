@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { exportCompanyFundsWorkbook, exportCompanyInstitutionWorkbook, exportCompanyManagerSectorsWorkbook, exportCompanyOverviewWorkbook, exportHoldingsWorkbook } from "./lib/export-xlsx";
 import type { CompanyIndex, FundHoldings, FundItem, Holding, ManagerIndex, MarketIndex } from "./types";
 import publishedPeriods from "./data/published-periods.json";
+import MarketIndustryAllocation from "./market-industry-allocation";
 
 type CompanyPayload = { company: CompanyIndex; funds: FundItem[]; mode: "static" | "live" | "snapshot" };
 type ManagerHolding = { rank: number; stockCode: string; stockName: string; industry: string; marketValue: number; fundCount: number; weight: number; change: string; shares: number };
@@ -164,17 +165,130 @@ function OverviewMatrix({ managers, data, loading }: { managers: ManagerIndex[];
   </div>;
 }
 
+function useDesktopHorizontalScroll() {
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+
+    const selector = ".entity-rail,.stock-result-rail,.table-wrap,.overview-matrix-wrap,.market-industry-table-wrap";
+    const cleanups = new Map<HTMLElement, () => void>();
+
+    const bind = (node: Element) => {
+      if (!(node instanceof HTMLElement) || cleanups.has(node)) return;
+      const element = node;
+      element.dataset.desktopHorizontalScroll = "true";
+      if (!element.hasAttribute("tabindex")) element.tabIndex = 0;
+
+      let dragging = false;
+      let moved = false;
+      let suppressClick = false;
+      let pointerId = -1;
+      let startX = 0;
+      let startScrollLeft = 0;
+
+      const canScroll = () => element.scrollWidth > element.clientWidth + 1;
+      const onPointerDown = (event: PointerEvent) => {
+        if (event.pointerType !== "mouse" || event.button !== 0 || !canScroll()) return;
+        dragging = true;
+        moved = false;
+        suppressClick = false;
+        pointerId = event.pointerId;
+        startX = event.clientX;
+        startScrollLeft = element.scrollLeft;
+      };
+      const onPointerMove = (event: PointerEvent) => {
+        if (!dragging || event.pointerId !== pointerId) return;
+        const distance = event.clientX - startX;
+        if (!moved && Math.abs(distance) > 3) {
+          moved = true;
+          element.setPointerCapture?.(pointerId);
+          element.classList.add("is-dragging");
+        }
+        if (!moved) return;
+        event.preventDefault();
+        element.scrollLeft = startScrollLeft - distance;
+      };
+      const finishDrag = (event: PointerEvent) => {
+        if (!dragging || event.pointerId !== pointerId) return;
+        suppressClick = moved;
+        dragging = false;
+        element.classList.remove("is-dragging");
+        if (element.hasPointerCapture?.(pointerId)) element.releasePointerCapture(pointerId);
+        pointerId = -1;
+      };
+      const onPointerLeave = (event: PointerEvent) => {
+        if (!dragging || moved || event.pointerId !== pointerId) return;
+        dragging = false;
+        pointerId = -1;
+      };
+      const onClickCapture = (event: MouseEvent) => {
+        if (!suppressClick) return;
+        event.preventDefault();
+        event.stopPropagation();
+        suppressClick = false;
+      };
+      const onWheel = (event: WheelEvent) => {
+        if (!canScroll() || Math.abs(event.deltaX) >= Math.abs(event.deltaY) || event.deltaY === 0) return;
+        const max = element.scrollWidth - element.clientWidth;
+        const next = Math.max(0, Math.min(max, element.scrollLeft + event.deltaY));
+        if (Math.abs(next - element.scrollLeft) < 0.5) return;
+        event.preventDefault();
+        element.scrollLeft = next;
+      };
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (!canScroll() || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+        if (event.target !== element) return;
+        event.preventDefault();
+        element.scrollBy({ left: event.key === "ArrowRight" ? 180 : -180, behavior: "smooth" });
+      };
+
+      element.addEventListener("pointerdown", onPointerDown);
+      element.addEventListener("pointermove", onPointerMove);
+      element.addEventListener("pointerup", finishDrag);
+      element.addEventListener("pointercancel", finishDrag);
+      element.addEventListener("pointerleave", onPointerLeave);
+      element.addEventListener("click", onClickCapture, true);
+      element.addEventListener("wheel", onWheel, { passive: false });
+      element.addEventListener("keydown", onKeyDown);
+
+      cleanups.set(element, () => {
+        element.removeEventListener("pointerdown", onPointerDown);
+        element.removeEventListener("pointermove", onPointerMove);
+        element.removeEventListener("pointerup", finishDrag);
+        element.removeEventListener("pointercancel", finishDrag);
+        element.removeEventListener("pointerleave", onPointerLeave);
+        element.removeEventListener("click", onClickCapture, true);
+        element.removeEventListener("wheel", onWheel);
+        element.removeEventListener("keydown", onKeyDown);
+        element.classList.remove("is-dragging");
+        delete element.dataset.desktopHorizontalScroll;
+      });
+    };
+
+    const scan = () => document.querySelectorAll(selector).forEach(bind);
+    scan();
+    const observer = new MutationObserver(scan);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      cleanups.forEach((cleanup) => cleanup());
+      cleanups.clear();
+    };
+  }, []);
+}
+
 export default function Home() {
   const [market, setMarket] = useState<MarketIndex | null>(null);
   const [periods, setPeriods] = useState(AVAILABLE_PERIODS);
   const [period, setPeriod] = useState(AVAILABLE_PERIODS[0]);
   const [companyId, setCompanyId] = useState("80000222");
   const [companyData, setCompanyData] = useState<CompanyPayload | null>(null);
-  const [mode, setMode] = useState<"overview" | "manager" | "fund" | "stock">("overview");
+  const [mode, setMode] = useState<"overview" | "manager" | "fund" | "stock" | "industry">("overview");
   const [query, setQuery] = useState("");
   const [selectedManagerId, setSelectedManagerId] = useState("");
   const [selectedFundCode, setSelectedFundCode] = useState("");
   const [fundHoldings, setFundHoldings] = useState<FundHoldings | null>(null);
+  const [fundProducts, setFundProducts] = useState<StaticFundProduct[]>([]);
   const [managerHoldings, setManagerHoldings] = useState<ManagerPayload | null>(null);
   const [overviewPage, setOverviewPage] = useState(0);
   const [overviewData, setOverviewData] = useState<Record<string, ManagerPayload>>({});
@@ -198,6 +312,8 @@ export default function Home() {
   const [stockCompanyPage, setStockCompanyPage] = useState(0);
   const [stockError, setStockError] = useState("");
   const [error, setError] = useState("");
+
+  useDesktopHorizontalScroll();
 
   useEffect(() => {
     fetch("/api/periods").then((response) => response.json()).then((periodResult) => {
@@ -240,7 +356,7 @@ export default function Home() {
   useEffect(() => {
     if (!companyId || !company) return;
     setCompanyLoading(true); setError(""); setQuery("");
-    setCompanyData(null);
+    setCompanyData(null); setFundProducts([]);
     fetch(`/data/funds/${period}/${companyId}.json`).then(async (response) => {
       if (!response.ok) throw new Error("季度基金产品数据尚未发布");
       return response.json() as Promise<StaticFundPayload>;
@@ -256,9 +372,11 @@ export default function Home() {
         endShares: product.endShares,
         scalePeriod: product.scalePeriod,
       }));
+      setFundProducts(payload.products);
       setCompanyData({ company, funds, mode: "static" });
       setSelectedFundCode(funds[0]?.code ?? "");
     }).catch(async () => {
+      setFundProducts([]);
       const response = await fetch(`/api/company?id=${encodeURIComponent(companyId)}&period=${encodeURIComponent(period)}&metadata=3`);
       if (!response.ok) throw new Error("公司数据加载失败");
       const result = await response.json() as CompanyPayload;
@@ -289,7 +407,21 @@ export default function Home() {
     if (managers.length && !managers.some((item) => item.id === selectedManagerId)) setSelectedManagerId(managers[0].id);
   }, [managers, selectedManagerId]);
   const filteredManagers = useMemo(() => { const key = query.trim().toLowerCase(); return key ? managers.filter((item) => `${item.name} ${item.fundNames.join(" ")}`.toLowerCase().includes(key)) : managers; }, [managers, query]);
-  const filteredFunds = useMemo(() => { const key = query.trim().toLowerCase(); return key ? funds.filter((item) => `${item.code} ${item.name} ${item.pinyin} ${item.managers.join(" ")}`.toLowerCase().includes(key)) : funds; }, [funds, query]);
+  const fundQueryKey = query.trim().replace(/\s+/g, "").toLowerCase();
+  const fundStockMatches = useMemo(() => {
+    const matches = new Map<string, Holding>();
+    if (!fundQueryKey) return matches;
+    for (const product of fundProducts) {
+      const holding = product.holdings.find((item) => `${item.stockCode}${item.stockName}`.replace(/\s+/g, "").toLowerCase().includes(fundQueryKey));
+      if (holding) matches.set(product.code, holding);
+    }
+    return matches;
+  }, [fundProducts, fundQueryKey]);
+  const filteredFunds = useMemo(() => {
+    const key = query.trim().toLowerCase();
+    if (!key) return funds;
+    return funds.filter((item) => `${item.code} ${item.name} ${item.pinyin} ${item.managers.join(" ")}`.toLowerCase().includes(key) || fundStockMatches.has(item.code));
+  }, [funds, query, fundStockMatches]);
   const filteredStocks = useMemo(() => {
     const key = query.trim().replace(/\s+/g, "").toLowerCase();
     const rows = key ? (stockIndex?.stocks ?? []).filter((item) => `${item.stockCode}${item.stockName}`.replace(/\s+/g, "").toLowerCase().includes(key)) : stockIndex?.stocks ?? [];
@@ -300,7 +432,12 @@ export default function Home() {
   const companyScale = funds.reduce((sum, fund) => sum + (fund.netAsset ?? 0), 0);
   const scaleDisclosed = funds.filter((fund) => fund.netAsset !== null || fund.endShares !== null).length;
   const selectedManager = managers.find((item) => item.id === selectedManagerId) ?? managers[0];
-  const selectedFund = funds.find((item) => item.code === selectedFundCode) ?? funds[0];
+  const selectedFund = filteredFunds.find((item) => item.code === selectedFundCode) ?? filteredFunds[0] ?? funds.find((item) => item.code === selectedFundCode) ?? funds[0];
+
+  useEffect(() => {
+    if (mode !== "fund" || !filteredFunds.length) return;
+    if (!filteredFunds.some((item) => item.code === selectedFundCode)) setSelectedFundCode(filteredFunds[0].code);
+  }, [mode, filteredFunds, selectedFundCode]);
 
   useEffect(() => {
     if (mode !== "stock") return;
@@ -511,20 +648,20 @@ export default function Home() {
   return <main>
     <header className="topbar"><div className="logo">仓</div><div><strong>全市场持仓雷达</strong><small>PUBLIC FUND HOLDINGS</small></div><span className="health snapshot"><i />{market ? "全市场库已加载" : "正在加载全市场库"}</span></header>
     <section className="hero"><p className="kicker">QUARTERLY OWNERSHIP INTELLIGENCE</p><h1>全市场基金与基金经理<br />最新季度重仓股</h1><p>覆盖全部基金公司，按公司穿透基金与基金经理，也可从一只股票反查重仓机构；当前提供 {periodLabel(periods[0] ?? AVAILABLE_PERIODS[0])} 完整数据，并可导出高密度 Excel。</p><div className="market-strip"><span><b>{market?.companyCount ?? "—"}</b> 管理机构</span><span><b>{fmt(market?.managerCount ?? 0, 0)}</b> 基金经理</span><span><b>{fmt(marketProductCount, 0)}</b> 在管基金产品<small>A/C 等份额已去重</small></span></div></section>
-    <section className="controls"><label><span>当前已发布财报期</span><select value={period} onChange={(event) => setPeriod(event.target.value)}>{periods.map((item) => <option key={item} value={item}>{periodLabel(item)} · {item}</option>)}</select></label>{mode === "stock" ? <label><span>股票反查范围</span><div className="scope-display">全市场基金公司与基金经理</div></label> : <label><span>基金公司 · 全市场</span><select value={companyId} onChange={(event) => setCompanyId(event.target.value)} disabled={!market}>{market?.companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}</section>
-    {mode === "stock" ? <section className="coverage"><div><small>可反查股票</small><strong>{stockIndex?.stockCount ?? "…"}</strong></div><div><small>经理重仓记录</small><strong>{stockIndex ? fmt(stockIndex.managerHoldingCount, 0) : "…"}</strong></div><div><small>覆盖机构</small><strong>{stockIndex?.companyCount ?? "…"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section> : <section className="coverage"><div><small>该公司产品</small><strong>{companyProductCount || (companyLoading ? "…" : 0)}</strong></div><div><small>基金经理</small><strong>{managers.length || (companyLoading ? "…" : 0)}</strong></div><div><small>数据状态</small><strong className="status-text">{companyData?.mode === "static" ? "季度库" : companyData?.mode === "live" ? "实时" : companyLoading ? "读取中" : "回退"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section>}
+    <section className="controls"><label><span>当前已发布财报期</span><select value={period} onChange={(event) => setPeriod(event.target.value)}>{periods.map((item) => <option key={item} value={item}>{periodLabel(item)} · {item}</option>)}</select></label>{mode === "stock" || mode === "industry" ? <label><span>{mode === "industry" ? "全行业统计范围" : "股票反查范围"}</span><div className="scope-display">{mode === "industry" ? "主动偏股公募基金 · 申万一级行业" : "全市场基金公司与基金经理"}</div></label> : <label><span>基金公司 · 全市场</span><select value={companyId} onChange={(event) => setCompanyId(event.target.value)} disabled={!market}>{market?.companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}</section>
+    {mode === "industry" ? <section className="coverage"><div><small>基金范围</small><strong className="status-text">主动偏股</strong></div><div><small>基金类型</small><strong className="status-text">四类权益</strong></div><div><small>行业标准</small><strong className="status-text">申万一级</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section> : mode === "stock" ? <section className="coverage"><div><small>可反查股票</small><strong>{stockIndex?.stockCount ?? "…"}</strong></div><div><small>经理重仓记录</small><strong>{stockIndex ? fmt(stockIndex.managerHoldingCount, 0) : "…"}</strong></div><div><small>覆盖机构</small><strong>{stockIndex?.companyCount ?? "…"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section> : <section className="coverage"><div><small>该公司产品</small><strong>{companyProductCount || (companyLoading ? "…" : 0)}</strong></div><div><small>基金经理</small><strong>{managers.length || (companyLoading ? "…" : 0)}</strong></div><div><small>数据状态</small><strong className="status-text">{companyData?.mode === "static" ? "季度库" : companyData?.mode === "live" ? "实时" : companyLoading ? "读取中" : "回退"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section>}
     <section className="workspace">
-      <div className="tabs"><button className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>基金总览</button><button className={mode === "manager" ? "active" : ""} onClick={() => setMode("manager")}>基金经理</button><button className={mode === "fund" ? "active" : ""} onClick={() => setMode("fund")}>基金产品</button><button className={mode === "stock" ? "active" : ""} onClick={() => { setMode("stock"); setQuery(""); }}>股票反查</button></div>
-      <div className={`entity-tools${mode === "stock" ? " stock-tools" : ""}`}><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "stock" ? "输入股票代码或名称" : mode === "fund" ? "搜索基金代码、名称、经理" : "搜索经理、在管基金"} />{query && <button onClick={() => setQuery("")}>×</button>}</div>{mode !== "stock" && <div className="export-actions"><button className="export institution" onClick={exportInstitution} disabled={institutionExportDisabled}>{institutionExportLoading ? "正在准备机构完整信息…" : "导出机构完整 Excel"}</button>{mode === "manager" ? <><button className="export secondary" onClick={exportCurrent} disabled={exportDisabled}>导出当前经理</button><button className="export" onClick={exportAllManagerSectors} disabled={sectorExportDisabled}>{sectorExportLoading ? "正在准备行业数据…" : "导出全部行业 Excel"}</button></> : <button className="export secondary" onClick={exportCurrent} disabled={exportDisabled}>{mode === "overview" ? "导出全部经理 Excel" : fundExportLoading ? "正在准备全部基金…" : "导出全部基金 Excel"}</button>}</div>}</div>
-      {mode === "stock" ? <StockReverseLookup query={query} items={filteredStocks} selectedCode={selectedStockCode} onSelect={setSelectedStockCode} detail={stockDetail} indexLoading={stockIndexLoading} detailLoading={stockDetailLoading} error={stockError} companyPage={stockCompanyPage} onCompanyPage={setStockCompanyPage} /> : mode === "overview" ? <>
+      <div className="tabs"><button className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>基金总览</button><button className={mode === "manager" ? "active" : ""} onClick={() => setMode("manager")}>基金经理</button><button className={mode === "fund" ? "active" : ""} onClick={() => setMode("fund")}>基金产品</button><button className={`stock-tab${mode === "stock" ? " active" : ""}`} onClick={() => { setMode("stock"); setQuery(""); }}>股票反查</button><button className={`industry-tab${mode === "industry" ? " active" : ""}`} onClick={() => { setMode("industry"); setQuery(""); }}>全行业</button></div>
+      <div className={`entity-tools${mode === "stock" || mode === "industry" ? " stock-tools" : ""}`}><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={mode === "industry" ? "搜索申万一级行业" : mode === "stock" ? "输入股票代码或名称" : mode === "fund" ? "搜索基金代码、名称、经理或重仓股票" : "搜索经理、在管基金"} />{query && <button onClick={() => setQuery("")}>×</button>}</div>{mode !== "stock" && mode !== "industry" && <div className="export-actions"><button className="export institution" onClick={exportInstitution} disabled={institutionExportDisabled}>{institutionExportLoading ? "正在准备机构完整信息…" : "导出机构完整 Excel"}</button>{mode === "manager" ? <><button className="export secondary" onClick={exportCurrent} disabled={exportDisabled}>导出当前经理</button><button className="export" onClick={exportAllManagerSectors} disabled={sectorExportDisabled}>{sectorExportLoading ? "正在准备行业数据…" : "导出全部行业 Excel"}</button></> : <button className="export secondary" onClick={exportCurrent} disabled={exportDisabled}>{mode === "overview" ? "导出全部经理 Excel" : fundExportLoading ? "正在准备全部基金…" : "导出全部基金 Excel"}</button>}</div>}</div>
+      {mode === "industry" ? <MarketIndustryAllocation period={period} query={query} /> : mode === "stock" ? <StockReverseLookup query={query} items={filteredStocks} selectedCode={selectedStockCode} onSelect={setSelectedStockCode} detail={stockDetail} indexLoading={stockIndexLoading} detailLoading={stockDetailLoading} error={stockError} companyPage={stockCompanyPage} onCompanyPage={setStockCompanyPage} /> : mode === "overview" ? <>
         <div className="overview-title"><div><span>FUND HOUSE OVERVIEW</span><h2>{company?.name}基金总览</h2><p>{periodLabel(period)} · 公司信息与全部基金经理前十大重仓矩阵</p></div><em>全量经理</em></div>
         <div className="overview-company-metrics"><div><small>已披露净资产合计</small><b>{companyLoading ? "…" : `${fmt(companyScale, 1)} 亿`}</b></div><div><small>报告期基金产品</small><b>{companyProductCount || (companyLoading ? "…" : 0)}</b></div><div><small>在任基金经理</small><b>{managers.length || (companyLoading ? "…" : 0)}</b></div><div><small>规模可用覆盖</small><b>{companyLoading ? "…" : `${funds.length ? fmt(scaleDisclosed / funds.length * 100, 1) : 0}%`}</b></div></div>
         <div className="overview-toolbar"><div><strong>全部经理持仓总览</strong><span>每页 {OVERVIEW_PAGE_SIZE} 位 · 横向滑动</span></div><div className="pager"><button onClick={() => setOverviewPage((page) => Math.max(0, page - 1))} disabled={overviewPage === 0}>‹</button><b>{overviewPage + 1} / {overviewPageCount}</b><button onClick={() => setOverviewPage((page) => Math.min(overviewPageCount - 1, page + 1))} disabled={overviewPage >= overviewPageCount - 1}>›</button></div></div>
         <div className="overview-progress"><i style={{ width: `${overviewManagers.length ? overviewProgress / overviewManagers.length * 100 : 0}%` }} /><span>{overviewLoading ? `正在汇总 ${overviewProgress}/${overviewManagers.length} 位经理` : overviewStaticHit ? `后台预计算数据已就绪 · 本页 ${overviewManagers.length} 位经理` : `本页 ${overviewManagers.length} 位经理已就绪`}</span></div>
         <OverviewMatrix managers={overviewManagers} data={overviewData} loading={overviewLoading} />
         <p className="overview-note">产品范围按所选财报期校准，财报期后新成立的基金不会混入。普通基金显示报告期末净资产；REIT 若该季未披露净资产，则显示同期报告期末份额（亿份），不做估算。联合管理基金分别归入每位基金经理；A/C 等份额持仓只计算一次、净资产规模合并。</p>
-      </> : mode === "manager" ? <><div className="result-head"><strong>全部基金经理</strong><span>{filteredManagers.length} 条 · 横向滑动</span></div><div className="entity-rail">{filteredManagers.map((item) => <button key={item.id} className={item.id === selectedManager?.id ? "active" : ""} onClick={() => setSelectedManagerId(item.id)}><strong>{item.name}</strong><small>{representativeCodes(item).length} 个产品 · 从业 {fmt(item.tenureDays / 365, 1)} 年</small></button>)}</div></> : companyLoading ? <Skeleton label="正在读取该公司全部基金与报告期规模…" /> : <><div className="result-head"><strong>全部基金</strong><span>{filteredFunds.length} 条 · 横向滑动</span></div><div className="entity-rail">{filteredFunds.map((item) => <button key={item.code} className={`fund-card${item.code === selectedFund?.code ? " active" : ""}`} onClick={() => setSelectedFundCode(item.code)}><strong>{item.name}</strong><small>{item.code} · {item.managers.join("、") || "经理待匹配"}</small><small className="fund-scale">{item.netAsset !== null ? "净资产规模" : "期末份额规模"} {fundScale(item)}</small></button>)}</div></>}
-      {mode !== "stock" && error && <div className="error-banner">{error}</div>}
+      </> : mode === "manager" ? <><div className="result-head"><strong>全部基金经理</strong><span>{filteredManagers.length} 条 · 横向滑动</span></div><div className="entity-rail">{filteredManagers.map((item) => <button key={item.id} className={item.id === selectedManager?.id ? "active" : ""} onClick={() => setSelectedManagerId(item.id)}><strong>{item.name}</strong><small>{representativeCodes(item).length} 个产品 · 从业 {fmt(item.tenureDays / 365, 1)} 年</small></button>)}</div></> : companyLoading ? <Skeleton label="正在读取该公司全部基金与报告期规模…" /> : <><div className="result-head"><strong>{query.trim() && fundStockMatches.size ? "重仓股票匹配基金" : "全部基金"}</strong><span>{filteredFunds.length} 条 · 横向滑动</span></div><div className="entity-rail">{filteredFunds.map((item) => <button key={item.code} className={`fund-card${item.code === selectedFund?.code ? " active" : ""}`} onClick={() => setSelectedFundCode(item.code)}><strong>{item.name}</strong><small>{item.code} · {item.managers.join("、") || "经理待匹配"}</small><small className="fund-scale">{item.netAsset !== null ? "净资产规模" : "期末份额规模"} {fundScale(item)}</small>{fundStockMatches.get(item.code) ? <small className="fund-stock-hit">重仓 {fundStockMatches.get(item.code)!.stockName} · 第 {fundStockMatches.get(item.code)!.rank} 名 · 净值 {fmt(fundStockMatches.get(item.code)!.weight, 2)}%</small> : null}</button>)}</div></>}
+      {mode !== "stock" && mode !== "industry" && error && <div className="error-banner">{error}</div>}
       {(mode === "manager" || mode === "fund") && <div className="detail-card">
         {mode === "manager" && selectedManager && <><div className="detail-title"><div><span>FUND MANAGER</span><h2>{selectedManager.name}</h2><p>{company?.name} · {representativeCodes(selectedManager).length} 个在管基金产品（份额已去重） · 在管产品持仓汇总</p></div><em>经理汇总</em></div><div className="mini-metrics"><div><small>从业年限</small><b>{fmt(selectedManager.tenureDays / 365, 1)} 年</b></div><div><small>去重后产品</small><b>{representativeCodes(selectedManager).length} 只</b></div><div><small>在管净值</small><b>{managerHoldings ? `${fmt(managerHoldings.managedNav / 10000, 1)} 亿` : "—"}</b></div><div><small>成功汇总</small><b>{managerHoldings?.succeeded ?? "—"} 只</b></div></div>{detailLoading ? <Skeleton label="正在读取经理持仓…" /> : <>{managerSectorPending ? <Skeleton label="正在读取已预生成的行业数据…" /> : <SectorBreakdown rows={managerHoldings?.sectors ?? []} />}<ManagerTable rows={managerHoldings?.holdings ?? []} /><p className="value-note">经理持仓与行业分布均优先读取后台预生成季度数据；切换经理无需再次逐只基金查询。“导出全部行业 Excel”不受当前搜索或选中经理影响。</p></>}</>}
         {mode === "fund" && selectedFund && <><div className="detail-title"><div><span>PUBLIC FUND</span><h2>{selectedFund.name}</h2><p>{selectedFund.code} · {selectedFund.managers.join("、") || "基金经理待匹配"}</p></div><em>公开披露</em></div><div className="mini-metrics"><div><small>财报期</small><b>{period.slice(0, 7)}</b></div><div><small>{selectedFund.netAsset !== null ? "净资产规模" : "期末份额规模"}</small><b>{fundScale(selectedFund)}</b></div><div><small>披露股票</small><b>{fundHoldings?.holdings.length ?? "—"} 只</b></div><div><small>前十净值占比</small><b>{fundHoldings ? `${fmt(fundHoldings.holdings.reduce((sum, item) => sum + item.weight, 0), 1)}%` : "—"}</b></div></div>{detailLoading ? <Skeleton label="正在读取基金季报持仓…" /> : <><FundTable rows={fundHoldings?.holdings ?? []} /><p className="value-note">“导出全部基金 Excel”一次包含该公司报告期内全部基金产品，不受当前搜索或选中基金影响；A/C 等份额合并规模，持仓只保留一份。</p></>}</>}
