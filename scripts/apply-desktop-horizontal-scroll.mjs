@@ -16,40 +16,14 @@ const helper = `function useDesktopHorizontalScroll() {
       element.dataset.desktopHorizontalScroll = "true";
       if (!element.hasAttribute("tabindex")) element.tabIndex = 0;
 
-      const slider = document.createElement("input");
-      slider.type = "range";
-      slider.className = "desktop-horizontal-slider";
-      slider.min = "0";
-      slider.step = "1";
-      slider.value = "0";
-      slider.setAttribute("aria-label", "横向滑动");
-      element.insertAdjacentElement("afterend", slider);
-
       let dragging = false;
       let moved = false;
       let suppressClick = false;
       let pointerId = -1;
       let startX = 0;
       let startScrollLeft = 0;
-      let syncing = false;
 
       const canScroll = () => element.scrollWidth > element.clientWidth + 1;
-      const syncSlider = () => {
-        const max = Math.max(0, element.scrollWidth - element.clientWidth);
-        slider.max = String(max);
-        slider.hidden = max <= 1;
-        if (!syncing) slider.value = String(Math.min(max, Math.max(0, element.scrollLeft)));
-      };
-      const onElementScroll = () => {
-        syncing = true;
-        slider.value = String(element.scrollLeft);
-        syncing = false;
-      };
-      const onSliderInput = () => {
-        syncing = true;
-        element.scrollLeft = Number(slider.value);
-        syncing = false;
-      };
       const onPointerDown = (event: PointerEvent) => {
         if (event.pointerType !== "mouse" || event.button !== 0 || !canScroll()) return;
         dragging = true;
@@ -113,16 +87,8 @@ const helper = `function useDesktopHorizontalScroll() {
       element.addEventListener("click", onClickCapture, true);
       element.addEventListener("wheel", onWheel, { passive: false });
       element.addEventListener("keydown", onKeyDown);
-      element.addEventListener("scroll", onElementScroll, { passive: true });
-      slider.addEventListener("input", onSliderInput);
-
-      const resizeObserver = new ResizeObserver(syncSlider);
-      resizeObserver.observe(element);
-      if (element.firstElementChild) resizeObserver.observe(element.firstElementChild);
-      syncSlider();
 
       cleanups.set(element, () => {
-        resizeObserver.disconnect();
         element.removeEventListener("pointerdown", onPointerDown);
         element.removeEventListener("pointermove", onPointerMove);
         element.removeEventListener("pointerup", finishDrag);
@@ -131,9 +97,6 @@ const helper = `function useDesktopHorizontalScroll() {
         element.removeEventListener("click", onClickCapture, true);
         element.removeEventListener("wheel", onWheel);
         element.removeEventListener("keydown", onKeyDown);
-        element.removeEventListener("scroll", onElementScroll);
-        slider.removeEventListener("input", onSliderInput);
-        slider.remove();
         element.classList.remove("is-dragging");
         delete element.dataset.desktopHorizontalScroll;
       });
@@ -176,8 +139,11 @@ writeFileSync(pagePath, page);
 
 const cssPath = "app/globals.css";
 let css = readFileSync(cssPath, "utf8");
-const marker = "/* Desktop horizontal scrolling: wheel, visible scrollbar, mouse drag, and dedicated slider. */";
-const oldMarker = "/* Desktop horizontal scrolling: wheel, visible scrollbar, and mouse drag. */";
+const marker = "/* Desktop horizontal scrolling: wheel, visible native scrollbar, and mouse drag. */";
+const legacyMarkers = [
+  "/* Desktop horizontal scrolling: wheel, visible scrollbar, mouse drag, and dedicated slider. */",
+  "/* Desktop horizontal scrolling: wheel, visible scrollbar, and mouse drag. */",
+];
 const nextMarker = "/* Keep the fourth and fifth navigation labels orange; scope text remains unchanged. */";
 const cssBlock = `${marker}
 @media (hover:hover) and (pointer:fine){
@@ -199,47 +165,6 @@ const cssBlock = `${marker}
     background:#f1eded;
     border-radius:999px;
   }
-  .desktop-horizontal-slider{
-    display:block;
-    width:100%;
-    height:18px;
-    margin:5px 0 10px;
-    padding:0;
-    cursor:ew-resize;
-    accent-color:var(--orange);
-  }
-  .desktop-horizontal-slider[hidden]{display:none}
-  .desktop-horizontal-slider::-webkit-slider-runnable-track{
-    height:7px;
-    background:#eee8e7;
-    border:1px solid #e4d6d2;
-    border-radius:999px;
-  }
-  .desktop-horizontal-slider::-webkit-slider-thumb{
-    width:30px;
-    height:15px;
-    margin-top:-5px;
-    appearance:none;
-    -webkit-appearance:none;
-    background:linear-gradient(135deg,var(--red),var(--orange));
-    border:2px solid #fff;
-    border-radius:999px;
-    box-shadow:0 2px 6px rgba(185,40,32,.24);
-  }
-  .desktop-horizontal-slider::-moz-range-track{
-    height:7px;
-    background:#eee8e7;
-    border:1px solid #e4d6d2;
-    border-radius:999px;
-  }
-  .desktop-horizontal-slider::-moz-range-thumb{
-    width:28px;
-    height:13px;
-    background:linear-gradient(135deg,var(--red),var(--orange));
-    border:2px solid #fff;
-    border-radius:999px;
-    box-shadow:0 2px 6px rgba(185,40,32,.24);
-  }
   [data-desktop-horizontal-scroll="true"].is-dragging{
     cursor:grabbing;
     user-select:none;
@@ -252,7 +177,8 @@ const cssBlock = `${marker}
 }
 `;
 
-const markerIndex = Math.max(css.indexOf(marker), css.indexOf(oldMarker));
+const candidates = [marker, ...legacyMarkers].map((item) => css.indexOf(item)).filter((index) => index >= 0);
+const markerIndex = candidates.length ? Math.min(...candidates) : -1;
 if (markerIndex >= 0) {
   const nextIndex = css.indexOf(nextMarker, markerIndex);
   css = nextIndex >= 0 ? css.slice(0, markerIndex) + cssBlock + "\n\n" + css.slice(nextIndex) : css.slice(0, markerIndex) + cssBlock;
@@ -261,4 +187,4 @@ if (markerIndex >= 0) {
 }
 writeFileSync(cssPath, css);
 
-console.log("Desktop horizontal scrolling enabled with a dedicated slider below every wide rail and table.");
+console.log("Desktop horizontal scrolling enabled with one native scrollbar only.");
