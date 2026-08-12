@@ -1,0 +1,73 @@
+name: Verify desktop horizontal scrolling
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-desktop-horizontal-scroll.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-desktop-horizontal-scroll
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply desktop scrolling patch to tracked source
+        run: |
+          node scripts/apply-fund-product-search-patch.mjs
+          node scripts/apply-stock-reverse-label-style.mjs
+          node scripts/apply-desktop-horizontal-scroll.mjs
+
+      - name: Verify source behavior contract
+        run: node --test tests/desktop-horizontal-scroll.test.mjs
+
+      - name: Build and verify rendered site
+        run: |
+          npm run build
+          node --test tests/desktop-horizontal-scroll.test.mjs tests/rendered-html.test.mjs
+
+      - name: Commit generated source and deployment marker
+        run: |
+          printf '%s\n' 'desktop-horizontal-scroll-20260812-2114' > public/desktop-horizontal-scroll-version.txt
+          git config user.name "fund-holdings-bot"
+          git config user.email "fund-holdings-bot@users.noreply.github.com"
+          git add app/page.tsx app/globals.css public/desktop-horizontal-scroll-version.txt
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "Publish verified desktop horizontal scrolling [skip ci]"
+            git push
+          fi
+
+      - name: Verify Render deployed the fix
+        run: |
+          expected='desktop-horizontal-scroll-20260812-2114'
+          base='https://fund-holdings-radar.onrender.com'
+          for attempt in $(seq 1 90); do
+            marker=$(curl -fsS --max-time 30 "$base/desktop-horizontal-scroll-version.txt?attempt=$attempt" 2>/dev/null || true)
+            page=$(curl -fsS --max-time 30 "$base/?attempt=$attempt" 2>/dev/null || true)
+            if [ "$marker" = "$expected" ] && printf '%s' "$page" | grep -q '股票反查'; then
+              echo "Render deployment verified"
+              exit 0
+            fi
+            echo "Waiting for Render deployment ($attempt/90)"
+            sleep 10
+          done
+          echo "Render deployment was not verified in time"
+          exit 1
