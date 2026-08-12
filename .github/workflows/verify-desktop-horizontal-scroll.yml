@@ -46,18 +46,18 @@ jobs:
 
       - name: Commit generated source and deployment marker
         run: |
-          printf '%s\n' 'desktop-horizontal-scroll-20260812-2130' > public/desktop-horizontal-scroll-version.txt
+          printf '%s\n' 'desktop-horizontal-slider-20260812-2133' > public/desktop-horizontal-scroll-version.txt
           git config user.name "fund-holdings-bot"
           git config user.email "fund-holdings-bot@users.noreply.github.com"
           git add app/page.tsx app/globals.css public/desktop-horizontal-scroll-version.txt
           if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "Publish verified desktop horizontal scrolling [skip ci]"
+            git commit -m "Publish dedicated desktop horizontal slider [skip ci]"
             git push
           fi
 
       - name: Verify Render deployed the fix
         run: |
-          expected='desktop-horizontal-scroll-20260812-2130'
+          expected='desktop-horizontal-slider-20260812-2133'
           base='https://fund-holdings-radar.onrender.com'
           for attempt in $(seq 1 90); do
             marker=$(curl -fsS --max-time 30 "$base/desktop-horizontal-scroll-version.txt?attempt=$attempt" 2>/dev/null || true)
