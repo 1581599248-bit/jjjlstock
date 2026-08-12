@@ -45,7 +45,7 @@ test("highlights only the stock reverse and full-industry tabs", async () => {
   assert.match(pageSource, /<span>\{mode === "industry" \? "全行业统计范围" : "股票反查范围"\}<\/span>/);
   assert.match(pageSource, /"全市场基金公司与基金经理"/);
   assert.doesNotMatch(pageSource, /stock-accent/);
-  assert.match(cssSource, /\.tabs \.stock-tab,\.tabs \.industry-tab\{color:var\(--orange\)!important\}/);
+  assert.match(cssSource, /\.tabs \.stock-tab,\.tabs \.industry-tab,\.tabs>button:nth-child\(4\),\.tabs>button:nth-child\(5\)\{color:#ff7138!important\}/);
   assert.doesNotMatch(cssSource, /\.stock-accent\{/);
   assert.match(pageSource, /\/data\/stocks\/\$\{period\}\/index\.json/);
   assert.match(pageSource, /\/data\/stocks\/\$\{period\}\/buckets\/\$\{bucket\}\.json/);
