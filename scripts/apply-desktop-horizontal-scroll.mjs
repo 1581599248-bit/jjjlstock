@@ -32,13 +32,15 @@ const helper = `function useDesktopHorizontalScroll() {
         pointerId = event.pointerId;
         startX = event.clientX;
         startScrollLeft = element.scrollLeft;
-        element.setPointerCapture?.(pointerId);
-        element.classList.add("is-dragging");
       };
       const onPointerMove = (event: PointerEvent) => {
         if (!dragging || event.pointerId !== pointerId) return;
         const distance = event.clientX - startX;
-        if (Math.abs(distance) > 3) moved = true;
+        if (!moved && Math.abs(distance) > 3) {
+          moved = true;
+          element.setPointerCapture?.(pointerId);
+          element.classList.add("is-dragging");
+        }
         if (!moved) return;
         event.preventDefault();
         element.scrollLeft = startScrollLeft - distance;
@@ -49,6 +51,11 @@ const helper = `function useDesktopHorizontalScroll() {
         dragging = false;
         element.classList.remove("is-dragging");
         if (element.hasPointerCapture?.(pointerId)) element.releasePointerCapture(pointerId);
+        pointerId = -1;
+      };
+      const onPointerLeave = (event: PointerEvent) => {
+        if (!dragging || moved || event.pointerId !== pointerId) return;
+        dragging = false;
         pointerId = -1;
       };
       const onClickCapture = (event: MouseEvent) => {
@@ -76,6 +83,7 @@ const helper = `function useDesktopHorizontalScroll() {
       element.addEventListener("pointermove", onPointerMove);
       element.addEventListener("pointerup", finishDrag);
       element.addEventListener("pointercancel", finishDrag);
+      element.addEventListener("pointerleave", onPointerLeave);
       element.addEventListener("click", onClickCapture, true);
       element.addEventListener("wheel", onWheel, { passive: false });
       element.addEventListener("keydown", onKeyDown);
@@ -85,6 +93,7 @@ const helper = `function useDesktopHorizontalScroll() {
         element.removeEventListener("pointermove", onPointerMove);
         element.removeEventListener("pointerup", finishDrag);
         element.removeEventListener("pointercancel", finishDrag);
+        element.removeEventListener("pointerleave", onPointerLeave);
         element.removeEventListener("click", onClickCapture, true);
         element.removeEventListener("wheel", onWheel);
         element.removeEventListener("keydown", onKeyDown);
