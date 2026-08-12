@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("desktop horizontal scrolling is mounted for all wide rails and tables", async () => {
+test("desktop horizontal scrolling keeps one native scrollbar for all wide rails and tables", async () => {
   const [page, css, patch, pkg] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -16,21 +16,20 @@ test("desktop horizontal scrolling is mounted for all wide rails and tables", as
   assert.match(page, /addEventListener\("pointerdown"/);
   assert.match(page, /addEventListener\("wheel", onWheel, \{ passive: false \}\)/);
   assert.match(page, /scrollBy\(\{ left: event\.key === "ArrowRight" \? 180 : -180/);
+  assert.doesNotMatch(page, /desktop-horizontal-slider/);
+  assert.doesNotMatch(page, /document\.createElement\("input"\)/);
 
-  assert.match(patch, /document\.createElement\("input"\)/);
-  assert.match(patch, /slider\.type = "range"/);
-  assert.match(patch, /desktop-horizontal-slider/);
-  assert.match(patch, /slider\.addEventListener\("input", onSliderInput\)/);
-  assert.match(patch, /element\.scrollLeft = Number\(slider\.value\)/);
-  assert.match(patch, /ResizeObserver/);
   assert.match(patch, /MutationObserver/);
   assert.match(patch, /market-industry-table-wrap/);
+  assert.doesNotMatch(patch, /slider\.type = "range"/);
+  assert.doesNotMatch(patch, /desktop-horizontal-slider/);
+  assert.doesNotMatch(patch, /ResizeObserver/);
 
-  assert.match(css, /Desktop horizontal scrolling: wheel, visible scrollbar, mouse drag, and dedicated slider/);
+  assert.match(css, /Desktop horizontal scrolling: wheel, visible native scrollbar, and mouse drag/);
   assert.match(css, /cursor:grab/);
-  assert.match(css, /desktop-horizontal-slider/);
-  assert.match(css, /accent-color:var\(--orange\)/);
-  assert.match(css, /cursor:ew-resize/);
+  assert.match(css, /scrollbar-width:thin/);
+  assert.match(css, /::-webkit-scrollbar/);
+  assert.doesNotMatch(css, /desktop-horizontal-slider/);
 
   assert.match(pkg, /apply-desktop-horizontal-scroll\.mjs/);
 });
