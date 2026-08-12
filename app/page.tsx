@@ -178,14 +178,40 @@ function useDesktopHorizontalScroll() {
       element.dataset.desktopHorizontalScroll = "true";
       if (!element.hasAttribute("tabindex")) element.tabIndex = 0;
 
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.className = "desktop-horizontal-slider";
+      slider.min = "0";
+      slider.step = "1";
+      slider.value = "0";
+      slider.setAttribute("aria-label", "横向滑动");
+      element.insertAdjacentElement("afterend", slider);
+
       let dragging = false;
       let moved = false;
       let suppressClick = false;
       let pointerId = -1;
       let startX = 0;
       let startScrollLeft = 0;
+      let syncing = false;
 
       const canScroll = () => element.scrollWidth > element.clientWidth + 1;
+      const syncSlider = () => {
+        const max = Math.max(0, element.scrollWidth - element.clientWidth);
+        slider.max = String(max);
+        slider.hidden = max <= 1;
+        if (!syncing) slider.value = String(Math.min(max, Math.max(0, element.scrollLeft)));
+      };
+      const onElementScroll = () => {
+        syncing = true;
+        slider.value = String(element.scrollLeft);
+        syncing = false;
+      };
+      const onSliderInput = () => {
+        syncing = true;
+        element.scrollLeft = Number(slider.value);
+        syncing = false;
+      };
       const onPointerDown = (event: PointerEvent) => {
         if (event.pointerType !== "mouse" || event.button !== 0 || !canScroll()) return;
         dragging = true;
@@ -249,8 +275,16 @@ function useDesktopHorizontalScroll() {
       element.addEventListener("click", onClickCapture, true);
       element.addEventListener("wheel", onWheel, { passive: false });
       element.addEventListener("keydown", onKeyDown);
+      element.addEventListener("scroll", onElementScroll, { passive: true });
+      slider.addEventListener("input", onSliderInput);
+
+      const resizeObserver = new ResizeObserver(syncSlider);
+      resizeObserver.observe(element);
+      if (element.firstElementChild) resizeObserver.observe(element.firstElementChild);
+      syncSlider();
 
       cleanups.set(element, () => {
+        resizeObserver.disconnect();
         element.removeEventListener("pointerdown", onPointerDown);
         element.removeEventListener("pointermove", onPointerMove);
         element.removeEventListener("pointerup", finishDrag);
@@ -259,6 +293,9 @@ function useDesktopHorizontalScroll() {
         element.removeEventListener("click", onClickCapture, true);
         element.removeEventListener("wheel", onWheel);
         element.removeEventListener("keydown", onKeyDown);
+        element.removeEventListener("scroll", onElementScroll);
+        slider.removeEventListener("input", onSliderInput);
+        slider.remove();
         element.classList.remove("is-dragging");
         delete element.dataset.desktopHorizontalScroll;
       });
