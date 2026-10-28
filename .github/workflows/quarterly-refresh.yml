@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       period:
-        description: "Optional report period, for example 2026-06-30"
+        description: "Optional report period, for example 2026-09-30"
         required: false
         type: string
       force:
