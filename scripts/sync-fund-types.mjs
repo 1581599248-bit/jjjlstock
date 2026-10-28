@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const sourceUrl = "https://fund.eastmoney.com/js/fundcode_search.js";
@@ -11,7 +11,15 @@ if (start < 0 || end <= start) throw new Error("Eastmoney fund metadata array mi
 const rows = JSON.parse(text.slice(start, end + 1));
 if (!Array.isArray(rows) || rows.length < 20_000) throw new Error(`Unexpected fund metadata rows: ${rows.length}`);
 
-const types = {};
+// Retain classifications from earlier source snapshots for liquidated products
+// that still appear in the published historical quarters.
+const outputPath = path.resolve("app/data/fund-types.json");
+let types = {};
+try {
+  types = JSON.parse(await readFile(outputPath, "utf8")).types ?? {};
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
 for (const row of rows) {
   const code = String(row?.[0] ?? "");
   const rawType = String(row?.[3] ?? "").trim();
@@ -26,7 +34,6 @@ const output = {
   count: Object.keys(types).length,
   types,
 };
-const outputPath = path.resolve("app/data/fund-types.json");
 await mkdir(path.dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(output)}\n`, "utf8");
 console.log(JSON.stringify({ outputPath, count: output.count, generatedAt: output.generatedAt }));

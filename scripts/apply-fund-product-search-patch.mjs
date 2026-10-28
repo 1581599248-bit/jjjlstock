@@ -98,6 +98,7 @@ page = replaceOneOf(
 page = replaceOneOf(
   page,
   [
+    '{mode === "stock" || mode === "industry" ? <label><span>{mode === "industry" ? "全行业统计范围" : "股票反查范围"}</span><div className="scope-display">{mode === "industry" ? "主动偏股公募基金 · 申万一级行业" : "全市场基金公司与基金经理"}</div></label> : <label><span>基金公司 · 全市场</span>',
     '{mode === "stock" ? <label><span>股票反查范围</span><div className="scope-display">全市场基金公司与基金经理</div></label> : <label><span>基金公司 · 全市场</span>',
     '{mode === "stock" || mode === "industry" ? <label><span>{mode === "industry" ? "行业配置范围" : "股票反查范围"}</span><div className="scope-display">{mode === "industry" ? "全市场基金公司与全部公募基金" : "全市场基金公司与基金经理"}</div></label> : <label><span>基金公司 · 全市场</span>',
   ],
@@ -107,6 +108,7 @@ page = replaceOneOf(
 page = replaceOneOf(
   page,
   [
+    '{mode === "industry" ? <section className="coverage"><div><small>基金范围</small><strong className="status-text">主动偏股</strong></div><div><small>基金类型</small><strong className="status-text">四类权益</strong></div><div><small>行业标准</small><strong className="status-text">申万一级</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section> : mode === "stock" ? <section className="coverage"><div><small>可反查股票</small>',
     '{mode === "stock" ? <section className="coverage"><div><small>可反查股票</small>',
     '{mode === "industry" ? <section className="coverage"><div><small>配置范围</small><strong className="status-text">全市场</strong></div><div><small>统计口径</small><strong className="status-text">全部公募</strong></div><div><small>数据类型</small><strong className="status-text">行业配置</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section> : mode === "stock" ? <section className="coverage"><div><small>可反查股票</small>',
   ],
