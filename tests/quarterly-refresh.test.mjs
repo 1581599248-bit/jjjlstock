@@ -33,5 +33,6 @@ test("GitHub performs scheduled refreshes and Render deploys committed data", as
   assert.match(workflow, /npm test/);
   assert.match(render, /runtime: node/);
   assert.match(render, /autoDeployTrigger: commit/);
-  assert.match(render, /healthCheckPath: \/api\/periods/);
+  assert.match(render, /healthCheckPath: \/healthz\.txt/);
+  assert.equal((await readFile(new URL("public/healthz.txt", root), "utf8")).trim(), "ok");
 });
