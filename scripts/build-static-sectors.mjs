@@ -38,7 +38,7 @@ for (const file of await readdir(overviewDir)) {
 
 let industryByCode = {};
 if (existsSync(cacheFile)) industryByCode = JSON.parse(await readFile(cacheFile, "utf8"));
-const pending = [...stockCodes].filter((code) => !industryByCode[code] || isOtherIndustry(industryByCode[code]));
+const pending = args.get("cache-only") === "true" ? [] : [...stockCodes].filter((code) => !industryByCode[code] || isOtherIndustry(industryByCode[code]));
 let cursor = 0;
 let completed = 0;
 let unresolved = 0;
@@ -62,6 +62,7 @@ async function worker() {
     if (isOtherIndustry(industry)) unresolved += 1;
     completed += 1;
     if (completed % 100 === 0 || completed === pending.length) {
+      await writeFile(cacheFile, JSON.stringify(industryByCode, null, 2));
       process.stdout.write(`\r${completed}/${pending.length} detailed stock industries`);
     }
   }

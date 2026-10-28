@@ -1,5 +1,6 @@
 export const productKey = (name) => name
   .replace(/\s+/g, "")
+  .replace(/(?:[A-EHIOY](?:\d+)?\/)+[A-EHIOY](?:\d+)?(?=[（(]|$)/i, "")
   .replace(/(?:人民币|美元现汇|美元现钞|美汇|美钞|美元)(?=[（(]|$)/i, "")
   .replace(/[A-EHIOY](?:\d+)?(?=[（(]|$)/i, "")
   .replace(/(?:人民币|美元现汇|美元现钞|美汇|美钞|美元)$/i, "")

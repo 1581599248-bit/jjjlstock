@@ -19,7 +19,20 @@ const now = process.env.REFRESH_NOW ? new Date(process.env.REFRESH_NOW) : new Da
 if (requestedPeriod && !isReportPeriod(requestedPeriod)) throw new Error("Invalid requested report period");
 const period = requestedPeriod || nextUnpublishedPeriod(published.periods, now);
 if (!period) {
-  console.log(JSON.stringify({ status: "up-to-date", published: published.periods }));
+  for (const pendingPeriod of [...(published.pendingIndustryPeriods ?? [])]) {
+    if (checkOnly) continue;
+    try {
+      await run("scripts/build-static-market-industries.mjs", [`--period=${pendingPeriod}`, "--minimum-classification-coverage=0.9"]);
+      const cache = path.join(root, "work/sw-industry-cache/sw-level-one-2021.json");
+      await writeFile(path.join(root, "public/data/market-industries/sw-industry-cache.json"), await readFile(cache));
+      published.pendingIndustryPeriods = published.pendingIndustryPeriods.filter((item) => item !== pendingPeriod);
+      published.updatedAt = new Date().toISOString();
+      await writeFile(publishedFile, `${JSON.stringify(published, null, 2)}\n`, "utf8");
+    } catch (error) {
+      console.log(JSON.stringify({ status: "waiting-for-industry-source", period: pendingPeriod, error: error instanceof Error ? error.message : String(error) }));
+    }
+  }
+  console.log(JSON.stringify({ status: published.pendingIndustryPeriods?.length ? "waiting-for-industry-source" : "up-to-date", published: published.periods, pendingIndustryPeriods: published.pendingIndustryPeriods ?? [] }));
   process.exit(0);
 }
 if (published.periods.includes(period) && !force) {

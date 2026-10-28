@@ -36,6 +36,7 @@ const isOtherIndustry = (industry: string) => /^(其他|未分类|未知|其他\
 const orderSectors = (rows: SectorHolding[]) => [...rows].sort((a, b) => Number(isOtherIndustry(a.industry)) - Number(isOtherIndustry(b.industry)) || b.marketValue - a.marketValue);
 const productKey = (name: string) => name
   .replace(/\s+/g, "")
+  .replace(/(?:[A-EHIOY](?:\d+)?\/)+[A-EHIOY](?:\d+)?(?=[（(]|$)/i, "")
   .replace(/(?:人民币|美元现汇|美元现钞|美汇|美钞|美元)(?=[（(]|$)/i, "")
   .replace(/[A-EHIOY](?:\d+)?(?=[（(]|$)/i, "")
   .replace(/(?:人民币|美元现汇|美元现钞|美汇|美钞|美元)$/i, "")
@@ -178,40 +179,14 @@ function useDesktopHorizontalScroll() {
       element.dataset.desktopHorizontalScroll = "true";
       if (!element.hasAttribute("tabindex")) element.tabIndex = 0;
 
-      const slider = document.createElement("input");
-      slider.type = "range";
-      slider.className = "desktop-horizontal-slider";
-      slider.min = "0";
-      slider.step = "1";
-      slider.value = "0";
-      slider.setAttribute("aria-label", "横向滑动");
-      element.insertAdjacentElement("afterend", slider);
-
       let dragging = false;
       let moved = false;
       let suppressClick = false;
       let pointerId = -1;
       let startX = 0;
       let startScrollLeft = 0;
-      let syncing = false;
 
       const canScroll = () => element.scrollWidth > element.clientWidth + 1;
-      const syncSlider = () => {
-        const max = Math.max(0, element.scrollWidth - element.clientWidth);
-        slider.max = String(max);
-        slider.hidden = max <= 1;
-        if (!syncing) slider.value = String(Math.min(max, Math.max(0, element.scrollLeft)));
-      };
-      const onElementScroll = () => {
-        syncing = true;
-        slider.value = String(element.scrollLeft);
-        syncing = false;
-      };
-      const onSliderInput = () => {
-        syncing = true;
-        element.scrollLeft = Number(slider.value);
-        syncing = false;
-      };
       const onPointerDown = (event: PointerEvent) => {
         if (event.pointerType !== "mouse" || event.button !== 0 || !canScroll()) return;
         dragging = true;
@@ -275,16 +250,8 @@ function useDesktopHorizontalScroll() {
       element.addEventListener("click", onClickCapture, true);
       element.addEventListener("wheel", onWheel, { passive: false });
       element.addEventListener("keydown", onKeyDown);
-      element.addEventListener("scroll", onElementScroll, { passive: true });
-      slider.addEventListener("input", onSliderInput);
-
-      const resizeObserver = new ResizeObserver(syncSlider);
-      resizeObserver.observe(element);
-      if (element.firstElementChild) resizeObserver.observe(element.firstElementChild);
-      syncSlider();
 
       cleanups.set(element, () => {
-        resizeObserver.disconnect();
         element.removeEventListener("pointerdown", onPointerDown);
         element.removeEventListener("pointermove", onPointerMove);
         element.removeEventListener("pointerup", finishDrag);
@@ -293,9 +260,6 @@ function useDesktopHorizontalScroll() {
         element.removeEventListener("click", onClickCapture, true);
         element.removeEventListener("wheel", onWheel);
         element.removeEventListener("keydown", onKeyDown);
-        element.removeEventListener("scroll", onElementScroll);
-        slider.removeEventListener("input", onSliderInput);
-        slider.remove();
         element.classList.remove("is-dragging");
         delete element.dataset.desktopHorizontalScroll;
       });
@@ -684,7 +648,7 @@ export default function Home() {
   const managerSectorPending = mode === "manager" && sectorStaticScope !== `${companyId}|${period}` && !(managerHoldings?.sectors.length);
   return <main>
     <header className="topbar"><div className="logo">仓</div><div><strong>全市场持仓雷达</strong><small>PUBLIC FUND HOLDINGS</small></div><span className="health snapshot"><i />{market ? "全市场库已加载" : "正在加载全市场库"}</span></header>
-    <section className="hero"><p className="kicker">QUARTERLY OWNERSHIP INTELLIGENCE</p><h1>全市场基金与基金经理<br />最新季度重仓股</h1><p>覆盖全部基金公司，按公司穿透基金与基金经理，也可从一只股票反查重仓机构；当前提供 {periodLabel(periods[0] ?? AVAILABLE_PERIODS[0])} 完整数据，并可导出高密度 Excel。</p><div className="market-strip"><span><b>{market?.companyCount ?? "—"}</b> 管理机构</span><span><b>{fmt(market?.managerCount ?? 0, 0)}</b> 基金经理</span><span><b>{fmt(marketProductCount, 0)}</b> 在管基金产品<small>A/C 等份额已去重</small></span></div></section>
+    <section className="hero"><p className="kicker">QUARTERLY OWNERSHIP INTELLIGENCE</p><h1>全市场基金与基金经理<br />最新季度重仓股</h1><p>覆盖全部基金公司，按公司穿透基金与基金经理，也可从一只股票反查重仓机构；当前提供 {periodLabel(periods[0] ?? AVAILABLE_PERIODS[0])} 季度持仓数据，并可导出高密度 Excel。</p><div className="market-strip"><span><b>{market?.companyCount ?? "—"}</b> 管理机构</span><span><b>{fmt(market?.managerCount ?? 0, 0)}</b> 基金经理</span><span><b>{fmt(marketProductCount, 0)}</b> 在管基金产品<small>A/C 等份额已去重</small></span></div></section>
     <section className="controls"><label><span>当前已发布财报期</span><select value={period} onChange={(event) => setPeriod(event.target.value)}>{periods.map((item) => <option key={item} value={item}>{periodLabel(item)} · {item}</option>)}</select></label>{mode === "stock" || mode === "industry" ? <label><span>{mode === "industry" ? "全行业统计范围" : "股票反查范围"}</span><div className="scope-display">{mode === "industry" ? "主动偏股公募基金 · 申万一级行业" : "全市场基金公司与基金经理"}</div></label> : <label><span>基金公司 · 全市场</span><select value={companyId} onChange={(event) => setCompanyId(event.target.value)} disabled={!market}>{market?.companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}</section>
     {mode === "industry" ? <section className="coverage"><div><small>基金范围</small><strong className="status-text">主动偏股</strong></div><div><small>基金类型</small><strong className="status-text">四类权益</strong></div><div><small>行业标准</small><strong className="status-text">申万一级</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section> : mode === "stock" ? <section className="coverage"><div><small>可反查股票</small><strong>{stockIndex?.stockCount ?? "…"}</strong></div><div><small>经理重仓记录</small><strong>{stockIndex ? fmt(stockIndex.managerHoldingCount, 0) : "…"}</strong></div><div><small>覆盖机构</small><strong>{stockIndex?.companyCount ?? "…"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section> : <section className="coverage"><div><small>该公司产品</small><strong>{companyProductCount || (companyLoading ? "…" : 0)}</strong></div><div><small>基金经理</small><strong>{managers.length || (companyLoading ? "…" : 0)}</strong></div><div><small>数据状态</small><strong className="status-text">{companyData?.mode === "static" ? "季度库" : companyData?.mode === "live" ? "实时" : companyLoading ? "读取中" : "回退"}</strong></div><div><small>当前报告期</small><strong className="status-text">{period.slice(0, 7)}</strong></div></section>}
     <section className="workspace">

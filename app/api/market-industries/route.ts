@@ -1,3 +1,5 @@
+import publishedPeriods from "../../data/published-periods.json";
+
 type MarketCompany = { id: string; name: string };
 type MarketPayload = { companies?: MarketCompany[] };
 type FundHolding = { stockCode?: string; stockName?: string; marketValue?: number };
@@ -227,6 +229,9 @@ export async function GET(request: Request) {
   if (!/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) {
     return Response.json({ error: "invalid period" }, { status: 400 });
   }
+  if (publishedPeriods.pendingIndustryPeriods.includes(period)) {
+    return Response.json({ error: "当前财报期的申万全行业汇总暂未发布，请切换其他财报期查看。" }, { status: 503 });
+  }
 
   try {
     const staticResponse = await fetch(new URL(`/data/market-industries/${period}.json`, request.url), { cache: "force-cache" });
@@ -254,6 +259,6 @@ export async function GET(request: Request) {
     const payload = await payloadCache.get(cacheKey)!;
     return Response.json(payload, { headers: { "cache-control": "public, max-age=300, s-maxage=1800" } });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "主动偏股公募全行业数据生成失败" }, { status: 503 });
+    return Response.json({ error: "当前财报期的申万全行业汇总暂未发布，请切换其他财报期查看。" }, { status: 503 });
   }
 }

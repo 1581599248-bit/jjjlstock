@@ -253,14 +253,23 @@ function securityIds(code: string) {
   if (/^[A-Z][A-Z0-9.-]{0,11}$/.test(ticker)) return [`105.${ticker}`, `106.${ticker}`, `107.${ticker}`];
   const digits = code.replace(/\D/g, "");
   if (digits.length === 5) return [`116.${digits}`];
-  if (digits.length === 6) return [`${/^[569]/.test(digits) ? "1" : "0"}.${digits}`];
+  if (digits.length === 6) return [`${/^(?:[56]|9(?!20))/.test(digits) ? "1" : "0"}.${digits}`];
   return [];
 }
 
 export async function fetchStockIndustry(code: string) {
   const digits = code.replace(/\D/g, "");
+  if (digits.length === 5) {
+    try {
+      const params = new URLSearchParams({ reportName: "RPT_HKF10_INFO_ORGPROFILE", columns: "SECURITY_CODE,BELONG_INDUSTRY", filter: `(SECUCODE="${digits}.HK")`, pageNumber: "1", pageSize: "1", source: "F10", client: "PC" });
+      const text = await fetchText(`https://datacenter.eastmoney.com/securities/api/data/v1/get?${params}`, "https://emweb.securities.eastmoney.com/");
+      const payload = JSON.parse(text) as { result?: { data?: Array<{ BELONG_INDUSTRY?: string }> } };
+      const industry = payload.result?.data?.[0]?.BELONG_INDUSTRY?.trim();
+      if (industry) return industry;
+    } catch { /* fall through to the quote endpoint */ }
+  }
   if (digits.length === 6) {
-    const marketCode = `${/^[569]/.test(digits) ? "SH" : /^[48]/.test(digits) ? "BJ" : "SZ"}${digits}`;
+    const marketCode = `${/^920/.test(digits) || /^[48]/.test(digits) ? "BJ" : /^[569]/.test(digits) ? "SH" : "SZ"}${digits}`;
     try {
       const text = await fetchText(`${COMPANY_SURVEY_API}?${new URLSearchParams({ code: marketCode })}`, "https://emweb.securities.eastmoney.com/");
       const payload = JSON.parse(text) as { jbzl?: Array<{ EM2016?: string | null }> };

@@ -262,8 +262,9 @@ for (const stock of stockIndex.stocks ?? []) {
   if (stockCodes.has(stock.stockCode)
     || !/^[A-Z0-9._-]{1,16}$/i.test(stock.stockCode)
     || !stock.stockName
-    || !Number.isInteger(stock.companyCount) || stock.companyCount < 1
-    || !Number.isInteger(stock.managerCount) || stock.managerCount < 1
+    || !Number.isInteger(stock.companyCount) || stock.companyCount < 0
+    || !Number.isInteger(stock.managerCount) || stock.managerCount < 0
+    || !Number.isInteger(stock.institutionCount) || stock.institutionCount < 1
     || !/^[0-9a-f]{2}$/.test(stock.bucket)) {
     addIssue("high", "stock_search_index_row", { stockCode: stock.stockCode });
     continue;
@@ -282,6 +283,8 @@ for (const stock of stockIndex.stocks ?? []) {
     || detail?.stockName !== stock.stockName
     || detail?.companyCount !== stock.companyCount
     || detail?.managerCount !== stock.managerCount
+    || detail?.institutionCount !== stock.institutionCount
+    || detail?.institutions?.length !== Math.min(10, stock.institutionCount)
     || detail?.companies?.length !== stock.companyCount
     || detailManagers.length !== stock.managerCount) {
     addIssue("critical", "stock_search_detail_identity", { stockCode: stock.stockCode });

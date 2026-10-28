@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-21T16:43:35.296Z",
+  "updatedAt": "2026-10-28T15:47:08.281Z",
   "entries": {
     "80000095:2026-03-31": {
       "companyId": "80000095",
@@ -3281,6 +3281,1636 @@
       "productCount": 4,
       "path": "/data/overview/2026-06-30/81856932.json",
       "contentHash": "b7e7a027d23e843019fb5b21792e20488576f8717163aadb49ca06f6a58a0e93"
+    },
+    "80000095:2026-09-30": {
+      "companyId": "80000095",
+      "companyName": "国都证券",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:52:34.994Z",
+      "managerCount": 4,
+      "productCount": 2,
+      "path": "/data/overview/2026-09-30/80000095.json",
+      "contentHash": "60c028cc384f661509550dcd9b7a1b3d4025fd5a3a7b69b1d7416c15652aa968"
+    },
+    "80000200:2026-09-30": {
+      "companyId": "80000200",
+      "companyName": "中银证券",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:38.032Z",
+      "managerCount": 22,
+      "productCount": 43,
+      "path": "/data/overview/2026-09-30/80000200.json",
+      "contentHash": "629507e8afae13f6114a2f4fe9dee3fbb25f8770fcf704468afe2b403083530a"
+    },
+    "80000220:2026-09-30": {
+      "companyId": "80000220",
+      "companyName": "南方基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T15:46:24.862Z",
+      "managerCount": 119,
+      "productCount": 461,
+      "path": "/data/overview/2026-09-30/80000220.json",
+      "contentHash": "fa4179236151f60d0fa23b97ffa60a783b7fd9710a1587407ed7fcd8354e043e"
+    },
+    "80000221:2026-09-30": {
+      "companyId": "80000221",
+      "companyName": "富国基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T15:46:09.071Z",
+      "managerCount": 119,
+      "productCount": 476,
+      "path": "/data/overview/2026-09-30/80000221.json",
+      "contentHash": "ffac8e97a02c7ac32d48d3cac4603ee09b15f629a9d5e516082839fb144f3bc0"
+    },
+    "80000222:2026-09-30": {
+      "companyId": "80000222",
+      "companyName": "华夏基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T15:46:25.076Z",
+      "managerCount": 139,
+      "productCount": 575,
+      "path": "/data/overview/2026-09-30/80000222.json",
+      "contentHash": "d66634eee20ff3784eccddcf53d873dda94d618a2aaa70f6665c83a8f8081d17"
+    },
+    "80000223:2026-09-30": {
+      "companyId": "80000223",
+      "companyName": "嘉实基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:59:17.538Z",
+      "managerCount": 107,
+      "productCount": 388,
+      "path": "/data/overview/2026-09-30/80000223.json",
+      "contentHash": "a919e262780ce5d8c423774e2b9204275afa97b82703a74b6cb10da38792cc1b"
+    },
+    "80000224:2026-09-30": {
+      "companyId": "80000224",
+      "companyName": "国泰基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:54:59.028Z",
+      "managerCount": 67,
+      "productCount": 328,
+      "path": "/data/overview/2026-09-30/80000224.json",
+      "contentHash": "8df7dde70fbd886e2b9ddff09d4d8ce6029b60595e4dcb812641793240b413ea"
+    },
+    "80000225:2026-09-30": {
+      "companyId": "80000225",
+      "companyName": "大成基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T15:46:12.489Z",
+      "managerCount": 53,
+      "productCount": 232,
+      "path": "/data/overview/2026-09-30/80000225.json",
+      "contentHash": "908a2bdbf29d5755fec3c8d00d7875a63496ddaa141e8c9401d6b32f942a7ece"
+    },
+    "80000226:2026-09-30": {
+      "companyId": "80000226",
+      "companyName": "博时基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T15:46:24.334Z",
+      "managerCount": 103,
+      "productCount": 406,
+      "path": "/data/overview/2026-09-30/80000226.json",
+      "contentHash": "b909434476f8be74cba98dfca744a35db5def824990d1c9a79672db0a9a31fca"
+    },
+    "80000227:2026-09-30": {
+      "companyId": "80000227",
+      "companyName": "长盛基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:28.243Z",
+      "managerCount": 27,
+      "productCount": 78,
+      "path": "/data/overview/2026-09-30/80000227.json",
+      "contentHash": "1ef535659acb545b18c98e4435d6acce0225aa6d61da9e361a5ed90b1e52065b"
+    },
+    "80000228:2026-09-30": {
+      "companyId": "80000228",
+      "companyName": "华安基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:56:17.256Z",
+      "managerCount": 80,
+      "productCount": 306,
+      "path": "/data/overview/2026-09-30/80000228.json",
+      "contentHash": "6d86a8dc3336e495f3948ee9e80024499ddf7824de1c877459947b8fe6b4442c"
+    },
+    "80000229:2026-09-30": {
+      "companyId": "80000229",
+      "companyName": "易方达基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:31.713Z",
+      "managerCount": 132,
+      "productCount": 552,
+      "path": "/data/overview/2026-09-30/80000229.json",
+      "contentHash": "55056ae8766ad19c46977c5191ae21f52986098ca54945a864ce43364d3f3f96"
+    },
+    "80000230:2026-09-30": {
+      "companyId": "80000230",
+      "companyName": "鹏华基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:03:03.442Z",
+      "managerCount": 92,
+      "productCount": 418,
+      "path": "/data/overview/2026-09-30/80000230.json",
+      "contentHash": "a92e9d562e8982133368ed717189c05a3f33921a77e4c1b8677bc3f5a0b70857"
+    },
+    "80000231:2026-09-30": {
+      "companyId": "80000231",
+      "companyName": "融通基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T15:46:06.491Z",
+      "managerCount": 42,
+      "productCount": 106,
+      "path": "/data/overview/2026-09-30/80000231.json",
+      "contentHash": "cb3520e5db2ce6ab9c664093de086509c1e62e9e17e5286d67c2569b914b9e22"
+    },
+    "80000233:2026-09-30": {
+      "companyId": "80000233",
+      "companyName": "国投瑞银基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T15:46:12.198Z",
+      "managerCount": 33,
+      "productCount": 116,
+      "path": "/data/overview/2026-09-30/80000233.json",
+      "contentHash": "c8807aa039d9fea6bf51a2e94d14a710ec1c1e86099d3b35c3638a59bed22052"
+    },
+    "80000235:2026-09-30": {
+      "companyId": "80000235",
+      "companyName": "银华基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:13.564Z",
+      "managerCount": 81,
+      "productCount": 258,
+      "path": "/data/overview/2026-09-30/80000235.json",
+      "contentHash": "54689ed119878192cdc27a101f8ee5c707643a85641670c4d971982625d52e52"
+    },
+    "80000236:2026-09-30": {
+      "companyId": "80000236",
+      "companyName": "宝盈基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T15:46:11.369Z",
+      "managerCount": 24,
+      "productCount": 66,
+      "path": "/data/overview/2026-09-30/80000236.json",
+      "contentHash": "679b40be1b4e88c303823141801ece6fb959350d927ad07fb430d1a59bf052c6"
+    },
+    "80000237:2026-09-30": {
+      "companyId": "80000237",
+      "companyName": "银河基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:46.807Z",
+      "managerCount": 25,
+      "productCount": 82,
+      "path": "/data/overview/2026-09-30/80000237.json",
+      "contentHash": "f9c327bcca786614e7efefd592ea71ae952d2fab093ce03a310a780fee7e80c8"
+    },
+    "80000238:2026-09-30": {
+      "companyId": "80000238",
+      "companyName": "宏利基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:55:29.156Z",
+      "managerCount": 26,
+      "productCount": 82,
+      "path": "/data/overview/2026-09-30/80000238.json",
+      "contentHash": "5bbbdb583878c6df9c3ad5e19266b7b07c477cf06291418ef774b496f0463de0"
+    },
+    "80000239:2026-09-30": {
+      "companyId": "80000239",
+      "companyName": "长城基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:34.747Z",
+      "managerCount": 40,
+      "productCount": 133,
+      "path": "/data/overview/2026-09-30/80000239.json",
+      "contentHash": "ae25aa4cc38d508f459b385c13f7761490dcf9bbfac68ccc61dacb1eea4eb615"
+    },
+    "80000240:2026-09-30": {
+      "companyId": "80000240",
+      "companyName": "万家基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:04:53.650Z",
+      "managerCount": 54,
+      "productCount": 215,
+      "path": "/data/overview/2026-09-30/80000240.json",
+      "contentHash": "e3908d8aee5a3506d840e22cae62cf06db7cd34b38a7392892e93054b49be182"
+    },
+    "80000243:2026-09-30": {
+      "companyId": "80000243",
+      "companyName": "长信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:39.144Z",
+      "managerCount": 32,
+      "productCount": 93,
+      "path": "/data/overview/2026-09-30/80000243.json",
+      "contentHash": "9ebbab8e6d2059f89748cfe015fa0c0efb57d2f3925aceaf2a75b4a86f448f10"
+    },
+    "80000245:2026-09-30": {
+      "companyId": "80000245",
+      "companyName": "金鹰基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:59:52.678Z",
+      "managerCount": 21,
+      "productCount": 76,
+      "path": "/data/overview/2026-09-30/80000245.json",
+      "contentHash": "6f85aba43af5390187c6fef2b64ca3069fabd798ceaf8f70ae81128d1418f654"
+    },
+    "80000246:2026-09-30": {
+      "companyId": "80000246",
+      "companyName": "海富通基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:54:48.026Z",
+      "managerCount": 37,
+      "productCount": 102,
+      "path": "/data/overview/2026-09-30/80000246.json",
+      "contentHash": "93b4edad560a0cce5c23567cb2f8f53016be9dc9b944b8d50e8a92b1b8e20045"
+    },
+    "80000247:2026-09-30": {
+      "companyId": "80000247",
+      "companyName": "泰信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:04:31.102Z",
+      "managerCount": 13,
+      "productCount": 41,
+      "path": "/data/overview/2026-09-30/80000247.json",
+      "contentHash": "201c12d9d7991abe1772c7f7532ffab94b39f4999e07c66cda94f36cb51eae50"
+    },
+    "80000248:2026-09-30": {
+      "companyId": "80000248",
+      "companyName": "广发基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:53:46.811Z",
+      "managerCount": 119,
+      "productCount": 518,
+      "path": "/data/overview/2026-09-30/80000248.json",
+      "contentHash": "333333c2f9791a5c943054192679376df220d374b3efa4398fb1d83d23437dfc"
+    },
+    "80000249:2026-09-30": {
+      "companyId": "80000249",
+      "companyName": "新华基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:05.811Z",
+      "managerCount": 14,
+      "productCount": 53,
+      "path": "/data/overview/2026-09-30/80000249.json",
+      "contentHash": "3635c254888b821cbc2fa03b757132e30e1247f7bfb7d8d1686ac0d1c89a362b"
+    },
+    "80000250:2026-09-30": {
+      "companyId": "80000250",
+      "companyName": "华宝基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:56:06.169Z",
+      "managerCount": 42,
+      "productCount": 182,
+      "path": "/data/overview/2026-09-30/80000250.json",
+      "contentHash": "66dfb111e3df7e7c4612d88067b826311843a80d0ff25cb4eb649f3d9489cd53"
+    },
+    "80000251:2026-09-30": {
+      "companyId": "80000251",
+      "companyName": "景顺长城基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:00:38.633Z",
+      "managerCount": 58,
+      "productCount": 246,
+      "path": "/data/overview/2026-09-30/80000251.json",
+      "contentHash": "8a22b089f7b234cf343059f862f92f050747d837eb0fee314e7de62809e559ad"
+    },
+    "80000252:2026-09-30": {
+      "companyId": "80000252",
+      "companyName": "天治基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:04:34.795Z",
+      "managerCount": 5,
+      "productCount": 16,
+      "path": "/data/overview/2026-09-30/80000252.json",
+      "contentHash": "6519c53778dab0fbbc1cc11d9c508d983deb7dff33ad326dc802786cf5f47ae7"
+    },
+    "80036742:2026-09-30": {
+      "companyId": "80036742",
+      "companyName": "兴证全球基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:31.447Z",
+      "managerCount": 47,
+      "productCount": 94,
+      "path": "/data/overview/2026-09-30/80036742.json",
+      "contentHash": "f10faaa6bd0bef607a22449fe71c5c3faeccaa3ef1ae9062239239dd4167e96a"
+    },
+    "80036782:2026-09-30": {
+      "companyId": "80036782",
+      "companyName": "招商基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:14.965Z",
+      "managerCount": 106,
+      "productCount": 375,
+      "path": "/data/overview/2026-09-30/80036782.json",
+      "contentHash": "7a5e33f52b7bce8f10b48c8df84f53e0edfdc011f0c25d8341a6272f1375ac92"
+    },
+    "80036797:2026-09-30": {
+      "companyId": "80036797",
+      "companyName": "摩根士丹利基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:00:48.809Z",
+      "managerCount": 15,
+      "productCount": 40,
+      "path": "/data/overview/2026-09-30/80036797.json",
+      "contentHash": "52212a11527b2b6c0d34f33632d67c73b9f7be9c9e055658c5ff4a9d09e28200"
+    },
+    "80037023:2026-09-30": {
+      "companyId": "80037023",
+      "companyName": "华富基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:55:53.901Z",
+      "managerCount": 20,
+      "productCount": 91,
+      "path": "/data/overview/2026-09-30/80037023.json",
+      "contentHash": "7ed7e2a3dbaaf15fa25d846407694a12761b368eeeb7233053f1254f3dca96d6"
+    },
+    "80041198:2026-09-30": {
+      "companyId": "80041198",
+      "companyName": "天弘基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:04:52.575Z",
+      "managerCount": 66,
+      "productCount": 272,
+      "path": "/data/overview/2026-09-30/80041198.json",
+      "contentHash": "c589467bf5d9a930409a581a2017de0c76406e90a1bb78d2e66dedadec6a609d"
+    },
+    "80042861:2026-09-30": {
+      "companyId": "80042861",
+      "companyName": "东方基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:50:39.200Z",
+      "managerCount": 26,
+      "productCount": 68,
+      "path": "/data/overview/2026-09-30/80042861.json",
+      "contentHash": "5ce2a9c61c56528c0b6538957c88b65848c2d831b4b1944c5b157394feaf56e9"
+    },
+    "80043374:2026-09-30": {
+      "companyId": "80043374",
+      "companyName": "国联安基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:53:15.341Z",
+      "managerCount": 26,
+      "productCount": 79,
+      "path": "/data/overview/2026-09-30/80043374.json",
+      "contentHash": "c806d079bf01bc506900483a76b7778ee0713689444c2b578c560de56b5964c8"
+    },
+    "80044515:2026-09-30": {
+      "companyId": "80044515",
+      "companyName": "国海富兰克林基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:52:52.401Z",
+      "managerCount": 15,
+      "productCount": 51,
+      "path": "/data/overview/2026-09-30/80044515.json",
+      "contentHash": "a9943c1b7ededa3a7dae124d847ba7e3649a7f8b5744a2d2c338dd2564e3c711"
+    },
+    "80045188:2026-09-30": {
+      "companyId": "80045188",
+      "companyName": "申万菱信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:04:13.409Z",
+      "managerCount": 26,
+      "productCount": 80,
+      "path": "/data/overview/2026-09-30/80045188.json",
+      "contentHash": "da1105a22d5a45d351fe6501dbd3446a235632b1d638d0941438fe5ebc12561f"
+    },
+    "80046522:2026-09-30": {
+      "companyId": "80046522",
+      "companyName": "益民基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:39.267Z",
+      "managerCount": 5,
+      "productCount": 6,
+      "path": "/data/overview/2026-09-30/80046522.json",
+      "contentHash": "fe96a9594bd2fa2c1feca3790fed60e27e6562c9a01a7caff39b97ba26be9bb8"
+    },
+    "80046614:2026-09-30": {
+      "companyId": "80046614",
+      "companyName": "中海基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:55.011Z",
+      "managerCount": 10,
+      "productCount": 35,
+      "path": "/data/overview/2026-09-30/80046614.json",
+      "contentHash": "feade52b808abedebd38cffbc7d369d1a68bd4b7619638b2b2c764919311896f"
+    },
+    "80048088:2026-09-30": {
+      "companyId": "80048088",
+      "companyName": "光大保德信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:51:53.464Z",
+      "managerCount": 21,
+      "productCount": 87,
+      "path": "/data/overview/2026-09-30/80048088.json",
+      "contentHash": "5ebab44804de9d6872140a919cac19035d95302d42e55e460c51eeb2c5d70be5"
+    },
+    "80048161:2026-09-30": {
+      "companyId": "80048161",
+      "companyName": "东吴基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:50:51.684Z",
+      "managerCount": 15,
+      "productCount": 41,
+      "path": "/data/overview/2026-09-30/80048161.json",
+      "contentHash": "ca8a453ddd44198fb57b8f32af51a7198c52e0ee31d4f29e20977e18b3b234ce"
+    },
+    "80048752:2026-09-30": {
+      "companyId": "80048752",
+      "companyName": "中银基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:35.819Z",
+      "managerCount": 53,
+      "productCount": 182,
+      "path": "/data/overview/2026-09-30/80048752.json",
+      "contentHash": "782cf326608788ed09ced7a24b05ed0fc41e99a20931f3cf0487939768fc194c"
+    },
+    "80049689:2026-09-30": {
+      "companyId": "80049689",
+      "companyName": "诺安基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:01:27.477Z",
+      "managerCount": 32,
+      "productCount": 66,
+      "path": "/data/overview/2026-09-30/80049689.json",
+      "contentHash": "9e0f469894906c610f5988c1e7bc5aaff9756d59bed1a24834a148c8a2643019"
+    },
+    "80050229:2026-09-30": {
+      "companyId": "80050229",
+      "companyName": "摩根基金(中国)",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:01:03.921Z",
+      "managerCount": 37,
+      "productCount": 122,
+      "path": "/data/overview/2026-09-30/80050229.json",
+      "contentHash": "e885c74ed7052350c5ffebaa22584c75830f47aa59c1016eaaf781ee58afc6f7"
+    },
+    "80053204:2026-09-30": {
+      "companyId": "80053204",
+      "companyName": "华商基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:56:32.817Z",
+      "managerCount": 32,
+      "productCount": 102,
+      "path": "/data/overview/2026-09-30/80053204.json",
+      "contentHash": "221a3794425bc41b4c7fc95a93e74c5e00af3f60ee527f054b349a209c976847"
+    },
+    "80053708:2026-09-30": {
+      "companyId": "80053708",
+      "companyName": "汇添富基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:58:50.286Z",
+      "managerCount": 110,
+      "productCount": 427,
+      "path": "/data/overview/2026-09-30/80053708.json",
+      "contentHash": "03c8415197126a4090d49a3804b91b87b7af5d09081fbd393b18bdd30cf14a2c"
+    },
+    "80055334:2026-09-30": {
+      "companyId": "80055334",
+      "companyName": "华泰柏瑞基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:56:53.788Z",
+      "managerCount": 46,
+      "productCount": 209,
+      "path": "/data/overview/2026-09-30/80055334.json",
+      "contentHash": "46182a833107afd65e4e5e9a225df74ea81e8f376dc98266504936cf8c915553"
+    },
+    "80061431:2026-09-30": {
+      "companyId": "80061431",
+      "companyName": "人保资产",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:03:31.081Z",
+      "managerCount": 9,
+      "productCount": 34,
+      "path": "/data/overview/2026-09-30/80061431.json",
+      "contentHash": "cbd3ba9683d593e89e3c04b5fa67d32e3a694bae44250c7eb7777ee1cf13493a"
+    },
+    "80064225:2026-09-30": {
+      "companyId": "80064225",
+      "companyName": "工银瑞信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:52:27.859Z",
+      "managerCount": 87,
+      "productCount": 292,
+      "path": "/data/overview/2026-09-30/80064225.json",
+      "contentHash": "38dc5c106562e654bc3401f37a34252d389e9cc19e24702371064541855ed9a6"
+    },
+    "80064562:2026-09-30": {
+      "companyId": "80064562",
+      "companyName": "交银施罗德基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T15:46:17.842Z",
+      "managerCount": 47,
+      "productCount": 149,
+      "path": "/data/overview/2026-09-30/80064562.json",
+      "contentHash": "1f8da75735dbe0ede740c5b30636f9fceb4d58f4e48341f677783dd966394676"
+    },
+    "80065113:2026-09-30": {
+      "companyId": "80065113",
+      "companyName": "中欧基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:25.995Z",
+      "managerCount": 72,
+      "productCount": 248,
+      "path": "/data/overview/2026-09-30/80065113.json",
+      "contentHash": "add807766b1b0c69a9c909bd36ba7d0696895c9134d2f582e960a2b34b670876"
+    },
+    "80065990:2026-09-30": {
+      "companyId": "80065990",
+      "companyName": "建信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:59:27.164Z",
+      "managerCount": 66,
+      "productCount": 198,
+      "path": "/data/overview/2026-09-30/80065990.json",
+      "contentHash": "801f7874ff4faf217c60bb8cd994c2eead277042a8d51e6dcbf7785fb6918441"
+    },
+    "80066470:2026-09-30": {
+      "companyId": "80066470",
+      "companyName": "中信保诚基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:27.474Z",
+      "managerCount": 25,
+      "productCount": 95,
+      "path": "/data/overview/2026-09-30/80066470.json",
+      "contentHash": "dfcd3aebec5b5f6b94e907e808b6e3877f24dcec7df66c921651f55439ed4d7d"
+    },
+    "80067635:2026-09-30": {
+      "companyId": "80067635",
+      "companyName": "汇丰晋信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:57:28.278Z",
+      "managerCount": 17,
+      "productCount": 43,
+      "path": "/data/overview/2026-09-30/80067635.json",
+      "contentHash": "8c22d46aea935b6bebee2abb15a7a230a6f09de53601970669f5c375193b3505"
+    },
+    "80068180:2026-09-30": {
+      "companyId": "80068180",
+      "companyName": "诺德基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:01:45.113Z",
+      "managerCount": 18,
+      "productCount": 44,
+      "path": "/data/overview/2026-09-30/80068180.json",
+      "contentHash": "3494b65e93d346aecdbf2297461a728381e3616e2829ccd743eb5e6599a11e45"
+    },
+    "80074234:2026-09-30": {
+      "companyId": "80074234",
+      "companyName": "信达澳亚基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:13.560Z",
+      "managerCount": 42,
+      "productCount": 98,
+      "path": "/data/overview/2026-09-30/80074234.json",
+      "contentHash": "8960b1067d6edae33df50a0e4d59b460f24ebef6b538019ab7494f58e2d2c6e6"
+    },
+    "80075936:2026-09-30": {
+      "companyId": "80075936",
+      "companyName": "中邮基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:45.631Z",
+      "managerCount": 23,
+      "productCount": 67,
+      "path": "/data/overview/2026-09-30/80075936.json",
+      "contentHash": "1aaa5b30c9800017e8c1ac2211e9daf4bfde9083c25918a469bd07b103380b13"
+    },
+    "80086876:2026-09-30": {
+      "companyId": "80086876",
+      "companyName": "金元顺安基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:59:43.291Z",
+      "managerCount": 18,
+      "productCount": 25,
+      "path": "/data/overview/2026-09-30/80086876.json",
+      "contentHash": "0d8ee1def7cfc27d2a9fbea55b31d6df2ab04255f69846eaa63df5b2637fbe02"
+    },
+    "80091787:2026-09-30": {
+      "companyId": "80091787",
+      "companyName": "浦银基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:02:47.657Z",
+      "managerCount": 40,
+      "productCount": 121,
+      "path": "/data/overview/2026-09-30/80091787.json",
+      "contentHash": "83827a8e54421c723ac114bb0124ba2d3a3068ed5b174cf6a6b828089f70a814"
+    },
+    "80092233:2026-09-30": {
+      "companyId": "80092233",
+      "companyName": "农银汇理基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:01:32.552Z",
+      "managerCount": 31,
+      "productCount": 97,
+      "path": "/data/overview/2026-09-30/80092233.json",
+      "contentHash": "3745b18a807cb6e2c201441e67517c81911ce75b1919081edc547b505a9e8e4a"
+    },
+    "80102419:2026-09-30": {
+      "companyId": "80102419",
+      "companyName": "国金基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:53:07.360Z",
+      "managerCount": 22,
+      "productCount": 34,
+      "path": "/data/overview/2026-09-30/80102419.json",
+      "contentHash": "29976f5aef616c5b4b1774df3b740b55aecd042e9a64cdc5e5b914df0d6b8f47"
+    },
+    "80106677:2026-09-30": {
+      "companyId": "80106677",
+      "companyName": "民生加银基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:00:32.480Z",
+      "managerCount": 31,
+      "productCount": 109,
+      "path": "/data/overview/2026-09-30/80106677.json",
+      "contentHash": "c93fccd9ddb4da35550dc7865979639204bda4fa96d5b78c9db7457875f958b6"
+    },
+    "80128562:2026-09-30": {
+      "companyId": "80128562",
+      "companyName": "富安达基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:51:04.918Z",
+      "managerCount": 11,
+      "productCount": 27,
+      "path": "/data/overview/2026-09-30/80128562.json",
+      "contentHash": "97b2ef0d28252c25b07f0df6965b9dee06e00ca70822ba6348ff3907718ea95b"
+    },
+    "80139382:2026-09-30": {
+      "companyId": "80139382",
+      "companyName": "长安基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:14.201Z",
+      "managerCount": 9,
+      "productCount": 24,
+      "path": "/data/overview/2026-09-30/80139382.json",
+      "contentHash": "5d17ca607718348153ab960ac9dd2df9e2a4b94e674f2dea84f705b4c2378c5c"
+    },
+    "80145102:2026-09-30": {
+      "companyId": "80145102",
+      "companyName": "东方红资产管理",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:50:53.005Z",
+      "managerCount": 41,
+      "productCount": 143,
+      "path": "/data/overview/2026-09-30/80145102.json",
+      "contentHash": "7fc9200c79a153e64ba1e2cbb44c095a234e8e0c1f1e59d1921e8ed82733d178"
+    },
+    "80147736:2026-09-30": {
+      "companyId": "80147736",
+      "companyName": "西部利得基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:04:53.587Z",
+      "managerCount": 22,
+      "productCount": 82,
+      "path": "/data/overview/2026-09-30/80147736.json",
+      "contentHash": "3e01357746bbcbc683b46638258019718763bf397d764c447ce86ac8bdeb6810"
+    },
+    "80156175:2026-09-30": {
+      "companyId": "80156175",
+      "companyName": "国泰海通资管",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:53:57.916Z",
+      "managerCount": 35,
+      "productCount": 78,
+      "path": "/data/overview/2026-09-30/80156175.json",
+      "contentHash": "c444c5268eb0a30c77ee4283cb0fb21c3daca95bf8612f565a64c2945548716a"
+    },
+    "80156777:2026-09-30": {
+      "companyId": "80156777",
+      "companyName": "浙商基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:44.455Z",
+      "managerCount": 12,
+      "productCount": 39,
+      "path": "/data/overview/2026-09-30/80156777.json",
+      "contentHash": "0d01591193944392b9dab0278466ee71068942a4acad638614c79409f4208995"
+    },
+    "80161341:2026-09-30": {
+      "companyId": "80161341",
+      "companyName": "财通基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:49:07.197Z",
+      "managerCount": 19,
+      "productCount": 70,
+      "path": "/data/overview/2026-09-30/80161341.json",
+      "contentHash": "cfb2e6622a0c067e57f26ac5eec249b6800eff6d33921b91318aada4d850ed84"
+    },
+    "80163340:2026-09-30": {
+      "companyId": "80163340",
+      "companyName": "安信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:48:20.505Z",
+      "managerCount": 40,
+      "productCount": 112,
+      "path": "/data/overview/2026-09-30/80163340.json",
+      "contentHash": "ec4c6b7ea2a476764ce7c3331eb118ed34f2a43d8df05e80895861819429133c"
+    },
+    "80168726:2026-09-30": {
+      "companyId": "80168726",
+      "companyName": "平安基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:03:07.429Z",
+      "managerCount": 74,
+      "productCount": 283,
+      "path": "/data/overview/2026-09-30/80168726.json",
+      "contentHash": "89c5f7199e57852c45a02c8fcd1a65438c3b2da95348df9277230e222b2aa174"
+    },
+    "80174741:2026-09-30": {
+      "companyId": "80174741",
+      "companyName": "方正富邦基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:51:08.831Z",
+      "managerCount": 16,
+      "productCount": 53,
+      "path": "/data/overview/2026-09-30/80174741.json",
+      "contentHash": "ede590c78e4e104c299eb253e8393ef0ea7e18ac91ad4af88f7599f100db599f"
+    },
+    "80175498:2026-09-30": {
+      "companyId": "80175498",
+      "companyName": "英大基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:49.563Z",
+      "managerCount": 13,
+      "productCount": 30,
+      "path": "/data/overview/2026-09-30/80175498.json",
+      "contentHash": "edb45dfcc731f40dac21439b738a88c0dbfe133504311f9533f3b55add46efc8"
+    },
+    "80175511:2026-09-30": {
+      "companyId": "80175511",
+      "companyName": "德邦基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:49:57.840Z",
+      "managerCount": 15,
+      "productCount": 34,
+      "path": "/data/overview/2026-09-30/80175511.json",
+      "contentHash": "2aaf870b753998c6112b29ef726f8ec2bebf49e719b7b3ea1e259731e6e65bd5"
+    },
+    "80199117:2026-09-30": {
+      "companyId": "80199117",
+      "companyName": "华润元大基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:56:04.200Z",
+      "managerCount": 7,
+      "productCount": 16,
+      "path": "/data/overview/2026-09-30/80199117.json",
+      "contentHash": "52db8018f919d63143b36223a72e258324d548fba8b11b223b643824a1be6f9e"
+    },
+    "80205263:2026-09-30": {
+      "companyId": "80205263",
+      "companyName": "红塔红土",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:55:07.313Z",
+      "managerCount": 5,
+      "productCount": 17,
+      "path": "/data/overview/2026-09-30/80205263.json",
+      "contentHash": "1c161ed5cd0ec36e43da1bf4df0cebd9bf43c61444aa8c237671e896bde3d981"
+    },
+    "80205264:2026-09-30": {
+      "companyId": "80205264",
+      "companyName": "江信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:59:00.336Z",
+      "managerCount": 2,
+      "productCount": 8,
+      "path": "/data/overview/2026-09-30/80205264.json",
+      "contentHash": "fab0c2f371285bb7c91e67679753cbdc90fe9452bd772fd8f4de5a0acc07b6f2"
+    },
+    "80205268:2026-09-30": {
+      "companyId": "80205268",
+      "companyName": "东海基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:50:36.216Z",
+      "managerCount": 9,
+      "productCount": 27,
+      "path": "/data/overview/2026-09-30/80205268.json",
+      "contentHash": "b1b1b48bd0a2dd47e936d5f66c5fa35f5e3bd40bd68c381992dd5d324a367d31"
+    },
+    "80280036:2026-09-30": {
+      "companyId": "80280036",
+      "companyName": "圆信永丰基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:04.843Z",
+      "managerCount": 16,
+      "productCount": 37,
+      "path": "/data/overview/2026-09-30/80280036.json",
+      "contentHash": "8317e952de1b991350d9eacc4c74356b3559355c89c8c6f7cfd1fa73480a4fa0"
+    },
+    "80280038:2026-09-30": {
+      "companyId": "80280038",
+      "companyName": "前海开源基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:03:19.197Z",
+      "managerCount": 33,
+      "productCount": 119,
+      "path": "/data/overview/2026-09-30/80280038.json",
+      "contentHash": "2c67d0bb2f3d9e636a11b8dd3e23b03d4a497c61ed346268afdf359d615162f7"
+    },
+    "80280039:2026-09-30": {
+      "companyId": "80280039",
+      "companyName": "北京京管泰富基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:48:11.412Z",
+      "managerCount": 4,
+      "productCount": 7,
+      "path": "/data/overview/2026-09-30/80280039.json",
+      "contentHash": "3ad6424d32d0ad96a8c11b4c3aa889edd78ee8111a7a54c173f80a3c1e5cfe03"
+    },
+    "80280395:2026-09-30": {
+      "companyId": "80280395",
+      "companyName": "兴业基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:34.279Z",
+      "managerCount": 32,
+      "productCount": 132,
+      "path": "/data/overview/2026-09-30/80280395.json",
+      "contentHash": "9d832a1bf9f0d3c0b4cd1eb6c4d2e6095f29e82a059d338468646181e7325b76"
+    },
+    "80280397:2026-09-30": {
+      "companyId": "80280397",
+      "companyName": "湘财基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:04:56.724Z",
+      "managerCount": 8,
+      "productCount": 22,
+      "path": "/data/overview/2026-09-30/80280397.json",
+      "contentHash": "717940be24c0cdd52626be560438df09694d45bee57b3522c1aac3df2f6c4ef6"
+    },
+    "80294346:2026-09-30": {
+      "companyId": "80294346",
+      "companyName": "太平基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:04:19.360Z",
+      "managerCount": 17,
+      "productCount": 47,
+      "path": "/data/overview/2026-09-30/80294346.json",
+      "contentHash": "3ea1247c61060945b621173a4d20b4bd5bca27a241875b1c532bd785074027cf"
+    },
+    "80341238:2026-09-30": {
+      "companyId": "80341238",
+      "companyName": "国联基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:53:34.141Z",
+      "managerCount": 32,
+      "productCount": 100,
+      "path": "/data/overview/2026-09-30/80341238.json",
+      "contentHash": "4eee446e72352f3d6fc420d593ead5cb22080f72b542555a5db5c450a42170f1"
+    },
+    "80351345:2026-09-30": {
+      "companyId": "80351345",
+      "companyName": "中加基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:02.955Z",
+      "managerCount": 20,
+      "productCount": 86,
+      "path": "/data/overview/2026-09-30/80351345.json",
+      "contentHash": "09c2841c9989ecdb37b5cb00e7fd5cfe1ec0461984dfcaca78e95a50111ced2b"
+    },
+    "80351991:2026-09-30": {
+      "companyId": "80351991",
+      "companyName": "鑫元基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:10.603Z",
+      "managerCount": 26,
+      "productCount": 114,
+      "path": "/data/overview/2026-09-30/80351991.json",
+      "contentHash": "f708d4328795ed9b84a75d3dd2fd071c7ad42937ce6e5fcacc7250b23fd49891"
+    },
+    "80355113:2026-09-30": {
+      "companyId": "80355113",
+      "companyName": "中信建投基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:26.739Z",
+      "managerCount": 27,
+      "productCount": 71,
+      "path": "/data/overview/2026-09-30/80355113.json",
+      "contentHash": "161172077da204614bdaea271c4a400a02e63b55101391b44f3db91ac1ff8121"
+    },
+    "80355783:2026-09-30": {
+      "companyId": "80355783",
+      "companyName": "国寿安保基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:54:01.433Z",
+      "managerCount": 35,
+      "productCount": 105,
+      "path": "/data/overview/2026-09-30/80355783.json",
+      "contentHash": "cee3e7f4cfc86a8bf9f3e60cbd83282db604b6083ba1b7d797047db823f56c76"
+    },
+    "80356155:2026-09-30": {
+      "companyId": "80356155",
+      "companyName": "永赢基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:14.685Z",
+      "managerCount": 56,
+      "productCount": 208,
+      "path": "/data/overview/2026-09-30/80356155.json",
+      "contentHash": "c4618e9e530b4f21b3dfef1fbda01d8fef90c0ab478fcbfa0f6e7f647c82aead"
+    },
+    "80365985:2026-09-30": {
+      "companyId": "80365985",
+      "companyName": "华银基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:57:03.692Z",
+      "managerCount": 6,
+      "productCount": 15,
+      "path": "/data/overview/2026-09-30/80365985.json",
+      "contentHash": "c8bf11fd9b6bf36712772859a7af83679da46d15ad844be6fad331e196551237"
+    },
+    "80365986:2026-09-30": {
+      "companyId": "80365986",
+      "companyName": "中金基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:08.366Z",
+      "managerCount": 44,
+      "productCount": 80,
+      "path": "/data/overview/2026-09-30/80365986.json",
+      "contentHash": "42b5b8d681ad1daa308e4681d4d5c9c729f85cbb9420f446d1b086d8467c84bc"
+    },
+    "80365987:2026-09-30": {
+      "companyId": "80365987",
+      "companyName": "嘉合基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:57:53.287Z",
+      "managerCount": 8,
+      "productCount": 24,
+      "path": "/data/overview/2026-09-30/80365987.json",
+      "contentHash": "c3969a8db51ff44d6e055c105a0b96c07ce85d0248e2436bbcac69d292187712"
+    },
+    "80366080:2026-09-30": {
+      "companyId": "80366080",
+      "companyName": "上银基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:04:00.616Z",
+      "managerCount": 22,
+      "productCount": 73,
+      "path": "/data/overview/2026-09-30/80366080.json",
+      "contentHash": "0218c2dd71aea9b2e2c09f25c25bdfdbd13ea389693ef5e3fc858ec3059be213"
+    },
+    "80368700:2026-09-30": {
+      "companyId": "80368700",
+      "companyName": "兴银基金管理",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:25.755Z",
+      "managerCount": 15,
+      "productCount": 72,
+      "path": "/data/overview/2026-09-30/80368700.json",
+      "contentHash": "1a3c2d5852ec22dd8e82ce81f414ec3d94a9cc63739d1c37b02abdfbef4fe3c5"
+    },
+    "80374411:2026-09-30": {
+      "companyId": "80374411",
+      "companyName": "兴证资管",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:23.762Z",
+      "managerCount": 9,
+      "productCount": 12,
+      "path": "/data/overview/2026-09-30/80374411.json",
+      "contentHash": "e1a7afaddb31076d47dfa86f45a6aaaea60b37870148b061ddb1482bd23cee33"
+    },
+    "80380794:2026-09-30": {
+      "companyId": "80380794",
+      "companyName": "创金合信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:49:42.458Z",
+      "managerCount": 47,
+      "productCount": 106,
+      "path": "/data/overview/2026-09-30/80380794.json",
+      "contentHash": "a0f0556b92a4e00a0bb438b61910effbc2e8d0855e7b4c73b08a34248c5577af"
+    },
+    "80381452:2026-09-30": {
+      "companyId": "80381452",
+      "companyName": "中泰证券(上海)资管",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:12.960Z",
+      "managerCount": 16,
+      "productCount": 31,
+      "path": "/data/overview/2026-09-30/80381452.json",
+      "contentHash": "a0a61ef6cbf4515c333dc0ea81c30b026b0171a9835b707a1a3c7adaac02c330"
+    },
+    "80384640:2026-09-30": {
+      "companyId": "80384640",
+      "companyName": "九泰基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:59:56.449Z",
+      "managerCount": 7,
+      "productCount": 23,
+      "path": "/data/overview/2026-09-30/80384640.json",
+      "contentHash": "0625faec50ff32453561821e9b5dcede411c27b290636be680654dfc90f11761"
+    },
+    "80385906:2026-09-30": {
+      "companyId": "80385906",
+      "companyName": "红土创新基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:55:09.449Z",
+      "managerCount": 13,
+      "productCount": 25,
+      "path": "/data/overview/2026-09-30/80385906.json",
+      "contentHash": "72f40719b0cbf2f5c9e0d25029d6039d8780e98829f7025f17e9e38f58d3000d"
+    },
+    "80391977:2026-09-30": {
+      "companyId": "80391977",
+      "companyName": "华泰证券(上海)资产管理",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:56:48.996Z",
+      "managerCount": 30,
+      "productCount": 47,
+      "path": "/data/overview/2026-09-30/80391977.json",
+      "contentHash": "de1d322ebfee14b8d9929522633f9b49f6a849a71217a8ca4cb9659b00addcc2"
+    },
+    "80403111:2026-09-30": {
+      "companyId": "80403111",
+      "companyName": "浙商证券资管",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:48.715Z",
+      "managerCount": 13,
+      "productCount": 36,
+      "path": "/data/overview/2026-09-30/80403111.json",
+      "contentHash": "d8289f3d65aff0c45d438eed4fa99a394563522897648eeb561a4619055f44d2"
+    },
+    "80404004:2026-09-30": {
+      "companyId": "80404004",
+      "companyName": "长江证券(上海)资管",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:23.847Z",
+      "managerCount": 15,
+      "productCount": 39,
+      "path": "/data/overview/2026-09-30/80404004.json",
+      "contentHash": "fde504f48eb48c65d370da3101d6992766670135f0beabc3aa86e4b0d2c45235"
+    },
+    "80404701:2026-09-30": {
+      "companyId": "80404701",
+      "companyName": "财通资管",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:49:04.419Z",
+      "managerCount": 27,
+      "productCount": 76,
+      "path": "/data/overview/2026-09-30/80404701.json",
+      "contentHash": "aace36c9bf6abe7e25be11b7488b4512ea97b7455eadf440d0bde8ab0bfb3c2c"
+    },
+    "80424273:2026-09-30": {
+      "companyId": "80424273",
+      "companyName": "泓德基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:55:23.312Z",
+      "managerCount": 21,
+      "productCount": 50,
+      "path": "/data/overview/2026-09-30/80424273.json",
+      "contentHash": "14aabbbdf020e7aa9c25c8933fc8d973ad2b2de25d0f6d6e3bfb1604ef43e026"
+    },
+    "80431710:2026-09-30": {
+      "companyId": "80431710",
+      "companyName": "招商证券资管",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:38.026Z",
+      "managerCount": 9,
+      "productCount": 18,
+      "path": "/data/overview/2026-09-30/80431710.json",
+      "contentHash": "c7c6bcbc31f3b8c4c94b59bba60384721372a86019e1130d48aec4ced1d11997"
+    },
+    "80446423:2026-09-30": {
+      "companyId": "80446423",
+      "companyName": "金信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:59:30.862Z",
+      "managerCount": 7,
+      "productCount": 23,
+      "path": "/data/overview/2026-09-30/80446423.json",
+      "contentHash": "a1d01b24bbd5084cc7284e122d49ad067a553cde5fb4473b5be5b25b9e577279"
+    },
+    "80452130:2026-09-30": {
+      "companyId": "80452130",
+      "companyName": "新沃基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:01.090Z",
+      "managerCount": 4,
+      "productCount": 7,
+      "path": "/data/overview/2026-09-30/80452130.json",
+      "contentHash": "0d7c47b4596cc92e0cdc2364c92ccdba6951d6b833945aa9d4cc287b9ec8a98d"
+    },
+    "80455765:2026-09-30": {
+      "companyId": "80455765",
+      "companyName": "众盈基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:34.195Z",
+      "managerCount": 3,
+      "productCount": 6,
+      "path": "/data/overview/2026-09-30/80455765.json",
+      "contentHash": "587af45ae3ad7885031877298e61963dfdbd032f102de64eb4471f1dbfae1db1"
+    },
+    "80468996:2026-09-30": {
+      "companyId": "80468996",
+      "companyName": "前海联合",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:03:18.243Z",
+      "managerCount": 11,
+      "productCount": 28,
+      "path": "/data/overview/2026-09-30/80468996.json",
+      "contentHash": "18a064c6709811512cedbaa7f1aa462f600ce726babb09811a8caccdcea2af3e"
+    },
+    "80488954:2026-09-30": {
+      "companyId": "80488954",
+      "companyName": "富荣基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:51:19.304Z",
+      "managerCount": 14,
+      "productCount": 16,
+      "path": "/data/overview/2026-09-30/80488954.json",
+      "contentHash": "1050da7685bf11d75a9e06bc3287eda83d6c09a05a8f187a41a8990a3644da6b"
+    },
+    "80498278:2026-09-30": {
+      "companyId": "80498278",
+      "companyName": "汇安基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:57:13.852Z",
+      "managerCount": 19,
+      "productCount": 71,
+      "path": "/data/overview/2026-09-30/80498278.json",
+      "contentHash": "c3c954ec5e0909168918d569171b0a52da7da02b1bb51d0b2efa9974a804798b"
+    },
+    "80501166:2026-09-30": {
+      "companyId": "80501166",
+      "companyName": "先锋基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:04:47.396Z",
+      "managerCount": 6,
+      "productCount": 9,
+      "path": "/data/overview/2026-09-30/80501166.json",
+      "contentHash": "ca2442ed48d4dc8b6b986c232c2d6d2a50c73620828ccd0a7548fda449838ceb"
+    },
+    "80508384:2026-09-30": {
+      "companyId": "80508384",
+      "companyName": "恒生前海基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:54:53.335Z",
+      "managerCount": 8,
+      "productCount": 33,
+      "path": "/data/overview/2026-09-30/80508384.json",
+      "contentHash": "91a7838d4955dc5c2486da3bf7fe2afad50ecfc816c347ad5315035c5f74f366"
+    },
+    "80508391:2026-09-30": {
+      "companyId": "80508391",
+      "companyName": "中航基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:54.507Z",
+      "managerCount": 26,
+      "productCount": 38,
+      "path": "/data/overview/2026-09-30/80508391.json",
+      "contentHash": "45d7e116aeef0bec3ea1ef15248561d927672f12e4683fdfab6fb683e7ac8c74"
+    },
+    "80522693:2026-09-30": {
+      "companyId": "80522693",
+      "companyName": "鹏扬基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:02:07.849Z",
+      "managerCount": 28,
+      "productCount": 93,
+      "path": "/data/overview/2026-09-30/80522693.json",
+      "contentHash": "e39abe6cbba3e4d590fde35f1815c7b41ed64b809c053baa44aa39dc39ff8c30"
+    },
+    "80523667:2026-09-30": {
+      "companyId": "80523667",
+      "companyName": "华泰保兴基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:56:34.012Z",
+      "managerCount": 15,
+      "productCount": 36,
+      "path": "/data/overview/2026-09-30/80523667.json",
+      "contentHash": "0dfb6a3aee8efa1f4192b1a00d0d9513d14f7307b5b69e877076f5dea774dc96"
+    },
+    "80538609:2026-09-30": {
+      "companyId": "80538609",
+      "companyName": "渤海汇金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:48:44.201Z",
+      "managerCount": 11,
+      "productCount": 21,
+      "path": "/data/overview/2026-09-30/80538609.json",
+      "contentHash": "9766163f1f4a5545eb6d71c44cc08096cad2b553e484c40a5a236ce7d5c1085d"
+    },
+    "80548351:2026-09-30": {
+      "companyId": "80548351",
+      "companyName": "格林基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:51:26.996Z",
+      "managerCount": 12,
+      "productCount": 35,
+      "path": "/data/overview/2026-09-30/80548351.json",
+      "contentHash": "786d738a2cbd1f58188d5ade6369a641c53d37bddaaf201fade33c24b18c8a10"
+    },
+    "80555446:2026-09-30": {
+      "companyId": "80555446",
+      "companyName": "南华基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:01:04.313Z",
+      "managerCount": 11,
+      "productCount": 20,
+      "path": "/data/overview/2026-09-30/80555446.json",
+      "contentHash": "011c3c7f9865550850e3756e6dfa0a1e8f78c5792ce93ee1edc5ac67cf142119"
+    },
+    "80560379:2026-09-30": {
+      "companyId": "80560379",
+      "companyName": "弘毅远方基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:55:06.075Z",
+      "managerCount": 5,
+      "productCount": 11,
+      "path": "/data/overview/2026-09-30/80560379.json",
+      "contentHash": "cbe981b7dba52727b59d380510b90374722ed24f10fa8cec3f3ba7acf94a1332"
+    },
+    "80560380:2026-09-30": {
+      "companyId": "80560380",
+      "companyName": "恒越基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T15:46:16.100Z",
+      "managerCount": 6,
+      "productCount": 14,
+      "path": "/data/overview/2026-09-30/80560380.json",
+      "contentHash": "596464691adff0fc76338f180dbfd9a2c2ae66f342c93fc17b68db9ebdff9474"
+    },
+    "80560381:2026-09-30": {
+      "companyId": "80560381",
+      "companyName": "凯石基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:00:02.752Z",
+      "managerCount": 3,
+      "productCount": 3,
+      "path": "/data/overview/2026-09-30/80560381.json",
+      "contentHash": "e569dceed4b795fc464abb0107a0af67915c785579b71a2db7fe56171f06c851"
+    },
+    "80560383:2026-09-30": {
+      "companyId": "80560383",
+      "companyName": "蜂巢基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:51:03.387Z",
+      "managerCount": 8,
+      "productCount": 29,
+      "path": "/data/overview/2026-09-30/80560383.json",
+      "contentHash": "ca8cfeb4fdf82671e00534cc58422662c628242c2d37c836ef49a9f06a47534b"
+    },
+    "80560384:2026-09-30": {
+      "companyId": "80560384",
+      "companyName": "东财基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:50:19.024Z",
+      "managerCount": 21,
+      "productCount": 64,
+      "path": "/data/overview/2026-09-30/80560384.json",
+      "contentHash": "1386472fa7732b613da5ca4e3b3d0fff65a34dceab5764faa1bbb0527ca552cd"
+    },
+    "80560388:2026-09-30": {
+      "companyId": "80560388",
+      "companyName": "东方阿尔法基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:50:21.296Z",
+      "managerCount": 7,
+      "productCount": 15,
+      "path": "/data/overview/2026-09-30/80560388.json",
+      "contentHash": "09575b84aa268b5327c680472f6b6df1193d2959480cb496f018922920d7bffd"
+    },
+    "80560389:2026-09-30": {
+      "companyId": "80560389",
+      "companyName": "国融基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:53:33.848Z",
+      "managerCount": 5,
+      "productCount": 10,
+      "path": "/data/overview/2026-09-30/80560389.json",
+      "contentHash": "4f779640dea923d0c1c585a61b27dbcd1194c320f322d7811476d04a82efc073"
+    },
+    "80560390:2026-09-30": {
+      "companyId": "80560390",
+      "companyName": "易米基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:30.478Z",
+      "managerCount": 4,
+      "productCount": 7,
+      "path": "/data/overview/2026-09-30/80560390.json",
+      "contentHash": "262a05e8a1498a8aaa9f075e5d9ca464df835929c38e0038fbb927b781e31653"
+    },
+    "80560391:2026-09-30": {
+      "companyId": "80560391",
+      "companyName": "中庚基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:06:46.374Z",
+      "managerCount": 6,
+      "productCount": 6,
+      "path": "/data/overview/2026-09-30/80560391.json",
+      "contentHash": "72b592d4058404b3b8a0fa9b41e2e50c8e9d46855a11d059c72da5039c3c663e"
+    },
+    "80560392:2026-09-30": {
+      "companyId": "80560392",
+      "companyName": "博道基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:48:43.179Z",
+      "managerCount": 9,
+      "productCount": 43,
+      "path": "/data/overview/2026-09-30/80560392.json",
+      "contentHash": "876c9b277558148db6364dae66e590ca4a4237a9e8b3d28aafb4b890ebd0e787"
+    },
+    "80560396:2026-09-30": {
+      "companyId": "80560396",
+      "companyName": "合煦智远基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:54:37.409Z",
+      "managerCount": 3,
+      "productCount": 8,
+      "path": "/data/overview/2026-09-30/80560396.json",
+      "contentHash": "25b018b6a7749e392aa0434f65b766a6c68dec4d582ff79afd114a4ab54bb75c"
+    },
+    "80560400:2026-09-30": {
+      "companyId": "80560400",
+      "companyName": "博远基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:48:33.289Z",
+      "managerCount": 5,
+      "productCount": 8,
+      "path": "/data/overview/2026-09-30/80560400.json",
+      "contentHash": "fb0153b330c39cde6425e9b5ac536f5d972cb24f6dde152dc11b3ea06bdd3623"
+    },
+    "80560407:2026-09-30": {
+      "companyId": "80560407",
+      "companyName": "朱雀基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:07:40.907Z",
+      "managerCount": 7,
+      "productCount": 9,
+      "path": "/data/overview/2026-09-30/80560407.json",
+      "contentHash": "43dfbd8db6b19187fcee20807d1a319b98db46b11bd885295d318c1541f9b68f"
+    },
+    "80560408:2026-09-30": {
+      "companyId": "80560408",
+      "companyName": "同泰基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:04:35.279Z",
+      "managerCount": 5,
+      "productCount": 22,
+      "path": "/data/overview/2026-09-30/80560408.json",
+      "contentHash": "2c5369a6c66d2d4f686b5df9a9ccda08559672cd114baca51ea1ff16d389a372"
+    },
+    "80664533:2026-09-30": {
+      "companyId": "80664533",
+      "companyName": "汇泉基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:57:22.783Z",
+      "managerCount": 4,
+      "productCount": 14,
+      "path": "/data/overview/2026-09-30/80664533.json",
+      "contentHash": "7e8792cf1bd7b4a047d34c03b36f38cbccaa27a044beb41158a4604529a42330"
+    },
+    "80664536:2026-09-30": {
+      "companyId": "80664536",
+      "companyName": "明亚基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:00:30.385Z",
+      "managerCount": 5,
+      "productCount": 7,
+      "path": "/data/overview/2026-09-30/80664536.json",
+      "contentHash": "e17f4480d22237ed7c12db67e73678b97e2b8cbc45727957129868a6763e0826"
+    },
+    "80672691:2026-09-30": {
+      "companyId": "80672691",
+      "companyName": "睿远基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:03:37.073Z",
+      "managerCount": 9,
+      "productCount": 6,
+      "path": "/data/overview/2026-09-30/80672691.json",
+      "contentHash": "1a10af4879e56dddccc22aed7bf88d8dc27e4b028cbd31976897eb775bad5584"
+    },
+    "80701749:2026-09-30": {
+      "companyId": "80701749",
+      "companyName": "达诚基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:49:32.944Z",
+      "managerCount": 3,
+      "productCount": 8,
+      "path": "/data/overview/2026-09-30/80701749.json",
+      "contentHash": "f000ef47f746a2ae92d774cd2d22d1ec68f8c7140ec4e31cd74a3db244f50845"
+    },
+    "80703549:2026-09-30": {
+      "companyId": "80703549",
+      "companyName": "东兴基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:50:50.336Z",
+      "managerCount": 10,
+      "productCount": 29,
+      "path": "/data/overview/2026-09-30/80703549.json",
+      "contentHash": "b81677e294a91f8a032f2bdf2cc1e7835b628ee24dc9d66605c9d4c86f89a53f"
+    },
+    "80924817:2026-09-30": {
+      "companyId": "80924817",
+      "companyName": "惠升基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:57:41.126Z",
+      "managerCount": 11,
+      "productCount": 29,
+      "path": "/data/overview/2026-09-30/80924817.json",
+      "contentHash": "2a04c72183f72fc0cf81cdbe0a953259e02dc81d2fae3039b11096a89f4d6d44"
+    },
+    "80959746:2026-09-30": {
+      "companyId": "80959746",
+      "companyName": "尚正基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:03:50.484Z",
+      "managerCount": 7,
+      "productCount": 14,
+      "path": "/data/overview/2026-09-30/80959746.json",
+      "contentHash": "d2d4f3c5ef77ede389a2105892d8bd1a0e2d17e1c85545eb697cf7ededbf1dde"
+    },
+    "80965167:2026-09-30": {
+      "companyId": "80965167",
+      "companyName": "淳厚基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:49:23.510Z",
+      "managerCount": 12,
+      "productCount": 18,
+      "path": "/data/overview/2026-09-30/80965167.json",
+      "contentHash": "b9da28b7f3ddfba781e40388b7bae072b442902e0d365059ebacffa4632e2bb7"
+    },
+    "80975669:2026-09-30": {
+      "companyId": "80975669",
+      "companyName": "国新国证基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:54:15.298Z",
+      "managerCount": 4,
+      "productCount": 11,
+      "path": "/data/overview/2026-09-30/80975669.json",
+      "contentHash": "99558bfefd2022a7c1303281c5ac207d88e77da50e2c3aaf6be29f7cd7c54318"
+    },
+    "81021264:2026-09-30": {
+      "companyId": "81021264",
+      "companyName": "兴合基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:09.250Z",
+      "managerCount": 4,
+      "productCount": 8,
+      "path": "/data/overview/2026-09-30/81021264.json",
+      "contentHash": "a30cdd150cbdacf982626ad24c7f4eda7925d775442d79a5bce5453d6a3722bf"
+    },
+    "81046799:2026-09-30": {
+      "companyId": "81046799",
+      "companyName": "瑞达基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:03:25.434Z",
+      "managerCount": 2,
+      "productCount": 3,
+      "path": "/data/overview/2026-09-30/81046799.json",
+      "contentHash": "7bb08947e105988ac2f00dd502f90a4cce1c705d3e73f32898ad3203807b7045"
+    },
+    "81067205:2026-09-30": {
+      "companyId": "81067205",
+      "companyName": "贝莱德基金管理",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:48:22.270Z",
+      "managerCount": 5,
+      "productCount": 19,
+      "path": "/data/overview/2026-09-30/81067205.json",
+      "contentHash": "5e7513c24b1bb4b2dcb5500e95cb59f026942463ba9ded9672ce808ecf78faf9"
+    },
+    "81067208:2026-09-30": {
+      "companyId": "81067208",
+      "companyName": "路博迈基金(中国)",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:00:15.684Z",
+      "managerCount": 10,
+      "productCount": 23,
+      "path": "/data/overview/2026-09-30/81067208.json",
+      "contentHash": "45557adb55720fabd9c9757557f6d34f5cfe5558f0e4220edac9ee9748a9cd4e"
+    },
+    "81079752:2026-09-30": {
+      "companyId": "81079752",
+      "companyName": "富达基金(中国)",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:51:13.260Z",
+      "managerCount": 6,
+      "productCount": 11,
+      "path": "/data/overview/2026-09-30/81079752.json",
+      "contentHash": "4ea415dc84ad103f7b05e9a235ed078e5875d330cb65ff1a7bc2f8db53a04349"
+    },
+    "81102343:2026-09-30": {
+      "companyId": "81102343",
+      "companyName": "兴华基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T11:05:15.067Z",
+      "managerCount": 5,
+      "productCount": 13,
+      "path": "/data/overview/2026-09-30/81102343.json",
+      "contentHash": "93e6a237aed5757854d65063c6ee1eda24f66c1c956e82ff6d22fd3cf72f2ff6"
+    },
+    "81102344:2026-09-30": {
+      "companyId": "81102344",
+      "companyName": "百嘉基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:47:58.861Z",
+      "managerCount": 5,
+      "productCount": 14,
+      "path": "/data/overview/2026-09-30/81102344.json",
+      "contentHash": "745206e2cbaf6ca84f6325b6703b1987499106353f0d7cbcf8fd2339e5425f50"
+    },
+    "81246345:2026-09-30": {
+      "companyId": "81246345",
+      "companyName": "泰康基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:04:29.687Z",
+      "managerCount": 26,
+      "productCount": 92,
+      "path": "/data/overview/2026-09-30/81246345.json",
+      "contentHash": "0a3b8a96a8d1679ed4c683916057e6dc1a18e7b2132a29481148c83e8fd8f9cf"
+    },
+    "81248979:2026-09-30": {
+      "companyId": "81248979",
+      "companyName": "山证(上海)资管",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:03:39.877Z",
+      "managerCount": 13,
+      "productCount": 24,
+      "path": "/data/overview/2026-09-30/81248979.json",
+      "contentHash": "e20341bef559ccda60840787d1a0437aa58cf699a87facd199b3b514f9e514aa"
+    },
+    "81252907:2026-09-30": {
+      "companyId": "81252907",
+      "companyName": "华西基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:56:41.862Z",
+      "managerCount": 5,
+      "productCount": 5,
+      "path": "/data/overview/2026-09-30/81252907.json",
+      "contentHash": "7478024f1b2670ebc252430ab7635d7183acaa25e9a0bd98b2777033b2d3d01a"
+    },
+    "81275389:2026-09-30": {
+      "companyId": "81275389",
+      "companyName": "泉果基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:03:15.288Z",
+      "managerCount": 7,
+      "productCount": 9,
+      "path": "/data/overview/2026-09-30/81275389.json",
+      "contentHash": "2d7d34e894f175d8bab382fafe0b435e123325fc31cbd47764a8ae2623870c7b"
+    },
+    "81423074:2026-09-30": {
+      "companyId": "81423074",
+      "companyName": "联博基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:00:03.093Z",
+      "managerCount": 5,
+      "productCount": 4,
+      "path": "/data/overview/2026-09-30/81423074.json",
+      "contentHash": "a323e9d9c3bce928676195e9b0fc63517daa319245cc7247235151be34e0dc90"
+    },
+    "81603559:2026-09-30": {
+      "companyId": "81603559",
+      "companyName": "苏新基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:04:00.391Z",
+      "managerCount": 6,
+      "productCount": 12,
+      "path": "/data/overview/2026-09-30/81603559.json",
+      "contentHash": "f1d970e8564da3aa893977dbf139694fdece52139de336fb181876dedd83ef69"
+    },
+    "81608035:2026-09-30": {
+      "companyId": "81608035",
+      "companyName": "安联基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:47:57.200Z",
+      "managerCount": 2,
+      "productCount": 4,
+      "path": "/data/overview/2026-09-30/81608035.json",
+      "contentHash": "0511252fc0cfa29575b5e35ac8990cc54fe6d2ebce0b97b8eaaec440d9ac4850"
+    },
+    "81645984:2026-09-30": {
+      "companyId": "81645984",
+      "companyName": "国联证券资产管理",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:53:24.094Z",
+      "managerCount": 1,
+      "productCount": 1,
+      "path": "/data/overview/2026-09-30/81645984.json",
+      "contentHash": "136b787077b053e9205b37fc2eb1ddbd11ac7a11fa36679cb23b7085b7fc1cce"
+    },
+    "81678136:2026-09-30": {
+      "companyId": "81678136",
+      "companyName": "汇百川基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:57:11.245Z",
+      "managerCount": 3,
+      "productCount": 3,
+      "path": "/data/overview/2026-09-30/81678136.json",
+      "contentHash": "79b82a59282636fa382bd7fd9ce9ece051550a5e1b476e838057f1b5515e2cd6"
+    },
+    "81705658:2026-09-30": {
+      "companyId": "81705658",
+      "companyName": "鹏安基金管理",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T09:01:41.987Z",
+      "managerCount": 6,
+      "productCount": 4,
+      "path": "/data/overview/2026-09-30/81705658.json",
+      "contentHash": "a9b5400ca59b110026c44188c0ba64138e87ff415cae2c738c93fd0832cf431c"
+    },
+    "81856932:2026-09-30": {
+      "companyId": "81856932",
+      "companyName": "财信基金",
+      "period": "2026-09-30",
+      "generatedAt": "2026-10-28T08:49:13.172Z",
+      "managerCount": 3,
+      "productCount": 5,
+      "path": "/data/overview/2026-09-30/81856932.json",
+      "contentHash": "9ba8825369c3eaa7f9c99a8d6dcc4a42ee966ad3fc85e5e62a3bbfe1d367d696"
     }
   }
 }
