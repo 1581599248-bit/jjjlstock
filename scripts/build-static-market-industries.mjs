@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { loadSinaSwClassification, validateSwClassification, SW_LEVEL_ONE } from "./lib/sw-classification.mjs";
 import { previousPublishedPeriod } from "./lib/report-periods.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
@@ -74,11 +75,16 @@ function normalizeIndexRow(row) {
   };
 }
 
-async function loadSwLevelOneMap() {
-  if (existsSync(cacheFile)) {
+async function loadPrimarySwLevelOneMap() {
+  for (const candidate of [cacheFile, path.join(outputDir, "sw-industry-cache.json")]) {
+    if (!existsSync(candidate)) continue;
     try {
-      const cached = JSON.parse(await readFile(cacheFile, "utf8"));
-      if (cached?.version === 1 && Array.isArray(cached.industries) && cached.industries.length >= 25 && cached.stockIndustries) return cached;
+      const cached = JSON.parse(await readFile(candidate, "utf8"));
+      const age = Date.now() - Date.parse(cached.generatedAt);
+      if (validateSwClassification(cached) && age >= 0 && age < 30 * 86400000) {
+        await writeFile(cacheFile, `${JSON.stringify(cached, null, 2)}\n`);
+        return cached;
+      }
     } catch { /* refresh invalid cache */ }
   }
 
@@ -118,7 +124,15 @@ async function loadSwLevelOneMap() {
   return result;
 }
 
-const sw = await loadSwLevelOneMap();
+let sw;
+try {
+  sw = await loadPrimarySwLevelOneMap();
+} catch (error) {
+  console.warn(`Primary SW source unavailable: ${error.message}; loading Sina SW2021 classification`);
+  sw = await loadSinaSwClassification(SW_LEVEL_ONE, { concurrency });
+  await writeFile(cacheFile, `${JSON.stringify(sw, null, 2)}\n`);
+}
+if (!validateSwClassification(sw)) throw new Error("SW classification validation failed");
 const industryMap = new Map(sw.industries.map((item) => [item.name, {
   industry: item.name,
   industryCode: item.code,
@@ -138,16 +152,18 @@ let activeHoldingCount = 0;
 const files = (await readdir(fundDir)).filter((file) => /^\d{8}\.json$/.test(file));
 for (const file of files) {
   const payload = JSON.parse(await readFile(path.join(fundDir, file), "utf8"));
+  if (payload.period !== period) throw new Error(`Fund snapshot period mismatch: ${file}`);
   for (const product of payload.products ?? []) {
     if (!isActiveFundType(product.type)) continue;
     const productCode = String(product.code ?? "");
+    if (activeProducts.has(productCode)) throw new Error(`Duplicate active fund product ${productCode}`);
     activeProducts.add(productCode);
     activeCompanies.add(String(payload.companyId ?? file.slice(0, 8)));
     typeCounts.set(product.type, (typeCounts.get(product.type) ?? 0) + 1);
     for (const holding of product.holdings ?? []) {
       const code = normalizeStockCode(holding.stockCode);
       const marketValue = Number(holding.marketValue);
-      if (!code || !(marketValue > 0)) continue;
+      if (!/^[034689]\d{5}$/.test(String(holding.stockCode ?? "")) || !(marketValue > 0)) continue;
       activeHoldingCount += 1;
       aShareMarketValue += marketValue;
       const classification = sw.stockIndustries[code];
@@ -214,9 +230,12 @@ const payload = {
   version: 2,
   period,
   quarter: `Q${quarterNumber}`,
+  priorPeriod: priorPayload?.period ?? null,
   generatedAt: new Date().toISOString(),
-  source: "东方财富基金季度前十大重仓股；申万宏源研究申万2021行业分类",
-  sourceUrls: ["https://fundf10.eastmoney.com/", SW_SOURCE_URL],
+  source: `东方财富基金季度前十大重仓股；${sw.source}`,
+  classificationGeneratedAt: sw.generatedAt,
+  classificationTiming: sw.classificationTiming ?? "抓取时点的申万2021分类，非历史时点分类",
+  sourceUrls: ["https://fundf10.eastmoney.com/", ...(sw.sourceUrls ?? [SW_SOURCE_URL])],
   scope: {
     fundUniverse: "主动偏股公募基金",
     fundTypes: ACTIVE_FUND_TYPE_LABELS,
@@ -241,6 +260,7 @@ const payload = {
   },
 };
 payload.contentHash = createHash("sha256").update(JSON.stringify({ scope: payload.scope, industries })).digest("hex");
+await writeFile(path.join(outputDir, "sw-industry-cache.json"), `${JSON.stringify(sw, null, 2)}\n`);
 await writeFile(outputFile, `${JSON.stringify(payload, null, 2)}\n`);
 console.log(JSON.stringify({
   period,

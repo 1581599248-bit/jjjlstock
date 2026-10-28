@@ -1,0 +1,402 @@
+{
+  "version": 2,
+  "period": "2026-09-30",
+  "quarter": "Q3",
+  "priorPeriod": "2026-06-30",
+  "generatedAt": "2026-10-28T16:30:09.357Z",
+  "source": "东方财富基金季度前十大重仓股；新浪财经申万2021一级行业分类",
+  "classificationGeneratedAt": "2026-10-28T16:29:06.669Z",
+  "classificationTiming": "抓取时点的申万2021分类，与原实时成分股接口口径一致；非历史时点分类",
+  "sourceUrls": [
+    "https://fundf10.eastmoney.com/",
+    "https://vip.stock.finance.sina.com.cn/mkt/#sw1_hy"
+  ],
+  "scope": {
+    "fundUniverse": "主动偏股公募基金",
+    "fundTypes": [
+      "普通股票型",
+      "偏股混合型",
+      "灵活配置型",
+      "平衡混合型"
+    ],
+    "sourceFundTypes": [
+      "股票型",
+      "股票型-普通股票",
+      "混合型-偏股",
+      "混合型-灵活",
+      "混合型-平衡"
+    ],
+    "classification": "申万一级行业（2021）",
+    "holdingScope": "季度前十大重仓股中的A股持仓",
+    "denominator": "纳入统计且完成申万一级分类的A股重仓持仓总市值"
+  },
+  "activeFundCount": 4917,
+  "activeCompanyCount": 161,
+  "activeHoldingCount": 43303,
+  "classifiedMarketValue": 177502362.17000213,
+  "aShareMarketValue": 177512642.33000213,
+  "classificationCoverage": 0.9999420877304002,
+  "industryCount": 31,
+  "typeCounts": {
+    "混合型-偏股": 2956,
+    "混合型-平衡": 41,
+    "混合型-灵活": 1311,
+    "股票型": 609
+  },
+  "industries": [
+    {
+      "rank": 1,
+      "industry": "电子",
+      "industryCode": "801080",
+      "marketValue": 64781891.76000012,
+      "allocationShare": 36.496354734679834,
+      "qoqChange": -6.637463376754731,
+      "fundCount": 3249,
+      "companyCount": 159,
+      "holdingCount": 11818
+    },
+    {
+      "rank": 2,
+      "industry": "通信",
+      "industryCode": "801770",
+      "marketValue": 27045958.480000056,
+      "allocationShare": 15.236956933619231,
+      "qoqChange": -1.7241475318774722,
+      "fundCount": 1948,
+      "companyCount": 152,
+      "holdingCount": 3996
+    },
+    {
+      "rank": 3,
+      "industry": "医药生物",
+      "industryCode": "801150",
+      "marketValue": 16712866.609999957,
+      "allocationShare": 9.41557419613001,
+      "qoqChange": 3.8092149657710745,
+      "fundCount": 1715,
+      "companyCount": 146,
+      "holdingCount": 4012
+    },
+    {
+      "rank": 4,
+      "industry": "电力设备",
+      "industryCode": "801730",
+      "marketValue": 10706429.910000028,
+      "allocationShare": 6.031711228578462,
+      "qoqChange": -1.3117418240945744,
+      "fundCount": 1865,
+      "companyCount": 147,
+      "holdingCount": 3227
+    },
+    {
+      "rank": 5,
+      "industry": "机械设备",
+      "industryCode": "801890",
+      "marketValue": 10033140.190000014,
+      "allocationShare": 5.6523981243645744,
+      "qoqChange": -0.4855529770544882,
+      "fundCount": 1678,
+      "companyCount": 150,
+      "holdingCount": 2519
+    },
+    {
+      "rank": 6,
+      "industry": "有色金属",
+      "industryCode": "801050",
+      "marketValue": 7051552.250000002,
+      "allocationShare": 3.972652624896568,
+      "qoqChange": 0.3622769313901819,
+      "fundCount": 1233,
+      "companyCount": 132,
+      "holdingCount": 2147
+    },
+    {
+      "rank": 7,
+      "industry": "汽车",
+      "industryCode": "801880",
+      "marketValue": 5042027.689999996,
+      "allocationShare": 2.840541178359652,
+      "qoqChange": 0.8931058160835694,
+      "fundCount": 1014,
+      "companyCount": 133,
+      "holdingCount": 1530
+    },
+    {
+      "rank": 8,
+      "industry": "基础化工",
+      "industryCode": "801030",
+      "marketValue": 4058964.320000002,
+      "allocationShare": 2.28671003043472,
+      "qoqChange": 0.11183942290776727,
+      "fundCount": 1052,
+      "companyCount": 134,
+      "holdingCount": 1610
+    },
+    {
+      "rank": 9,
+      "industry": "食品饮料",
+      "industryCode": "801120",
+      "marketValue": 3956060.8099999954,
+      "allocationShare": 2.228736993489188,
+      "qoqChange": 0.6373338106328856,
+      "fundCount": 835,
+      "companyCount": 124,
+      "holdingCount": 1443
+    },
+    {
+      "rank": 10,
+      "industry": "银行",
+      "industryCode": "801780",
+      "marketValue": 3838874.610000002,
+      "allocationShare": 2.162717477710711,
+      "qoqChange": 1.0624821342119715,
+      "fundCount": 845,
+      "companyCount": 123,
+      "holdingCount": 1713
+    },
+    {
+      "rank": 11,
+      "industry": "国防军工",
+      "industryCode": "801740",
+      "marketValue": 3481818.729999997,
+      "allocationShare": 1.9615619124354526,
+      "qoqChange": 0.5270328270402767,
+      "fundCount": 607,
+      "companyCount": 108,
+      "holdingCount": 986
+    },
+    {
+      "rank": 12,
+      "industry": "家用电器",
+      "industryCode": "801110",
+      "marketValue": 2930903.0999999996,
+      "allocationShare": 1.651191040034126,
+      "qoqChange": 0.509060985669981,
+      "fundCount": 712,
+      "companyCount": 118,
+      "holdingCount": 923
+    },
+    {
+      "rank": 13,
+      "industry": "计算机",
+      "industryCode": "801750",
+      "marketValue": 2737638.389999999,
+      "allocationShare": 1.542310962249639,
+      "qoqChange": 0.3934852924144989,
+      "fundCount": 564,
+      "companyCount": 118,
+      "holdingCount": 833
+    },
+    {
+      "rank": 14,
+      "industry": "交通运输",
+      "industryCode": "801170",
+      "marketValue": 1796065.5400000012,
+      "allocationShare": 1.0118544441002013,
+      "qoqChange": 0.2907775791434638,
+      "fundCount": 568,
+      "companyCount": 112,
+      "holdingCount": 770
+    },
+    {
+      "rank": 15,
+      "industry": "煤炭",
+      "industryCode": "801950",
+      "marketValue": 1643346.41,
+      "allocationShare": 0.9258166426123907,
+      "qoqChange": 0.5743097824715095,
+      "fundCount": 396,
+      "companyCount": 91,
+      "holdingCount": 625
+    },
+    {
+      "rank": 16,
+      "industry": "石油石化",
+      "industryCode": "801960",
+      "marketValue": 1564318.34,
+      "allocationShare": 0.8812943787766502,
+      "qoqChange": 0.3978201595445977,
+      "fundCount": 452,
+      "companyCount": 101,
+      "holdingCount": 558
+    },
+    {
+      "rank": 17,
+      "industry": "非银金融",
+      "industryCode": "801790",
+      "marketValue": 1508791.0299999972,
+      "allocationShare": 0.8500118035358646,
+      "qoqChange": -0.10107054642630298,
+      "fundCount": 588,
+      "companyCount": 112,
+      "holdingCount": 914
+    },
+    {
+      "rank": 18,
+      "industry": "农林牧渔",
+      "industryCode": "801010",
+      "marketValue": 1492056.4399999976,
+      "allocationShare": 0.8405839909730255,
+      "qoqChange": 0.3915037429735996,
+      "fundCount": 371,
+      "companyCount": 85,
+      "holdingCount": 563
+    },
+    {
+      "rank": 19,
+      "industry": "建筑材料",
+      "industryCode": "801710",
+      "marketValue": 1412864.0700000005,
+      "allocationShare": 0.795969164988822,
+      "qoqChange": -0.9774504309437012,
+      "fundCount": 345,
+      "companyCount": 88,
+      "holdingCount": 425
+    },
+    {
+      "rank": 20,
+      "industry": "公用事业",
+      "industryCode": "801160",
+      "marketValue": 1016652,
+      "allocationShare": 0.5727540679297022,
+      "qoqChange": 0.3423292197479424,
+      "fundCount": 379,
+      "companyCount": 106,
+      "holdingCount": 534
+    },
+    {
+      "rank": 21,
+      "industry": "房地产",
+      "industryCode": "801180",
+      "marketValue": 948546.2299999997,
+      "allocationShare": 0.5343851306561959,
+      "qoqChange": 0.28907752640834633,
+      "fundCount": 193,
+      "companyCount": 66,
+      "holdingCount": 279
+    },
+    {
+      "rank": 22,
+      "industry": "传媒",
+      "industryCode": "801760",
+      "marketValue": 803855.4800000001,
+      "allocationShare": 0.4528702999626061,
+      "qoqChange": 0.1909879765193146,
+      "fundCount": 215,
+      "companyCount": 70,
+      "holdingCount": 329
+    },
+    {
+      "rank": 23,
+      "industry": "轻工制造",
+      "industryCode": "801140",
+      "marketValue": 722612.6699999995,
+      "allocationShare": 0.40710031188650897,
+      "qoqChange": 0.008172215116145853,
+      "fundCount": 302,
+      "companyCount": 94,
+      "holdingCount": 356
+    },
+    {
+      "rank": 24,
+      "industry": "建筑装饰",
+      "industryCode": "801720",
+      "marketValue": 431625.5,
+      "allocationShare": 0.2431660597207222,
+      "qoqChange": 0.05908378037327308,
+      "fundCount": 179,
+      "companyCount": 63,
+      "holdingCount": 206
+    },
+    {
+      "rank": 25,
+      "industry": "商贸零售",
+      "industryCode": "801200",
+      "marketValue": 413924.02999999985,
+      "allocationShare": 0.23319353328017453,
+      "qoqChange": 0.18114020142872989,
+      "fundCount": 180,
+      "companyCount": 63,
+      "holdingCount": 204
+    },
+    {
+      "rank": 26,
+      "industry": "纺织服饰",
+      "industryCode": "801130",
+      "marketValue": 375607.6999999999,
+      "allocationShare": 0.21160715576295444,
+      "qoqChange": 0.07707965205084175,
+      "fundCount": 216,
+      "companyCount": 83,
+      "holdingCount": 260
+    },
+    {
+      "rank": 27,
+      "industry": "社会服务",
+      "industryCode": "801210",
+      "marketValue": 268973.08000000013,
+      "allocationShare": 0.1515321129881034,
+      "qoqChange": 0.04357614205001277,
+      "fundCount": 136,
+      "companyCount": 55,
+      "holdingCount": 155
+    },
+    {
+      "rank": 28,
+      "industry": "综合",
+      "industryCode": "801230",
+      "marketValue": 245275.41,
+      "allocationShare": 0.13818149065818547,
+      "qoqChange": 0.09758615250000638,
+      "fundCount": 37,
+      "companyCount": 21,
+      "holdingCount": 37
+    },
+    {
+      "rank": 29,
+      "industry": "环保",
+      "industryCode": "801970",
+      "marketValue": 243182.63999999998,
+      "allocationShare": 0.13700248099633336,
+      "qoqChange": 0.027230654816631825,
+      "fundCount": 153,
+      "companyCount": 71,
+      "holdingCount": 173
+    },
+    {
+      "rank": 30,
+      "industry": "钢铁",
+      "industryCode": "801040",
+      "marketValue": 192533.54999999996,
+      "allocationShare": 0.10846816213949974,
+      "qoqChange": -0.022756018846013373,
+      "fundCount": 95,
+      "companyCount": 49,
+      "holdingCount": 98
+    },
+    {
+      "rank": 31,
+      "industry": "美容护理",
+      "industryCode": "801980",
+      "marketValue": 44005.200000000004,
+      "allocationShare": 0.02479133204878379,
+      "qoqChange": -0.016324265271159856,
+      "fundCount": 53,
+      "companyCount": 37,
+      "holdingCount": 54
+    }
+  ],
+  "quality": {
+    "minimumClassificationCoverage": 0.9,
+    "unclassifiedStockCount": 1,
+    "topUnclassified": [
+      {
+        "stockCode": "601198",
+        "stockName": "东兴证券",
+        "marketValue": 10280.16,
+        "occurrences": 6
+      }
+    ]
+  },
+  "contentHash": "f06d91c6015bcf92c2c500dd6abe91c68994286ca82b9944d8b467ece7e7d22c"
+}

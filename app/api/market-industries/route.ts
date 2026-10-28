@@ -229,9 +229,6 @@ export async function GET(request: Request) {
   if (!/^\d{4}-(03-31|06-30|09-30|12-31)$/.test(period)) {
     return Response.json({ error: "invalid period" }, { status: 400 });
   }
-  if (publishedPeriods.pendingIndustryPeriods.includes(period)) {
-    return Response.json({ error: "当前财报期的申万全行业汇总暂未发布，请切换其他财报期查看。" }, { status: 503 });
-  }
 
   try {
     const staticResponse = await fetch(new URL(`/data/market-industries/${period}.json`, request.url), { cache: "force-cache" });
@@ -249,6 +246,10 @@ export async function GET(request: Request) {
     }
   } catch {
     // Generate from the published fund-product snapshots below.
+  }
+
+  if ((publishedPeriods.pendingIndustryPeriods as string[]).includes(period)) {
+    return Response.json({ error: "当前财报期的申万全行业汇总暂未发布，请切换其他财报期查看。" }, { status: 503 });
   }
 
   const cacheKey = `${new URL(request.url).origin}|${period}`;
