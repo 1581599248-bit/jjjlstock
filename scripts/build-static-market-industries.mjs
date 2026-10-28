@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { previousPublishedPeriod } from "./lib/report-periods.mjs";
 
 const args = new Map(process.argv.slice(2).map((item) => {
   const [key, ...rest] = item.replace(/^--/, "").split("=");
@@ -179,8 +180,7 @@ let priorPayload = null;
 try {
   const published = JSON.parse(await readFile(path.join(root, "app/data/published-periods.json"), "utf8"));
   const ordered = published.periods ?? [];
-  const position = ordered.indexOf(period);
-  const priorPeriod = position >= 0 ? ordered[position + 1] : null;
+  const priorPeriod = previousPublishedPeriod(ordered, period);
   if (priorPeriod) {
     const priorFile = path.join(outputDir, `${priorPeriod}.json`);
     if (existsSync(priorFile)) {
